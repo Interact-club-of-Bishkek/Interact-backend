@@ -17,10 +17,12 @@ djangorestframework==3.16.0
 djangorestframework_simplejwt==5.5.0
 fonttools==4.58.5
 frozenlist==1.7.0
+gunicorn==23.0.0
 idna==3.10
 magic-filter==1.0.12
 multidict==6.6.3
 nest-asyncio==1.6.0
+packaging==25.0
 pillow==11.3.0
 propcache==0.3.2
 pycparser==2.22

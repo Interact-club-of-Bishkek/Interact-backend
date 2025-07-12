@@ -11,7 +11,7 @@ import {
 
 const API_BASE = "http://localhost:8000";
 
-const Table = ({ title, data }) => (
+const Table = ({ title, data, onSendToWaiting, onSendToVolunteers }) => (
   <div className="w-full md:w-1/2 px-4 mb-8">
     <div className="bg-white rounded-xl shadow-2xl border-2 border-indigo-400 overflow-hidden">
       <h2 className="text-2xl font-bold text-white text-center py-3 bg-gradient-to-r from-indigo-500 to-violet-600 shadow-inner">
@@ -47,6 +47,26 @@ const Table = ({ title, data }) => (
           )}
         </tbody>
       </table>
+      {onSendToWaiting && (
+        <div className="p-4">
+          <button
+            onClick={onSendToWaiting}
+            className="w-full px-6 py-2 mt-4 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-semibold rounded-md shadow hover:from-purple-600 hover:to-indigo-700 transition"
+          >
+            Разослать сообщение листу ожидания
+          </button>
+        </div>
+      )}
+      {onSendToVolunteers && (
+        <div className="p-4">
+          <button
+            onClick={onSendToVolunteers}
+            className="w-full px-6 py-2 mt-4 bg-gradient-to-r from-green-400 to-blue-500 text-white font-semibold rounded-md shadow hover:from-green-500 hover:to-blue-600 transition"
+          >
+            Разослать и завершить регистрацию
+          </button>
+        </div>
+      )}
     </div>
   </div>
 );
@@ -182,6 +202,15 @@ export default function App() {
     }
   };
 
+  const sendWaitingMessage = async () => {
+    try {
+      await axios.post(`${API_BASE}/waitinglist/send-text`);
+      alert("Сообщения отправлены всем в листе ожидания");
+    } catch {
+      alert("Ошибка при отправке сообщений листу ожидания");
+    }
+  };
+
   return (
     <Router>
       <Routes>
@@ -191,16 +220,8 @@ export default function App() {
             <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-indigo-100 p-6">
               <div className="flex flex-col md:flex-row gap-6 max-w-7xl mx-auto">
                 <Table title="Новые заявки" data={forms} />
-                <Table title="Лист ожидания" data={waiting} />
-                <Table title="Ожидают рассылку" data={mailing} />
-              </div>
-              <div className="flex justify-center mt-8">
-                <button
-                  onClick={approveAllMailing}
-                  className="px-8 py-3 bg-gradient-to-r from-green-400 to-blue-500 text-white font-semibold rounded-lg shadow-lg hover:from-green-500 hover:to-blue-600 transition"
-                >
-                  Разослать и завершить регистрацию
-                </button>
+                <Table title="Лист ожидания" data={waiting} onSendToWaiting={sendWaitingMessage} />
+                <Table title="Ожидают рассылку" data={mailing} onSendToVolunteers={approveAllMailing} />
               </div>
             </div>
           }

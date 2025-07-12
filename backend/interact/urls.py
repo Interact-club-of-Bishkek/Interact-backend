@@ -21,7 +21,7 @@ urlpatterns = [
     path('api/', include(router.urls)),
 
     path('api/login', VolunteerLoginView.as_view(), name='volunteer-login'),
-    path('profile', VolunteerProfileView.as_view()),
+    path('api/profile', VolunteerProfileView.as_view()),
 
     path('api/volunteerform', VolunteerFormListView.as_view()),
     path('api/volunteerform/<int:pk>', VolunteerFormDetailView.as_view()),
