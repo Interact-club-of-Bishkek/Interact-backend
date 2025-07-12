@@ -41,21 +41,8 @@ class VerifyVolunteerFormView(APIView):
         )
         form.delete()
 
-        # 📩 Отправка сообщения из TextMailing
-        if waiting.telegram_id:
-            try:
-                text = TextMailing.objects.latest("id").text
-            except TextMailing.DoesNotExist:
-                text = "Ваша заявка прошла проверку и перенесена в лист ожидания ✅"
-
-            # Асинхронная отправка
-            nest_asyncio.apply()
-            try:
-                asyncio.run(send_text_to_user(waiting.telegram_id, text))
-            except Exception as e:
-                print(f"❌ Ошибка Telegram рассылки: {e}")
-
         return Response({"detail": f"Заявка перенесена в лист ожидания {waiting.name}"}, status=200)
+
 
 class ApproveWaitingListView(APIView):
     def post(self, request, pk):
@@ -138,7 +125,31 @@ class ApproveAllFromMailingPendingView(APIView):
 
         created_names = async_to_sync(process_and_send)()
         return Response({"detail": f"Создано и разослано: {created_names}"}, status=200)
-    
+
+
+class SendTextToWaitingListView(APIView):
+    def post(self, request):
+        nest_asyncio.apply()
+
+        async def send_texts():
+            try:
+                text = await sync_to_async(TextMailing.objects.latest)("id")
+            except TextMailing.DoesNotExist:
+                text = "Ваша заявка прошла проверку и перенесена в лист ожидания ✅"
+
+            waiting_list = await sync_to_async(list)(WaitingList.objects.all())
+            count = 0
+            for volunteer in waiting_list:
+                if volunteer.telegram_id:
+                    try:
+                        await send_text_to_user(volunteer.telegram_id, text.text)
+                        count += 1
+                    except Exception as e:
+                        print(f"Ошибка при отправке пользователю {volunteer.name}: {e}")
+            return count
+
+        count = async_to_sync(send_texts)()
+        return Response({"detail": f"Сообщения отправлены {count} пользователям"}, status=status.HTTP_200_OK)
 
 class VolunteerFormListView(ListAPIView):
     queryset = VolunteerForm.objects.all()
@@ -170,7 +181,6 @@ class WaitingListDetailView(RetrieveAPIView):
     serializer_class = WaitingListSerializer
 
 def schedule_view(request):
-    # Сортируем волонтёров по имени по алфавиту
     volunteers = WaitingList.objects.all().order_by('name')
 
     start_time = datetime.strptime("09:00", "%H:%M")
@@ -185,7 +195,6 @@ def schedule_view(request):
         interval_end = interval_start + block_duration
         interval_str = f"{interval_start.strftime('%H:%M')}-{interval_end.strftime('%H:%M')}"
 
-        # Внутри блока отсортируем по имени, если нужно (обычно уже отсортированы)
         block_volunteers = sorted(block_volunteers, key=lambda v: v.name)
 
         for volunteer in block_volunteers:

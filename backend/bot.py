@@ -9,16 +9,19 @@ from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 from django.core.files.base import ContentFile
 from asgiref.sync import sync_to_async
-from asgiref.sync import async_to_sync
+from dotenv import load_dotenv
 
-# Инициализация Django
+# Загрузка .env
+load_dotenv()
+
+# Django и токен
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "interact.settings")
 django.setup()
 
 from form.models import VolunteerForm
 from users.models import Volunteer
 
-BOT_TOKEN = "7812750597:AAFGYMnhgpeU09w6ZzajzpxbYRQX3iIvQdY"
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
@@ -96,12 +99,14 @@ async def send_account_data_to_users():
         except Exception as e:
             print(f"❌ Ошибка отправки {volunteer.name} ({volunteer.telegram_id}): {e}")
 
+
 async def send_single_message(user_id: int, message: str):
     try:
         await bot.send_message(chat_id=user_id, text=message)
     except Exception as e:
         print(f"Ошибка при отправке сообщения {user_id}: {e}")
-        
+
+
 async def send_text_to_user(telegram_id: int, text: str):
     bot = Bot(token=BOT_TOKEN)
     try:
@@ -110,6 +115,7 @@ async def send_text_to_user(telegram_id: int, text: str):
         print(f"❌ Ошибка отправки сообщения пользователю {telegram_id}: {e}")
     finally:
         await bot.session.close()
+
 
 if __name__ == '__main__':
     asyncio.run(dp.start_polling(bot))

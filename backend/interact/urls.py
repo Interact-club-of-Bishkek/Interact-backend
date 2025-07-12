@@ -9,7 +9,7 @@ from form.views import (
     WaitingListListView, WaitingListDetailView,
     MailingPendingListView, MailingPendingDetailView,
     VerifyVolunteerFormView, ApproveWaitingListView, ApproveAllFromMailingPendingView,
-    schedule_view
+    SendTextToWaitingListView, schedule_view
 )
 
 router = DefaultRouter()
@@ -35,6 +35,8 @@ urlpatterns = [
     path('api/mailingpending/<int:pk>', MailingPendingDetailView.as_view()),
 
     path('mailing/approve-all', ApproveAllFromMailingPendingView.as_view()),
+
+    path("waitinglist/send-text", SendTextToWaitingListView.as_view()),
 
     path('schedule', schedule_view, name='schedule'),
 ]
