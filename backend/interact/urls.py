@@ -12,6 +12,9 @@ from form.views import (
     SendTextToWaitingListView, schedule_view
 )
 
+from teatre import views
+
+
 router = DefaultRouter()
 router.register(r'direction', DirectionViewSet)
 router.register(r'volunteer', VolunteerViewSet)
@@ -39,6 +42,9 @@ urlpatterns = [
     path("waitinglist/send-text", SendTextToWaitingListView.as_view()),
 
     path('schedule', schedule_view, name='schedule'),
+
+    path('book/', views.booking_page, name='booking_page'), 
+    path('api/book/', views.api_book, name='api_book'),
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

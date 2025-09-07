@@ -50,7 +50,8 @@ INSTALLED_APPS = [
     'users',
     'form',
     'directions',
-    'projects'
+    'projects',
+    'teatre'
 
 ]
 
