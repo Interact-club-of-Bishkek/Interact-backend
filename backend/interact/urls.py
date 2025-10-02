@@ -45,6 +45,9 @@ urlpatterns = [
 
     path('book/', views.booking_page, name='booking_page'), 
     path('api/book/', views.api_book, name='api_book'),
+
+    path('finik/', include('finik.urls')),
+
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

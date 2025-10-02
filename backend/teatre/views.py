@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from django.http import JsonResponse, FileResponse
+from django.http import JsonResponse
 from .models import Booking
 import json
 import os
@@ -11,7 +11,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from io import BytesIO
 
-# Регистрация шрифта для кириллицы
+# Шрифт кириллицы
 FONT_PATH = os.path.join(settings.BASE_DIR, 'system-images', 'mavka-script.ttf')
 pdfmetrics.registerFont(TTFont('MavkaScript', FONT_PATH))
 
@@ -27,8 +27,9 @@ def api_book(request):
         row = int(data.get('row'))
         seat = int(data.get('seat'))
         price = int(data.get('price', 1000))
+        hall_type = data.get('hall_type', 'parter')
 
-        if Booking.objects.filter(row=row, seat=seat).exists():
+        if Booking.objects.filter(row=row, seat=seat, hall_type=hall_type).exists():
             return JsonResponse({'error': 'Место уже занято'}, status=400)
 
         booking = Booking.objects.create(
@@ -36,10 +37,11 @@ def api_book(request):
             phone=phone,
             row=row,
             seat=seat,
-            price=price
+            price=price,
+            hall_type=hall_type
         )
 
-        # Генерация PDF в памяти
+        # Генерация PDF
         buffer = BytesIO()
         c = canvas.Canvas(buffer, pagesize=A5)
 
@@ -49,21 +51,19 @@ def api_book(request):
             c.drawImage(bg, 0, 0, width=A5[0], height=A5[1])
 
         c.setFont("MavkaScript", 16)
-        # c.drawString(50, 300, f"Адрес: ")
         c.drawString(50, 250, f"ФИО: {full_name}")
         c.drawString(50, 230, f"Ряд: {row}")
         c.drawString(50, 210, f"Место: {seat}")
-        c.drawString(50, 190, f"Цена: {price} сом")
+        c.drawString(50, 190, f"Ложа: {booking.get_hall_type_display()}")
+        c.drawString(50, 170, f"Цена: {price} сом")
 
         c.showPage()
         c.save()
         buffer.seek(0)
 
-        # Сохраняем PDF в поле модели (если нужно)
         booking.ticket_pdf.save(f"ticket_{booking.id}.pdf", buffer, save=True)
         buffer.seek(0)
 
-        # Возвращаем URL для скачивания
         return JsonResponse({'success': True, 'ticket_url': booking.ticket_pdf.url})
 
     return JsonResponse({'error': 'Метод не поддерживается'}, status=405)

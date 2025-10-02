@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Схема зала</title>
+<style>
+body { font-family: Arial, sans-serif; background: #f8f8f8; text-align: center; }
+.legend { margin: 20px auto; display: flex; justify-content: center; gap: 20px; }
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 14px; }
+.legend-color { width: 16px; height: 16px; border-radius: 3px; }
+.free-2000 { background: #2e7d32; }   /* зелёный */
+.free-3000 { background: #1565c0; }   /* синий */
+.free-1000 { background: #e91e63; }   /* розовый */
+.booked { background: #616161; }      /* серый занято */
+.disabled { background: #cfcfcf; }    /* недоступно */
+
+.hall { margin: 30px auto; display: flex; flex-direction: column; gap: 5px; }
+.row { display: flex; justify-content: center; gap: 4px; }
+.seat {
+  width: 26px; height: 26px;
+  font-size: 11px; line-height: 26px;
+  border-radius: 4px; cursor: pointer;
+  color: #fff; text-align: center;
+}
+.seat.disabled, .seat.booked { cursor: not-allowed; }
+h2 { margin: 30px 0 10px; }
+.stage { margin: 30px auto; width: 70%; padding: 8px;
+         background: #333; color: white; border-radius: 4px; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-color free-2000"></div> 2000 сом</div>
+  <div class="legend-item"><div class="legend-color free-3000"></div> 3000 сом</div>
+  <div class="legend-item"><div class="legend-color free-1000"></div> 1000 сом</div>
+  <div class="legend-item"><div class="legend-color booked"></div> Забронировано</div>
+  <div class="legend-item"><div class="legend-color disabled"></div> Недоступно</div>
+</div>
+
+<h2>Балкон</h2>
+<div class="hall" id="balcony"></div>
+
+<h2>Партер</h2>
+<div class="hall" id="parter"></div>
+
+<div class="stage">СЦЕНА</div>
+
+<script>
+// === КОНФИГУРАЦИЯ БАЛКОНА ===
+// каждый объект — ряд, segments: массив диапазонов мест [от, до]
+let balconyRows = [
+  { row: 1, segments: [[3,45]] },
+  { row: 2, segments: [[3,45]] },
+  { row: 3, segments: [[3,45]] },
+  { row: 4, segments: [[3,45]] },
+  { row: 5, segments: [[3,45]] },
+  { row: 6, segments: [[3,45]] },
+  { row: 7, segments: [[3,45]] }
+];
+
+// === КОНФИГУРАЦИЯ ПАРТЕРА ===
+// здесь сегменты заданы по картинке (можно дополнить до точного вида)
+let parterRows = [
+  { row: 1, segments: [[7,18],[19,35],[36,48]] },
+  { row: 2, segments: [[7,18],[19,35],[36,48]] },
+  { row: 3, segments: [[7,18],[19,35],[36,48]] },
+  { row: 4, segments: [[7,18],[19,35],[36,48]] },
+  { row: 5, segments: [[7,18],[19,35],[36,48]] },
+  { row: 6, segments: [[7,18],[19,35],[36,48]] },
+  { row: 7, segments: [[7,18],[19,35],[36,48]] },
+  { row: 8, segments: [[7,18],[19,35],[36,48]] },
+  { row: 9, segments: [[7,18],[19,35],[36,48]] },
+  { row: 10,segments: [[7,18],[19,35],[36,48]] },
+  { row: 11,segments: [[7,18],[19,35],[36,48]] },
+  { row: 12,segments: [[5,14],[15,29],[30,44],[45,55]] },
+  { row: 13,segments: [[5,14],[15,29],[30,44],[45,55]] },
+  { row: 14,segments: [[5,14],[15,29],[30,44],[45,55]] },
+  { row: 15,segments: [[5,14],[15,29],[30,44],[45,55]] },
+  { row: 16,segments: [[5,14],[15,29],[30,44],[45,55]] }
+];
+
+// === СОЗДАНИЕ МЕСТА ===
+function createSeat(num, priceClass, status="free") {
+  let seat = document.createElement("div");
+  seat.className = "seat " + priceClass;
+  if(status!=="free") seat.classList.add(status);
+  seat.innerText = num;
+  return seat;
+}
+
+// === РЕНДЕР БАЛКОН ===
+let balcony = document.getElementById("balcony");
+balconyRows.forEach(r=>{
+  let div = document.createElement("div");
+  div.className="row";
+  r.segments.forEach(seg=>{
+    for(let i=seg[0]; i<=seg[1]; i++){
+      div.appendChild(createSeat(i,"free-1000")); // балкон всегда 1000 сом
+    }
+  });
+  balcony.appendChild(div);
+});
+
+// === РЕНДЕР ПАРТЕР ===
+let parter = document.getElementById("parter");
+parterRows.forEach(r=>{
+  let div = document.createElement("div");
+  div.className="row";
+  r.segments.forEach(seg=>{
+    for(let i=seg[0]; i<=seg[1]; i++){
+      let color = (i<=10||i>=45) ? "free-3000" : "free-2000"; // условно края = 3000, середина = 2000
+      div.appendChild(createSeat(i,color));
+    }
+  });
+  parter.appendChild(div);
+});
+</script>
+</body>
+</html>

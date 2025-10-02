@@ -31,6 +31,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "*").split()
 
+FINIK_ENV = os.getenv("FINIK_ENV", "beta") 
 
 
 # Application definition
@@ -51,9 +52,32 @@ INSTALLED_APPS = [
     'form',
     'directions',
     'projects',
-    'teatre'
+    'teatre',
+    'finik',
+
 
 ]
+
+with open(BASE_DIR / "keys/finik_private.pem", "r") as f:
+    FINIK_PRIVATE_PEM = f.read()
+
+with open(BASE_DIR / "keys/finik_public.pem", "r") as f:
+    FINIK_PUBLIC_PEM = f.read()
+
+if FINIK_ENV == "prod":
+    FINIK_BASE_URL = "https://api.acquiring.averspay.kg"
+    FINIK_HOST = "api.acquiring.averspay.kg"
+else:
+    FINIK_BASE_URL = "https://beta.api.acquiring.averspay.kg"
+    FINIK_HOST = "beta.api.acquiring.averspay.kg"
+
+FINIK_API_KEY = os.getenv("FINIK_API_KEY")
+FINIK_ACCOUNT_ID = os.getenv("FINIK_ACCOUNT_ID")
+FINIK_QR_NAME = os.getenv("FINIK_QR_NAME")
+FINIK_REDIRECT_URL = os.getenv("FINIK_REDIRECT_URL")
+FINIK_WEBHOOK_URL = os.getenv("FINIK_WEBHOOK_URL")
+
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -143,7 +167,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'ru-ru'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Bishkek'
 
 USE_I18N = True
 
