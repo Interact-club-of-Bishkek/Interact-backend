@@ -15,7 +15,7 @@ class DirectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Direction
         fields = ['name', 'volunteers']
-
+        ref_name = 'UsersDirectionSerializer'
 
 class VolunteerSerializer(serializers.ModelSerializer):
     direction = serializers.StringRelatedField(many=True)
