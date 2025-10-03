@@ -39,6 +39,8 @@ FINIK_ENV = os.getenv("FINIK_ENV", "beta")
 INSTALLED_APPS = [
     'corsheaders',
     'jazzmin',
+    'drf_yasg',
+    
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
