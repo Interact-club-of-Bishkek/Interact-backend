@@ -17,7 +17,7 @@ pdfmetrics.registerFont(TTFont('MavkaScript', FONT_PATH))
 
 def booking_page(request):
     bookings = Booking.objects.all()
-    return render(request, 'teatre.html', {'bookings': bookings})
+    return render(request, 'teatre_opera.html', {'bookings': bookings})
 
 def api_book(request):
     if request.method == "POST":
