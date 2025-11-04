@@ -1,6 +1,7 @@
 from django.db import models
 from users.models import Direction
 import datetime
+from time import timezone
 import uuid
 
 class Project(models.Model):
@@ -17,7 +18,14 @@ class Project(models.Model):
     direction = models.ForeignKey(Direction, on_delete=models.CASCADE, null=True, blank=True, verbose_name='Направление')
     price = models.IntegerField(verbose_name='Цена', default=0)
     category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, verbose_name='Категория')
-    date = models.DateField(default=datetime.date.today, verbose_name='Дата')
+
+    phone_number = models.CharField(max_length=50, verbose_name="Номер для записи")
+    address = models.CharField(max_length=200, verbose_name="Адрес")
+
+    time_start = models.DateTimeField(verbose_name="Время начало")
+    time_end = models.DateTimeField(verbose_name="Время конца")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.name
