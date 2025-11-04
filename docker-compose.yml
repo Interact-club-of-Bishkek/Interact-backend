@@ -23,4 +23,4 @@ services:
       - ./media:/app/media               # проброс медиа-файлов наружу
 
 volumes:
-  pgdata:
+  - pgdata:/var/lib/postgresql/data
