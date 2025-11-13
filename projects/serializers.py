@@ -1,11 +1,11 @@
 from rest_framework import serializers
 from .models import Project, YearResult
-from users.models import Direction
+from directions.models import ProjectDirection
 
 
 class DirectionSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Direction
+        model = ProjectDirection
         fields = ('id', 'name')  # добавил id для удобства
         ref_name = 'ProjectsDirectionSerializer'
 
@@ -21,7 +21,7 @@ class ProjectSerializer(serializers.ModelSerializer):
     direction = DirectionSerializer(read_only=True)
     # Поле для записи через id
     direction_id = serializers.PrimaryKeyRelatedField(
-        queryset=Direction.objects.all(),
+        queryset=ProjectDirection.objects.all(),
         source='direction',
         write_only=True,
         required=False,  # можно оставить пустым

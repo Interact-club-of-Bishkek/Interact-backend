@@ -7,16 +7,13 @@ from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 
-from users.views import DirectionViewSet, VolunteerViewSet, VolunteerLoginView, VolunteerProfileView
-# from form.views import (
-#     VolunteerFormListView, VolunteerFormDetailView,
-#     WaitingListListView, WaitingListDetailView,
-#     MailingPendingListView, MailingPendingDetailView,
-#     VerifyVolunteerFormView, ApproveWaitingListView, ApproveAllFromMailingPendingView,
-#     SendTextToWaitingListView, schedule_view
-# )
-from teatre import views
+from users.views import (
+    VolunteerViewSet, VolunteerLoginView, VolunteerProfileView,
+    VolunteerApplicationViewSet, VolunteerColumnsView, SendAcceptedVolunteersEmailsView
+)
+from directions.views import VolunteerDirectionViewSet, ProjectDirectionViewSet
 from projects.views import ProjectListView, YearResultListView
+from teatre import views
 
 # ------------------ Swagger ------------------
 schema_view = get_schema_view(
@@ -32,8 +29,10 @@ schema_view = get_schema_view(
 
 # ------------------ Router ------------------
 router = DefaultRouter()
-router.register(r'direction', DirectionViewSet)
 router.register(r'volunteer', VolunteerViewSet)
+router.register(r'volunteer-directions', VolunteerDirectionViewSet, basename='volunteer-directions')
+router.register(r'project-directions', ProjectDirectionViewSet, basename='project-directions')
+router.register(r'applications', VolunteerApplicationViewSet, basename='applications')  # <-- новый роут
 
 # ------------------ URLS ------------------
 urlpatterns = [
@@ -44,26 +43,8 @@ urlpatterns = [
     path('api/login', VolunteerLoginView.as_view(), name='volunteer-login'),
     path('api/profile', VolunteerProfileView.as_view()),
 
-    # # Volunteer Forms
-    # path('api/volunteerform', VolunteerFormListView.as_view()),
-    # path('api/volunteerform/<int:pk>', VolunteerFormDetailView.as_view()),
-    # path('api/volunteerform/<int:pk>/verify', VerifyVolunteerFormView.as_view()),
-
-    # # Waiting List
-    # path('api/waitinglist', WaitingListListView.as_view()),
-    # path('api/waitinglist/<int:pk>', WaitingListDetailView.as_view()),
-    # path('api/waitinglist/<int:pk>/approve', ApproveWaitingListView.as_view()),
-
-    # # Mailing
-    # path('api/mailingpending', MailingPendingListView.as_view()),
-    # path('api/mailingpending/<int:pk>', MailingPendingDetailView.as_view()),
-    # path('mailing/approve-all', ApproveAllFromMailingPendingView.as_view()),
-
-    # # Send text
-    # path("waitinglist/send-text", SendTextToWaitingListView.as_view()),
-
-    # Schedule
-    # path('schedule', schedule_view, name='schedule'),
+    # Volunteer columns view (для фронта)
+    path('api/volunteer-columns/', VolunteerColumnsView.as_view(), name='volunteer-columns'),
 
     # Booking
     path('book/', views.booking_page, name='booking_page'), 
@@ -75,6 +56,9 @@ urlpatterns = [
 
     # Finik payments
     path('finik/', include('finik.urls')),
+
+    path('users/send-accepted-emails/', SendAcceptedVolunteersEmailsView.as_view(), name='send-accepted-emails'),
+
 
     # ------------------ Swagger ------------------
     re_path(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),

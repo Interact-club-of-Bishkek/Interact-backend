@@ -1,5 +1,5 @@
 from django.db import models
-from users.models import Direction
+from directions.models import ProjectDirection
 import datetime
 from time import timezone
 import uuid
@@ -15,7 +15,14 @@ class Project(models.Model):
     image = models.ImageField(verbose_name='Обложка', upload_to='project/')
     name = models.CharField(verbose_name='Название проекта', max_length=100)
     title = models.TextField(verbose_name='Описание проекта', max_length=5000)
-    direction = models.ForeignKey(Direction, on_delete=models.CASCADE, null=True, blank=True, verbose_name='Направление')
+    direction = models.ForeignKey(
+        ProjectDirection,
+        on_delete=models.CASCADE,
+        verbose_name='Направление',
+        related_name='projects',
+        null=True,
+        blank=True
+    )    
     price = models.IntegerField(verbose_name='Цена', default=0)
     category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, verbose_name='Категория')
 
