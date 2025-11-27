@@ -24,11 +24,11 @@ class ProjectSerializer(serializers.ModelSerializer):
         queryset=ProjectDirection.objects.all(),
         source='direction',
         write_only=True,
-        required=False,  # можно оставить пустым
+        required=False,
     )
 
-    # Явные форматы даты и времени
-    date = serializers.DateField(format="%Y-%m-%d")
+    # Используем created_at как date
+    date = serializers.DateField(source='created_at', format="%Y-%m-%d", read_only=True)
     time_start = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S")
     time_end = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S")
 
@@ -40,14 +40,12 @@ class ProjectSerializer(serializers.ModelSerializer):
             'phone_number', 'address', 'date'
         )
 
-    # Валидация номера телефона
     def validate_phone_number(self, value):
         cleaned = value.replace('+', '').replace('-', '').replace(' ', '')
         if not cleaned.isdigit():
             raise serializers.ValidationError("Неверный формат номера")
         return value
 
-    # Дополнительно можно добавить валидацию времени
     def validate(self, data):
         time_start = data.get('time_start')
         time_end = data.get('time_end')
