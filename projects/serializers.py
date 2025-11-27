@@ -17,9 +17,7 @@ class YearResultSerializer(serializers.ModelSerializer):
 
 
 class ProjectSerializer(serializers.ModelSerializer):
-    # Nested serializer для чтения
     direction = DirectionSerializer(read_only=True)
-    # Поле для записи через id
     direction_id = serializers.PrimaryKeyRelatedField(
         queryset=ProjectDirection.objects.all(),
         source='direction',
@@ -27,8 +25,8 @@ class ProjectSerializer(serializers.ModelSerializer):
         required=False,
     )
 
-    # Используем created_at как date
-    date = serializers.DateField(source='created_at', format="%Y-%m-%d", read_only=True)
+    # Вывод только даты создания
+    date = serializers.SerializerMethodField()
     time_start = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S")
     time_end = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S")
 
@@ -39,6 +37,12 @@ class ProjectSerializer(serializers.ModelSerializer):
             'time_start', 'time_end', 'direction', 'direction_id',
             'phone_number', 'address', 'date'
         )
+
+    def get_date(self, obj):
+        if obj.created_at:
+            # Можно привести к локальной дате, если нужна таймзона
+            return obj.created_at.date()
+        return None
 
     def validate_phone_number(self, value):
         cleaned = value.replace('+', '').replace('-', '').replace(' ', '')
