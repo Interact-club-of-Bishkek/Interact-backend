@@ -37,7 +37,7 @@ class ProjectSerializer(serializers.ModelSerializer):
         fields = (
             'id', 'image', 'name', 'title', 'price',
             'time_start', 'time_end', 'direction', 'direction_id',
-            'phone_number', 'address'
+            'phone_number', 'address', 'date'
         )
 
     # Валидация номера телефона
