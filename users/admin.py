@@ -1,8 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from django.core.mail import send_mail
 from users.models import VolunteerApplication, Volunteer
-from django.db import transaction
 
 @admin.register(VolunteerApplication)
 class VolunteerApplicationAdmin(admin.ModelAdmin):
@@ -10,7 +8,6 @@ class VolunteerApplicationAdmin(admin.ModelAdmin):
     list_filter = ('status', 'directions')
     search_fields = ('full_name', 'email', 'phone_number')
     readonly_fields = ('created_at', 'updated_at', 'photo_tag')
-    actions = ['send_credentials_email']
 
     fieldsets = (
         ('Личная информация', {
@@ -42,34 +39,17 @@ class VolunteerApplicationAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
         if creating_volunteer:
-            with transaction.atomic():
-                volunteer = Volunteer.objects.create_user(
-                    name=obj.full_name,
-                    phone_number=obj.phone_number,
-                    email=obj.email
-                )
-                volunteer.direction.set(obj.directions.all())
-                volunteer.save()
-                obj.volunteer = volunteer
-                obj.volunteer_created = True
-                obj.save()
-
-    # ------------------ кнопка отправки email ------------------
-    def send_credentials_email(self, request, queryset):
-        sent_count = 0
-        for application in queryset.filter(status='accepted', volunteer_created=True):
-            volunteer = application.volunteer
-            if volunteer and volunteer.email:
-                send_mail(
-                    subject="Ваши данные для входа",
-                    message=f"Логин: {volunteer.login}\nПароль: {volunteer.visible_password}",
-                    from_email="admin@interact.kg",
-                    recipient_list=[volunteer.email],
-                    fail_silently=False,
-                )
-                sent_count += 1
-        self.message_user(request, f"Письма отправлены: {sent_count}")
-    send_credentials_email.short_description = "Отправить логин и пароль принятым волонтёрам"
+            # Создаем волонтера, но не отправляем письма
+            volunteer = Volunteer.objects.create_user(
+                name=obj.full_name,
+                phone_number=obj.phone_number,
+                email=obj.email
+            )
+            volunteer.direction.set(obj.directions.all())
+            volunteer.save()
+            obj.volunteer = volunteer
+            obj.volunteer_created = True
+            obj.save()
 
 
 @admin.register(Volunteer)
