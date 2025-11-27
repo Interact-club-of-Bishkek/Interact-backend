@@ -36,7 +36,7 @@ class VolunteerApplication(models.Model):
     ]
 
     full_name = models.CharField(max_length=200, verbose_name="ФИО")
-    email = models.EmailField(verbose_name="Email")
+    email = models.EmailField(verbose_name='Email', blank=True, null=True)
     phone_number = models.CharField(max_length=50, verbose_name="Телефон")
     photo = models.ImageField(upload_to='volunteers_photos/', verbose_name="Фото", null=True, blank=True)
 
@@ -128,7 +128,7 @@ class Volunteer(AbstractBaseUser, PermissionsMixin):
 
 class VolunteerArchive(models.Model):
     full_name = models.CharField(max_length=200)
-    email = models.EmailField()
+    email = models.EmailField(verbose_name='Email', blank=True, null=True)
     phone_number = models.CharField(max_length=50)
     photo = models.ImageField(upload_to='volunteers_archive_photos/', null=True, blank=True)
     why_volunteer = models.TextField()
