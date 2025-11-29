@@ -39,6 +39,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
 
+    path('', include('logs.urls')),
+
     # Auth
     path('api/login', VolunteerLoginView.as_view(), name='volunteer-login'),
     path('api/profile', VolunteerProfileView.as_view()),

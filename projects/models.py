@@ -1,10 +1,10 @@
 from django.db import models
 from directions.models import ProjectDirection
-import datetime
-from time import timezone
-import uuid
+from logs.loggable_model import LoggableModel
 
-class Project(models.Model):
+
+class Project(LoggableModel):
+    
     CATEGORY_CHOICES = [
         ("sport", "Спорт"),
         ("cyber_sport", "Киберспорт"),
@@ -49,8 +49,8 @@ class YearResult(models.Model):
     fundraising = models.IntegerField(verbose_name='Фандрайзинг')
     cultural = models.IntegerField(verbose_name='Культура')
     total_amount = models.IntegerField(verbose_name='Общая сумма')
-
-
+    
     class Meta:
         verbose_name = 'Результат года'
         verbose_name_plural = 'Результаты года'
+

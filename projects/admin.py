@@ -20,12 +20,13 @@ class ProjectAdmin(admin.ModelAdmin):
         }),
     )
 
-    # Красивое отображение категории на русском
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)  # правильно, request передается
+
     def category_verbose(self, obj):
         return dict(obj.CATEGORY_CHOICES).get(obj.category, obj.category)
     category_verbose.short_description = "Категория"
 
-    # Превью изображения
     def image_tag(self, obj):
         if obj.image:
             return format_html('<img src="{}" style="width: 100px; height:auto;"/>', obj.image.url)
