@@ -20,8 +20,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Копируем весь проект, кроме media
 COPY . .
 
-# Создаем папки, которые будут смонтированы как volumes
-RUN mkdir -p /app/media /app/staticfiles
 
 EXPOSE 8000
 
