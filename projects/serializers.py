@@ -1,14 +1,24 @@
 from rest_framework import serializers
 from .models import Project, YearResult
 from directions.models import ProjectDirection
+from django.utils import timezone
 
 
 class DirectionSerializer(serializers.ModelSerializer):
+    projects = serializers.SerializerMethodField()
+
     class Meta:
         model = ProjectDirection
-        fields = ('id', 'name')
+        fields = ('id', 'name', 'projects')
         ref_name = 'ProjectsDirectionSerializer'
 
+    def get_projects(self, obj):
+        now = timezone.now()
+        # Автоархивируем прямо здесь
+        Project.objects.filter(time_end__lt=now, is_archived=False).update(is_archived=True)
+        # Фильтруем только активные проекты
+        active_projects = obj.projects.filter(is_archived=False).order_by('time_start')
+        return ProjectSerializer(active_projects, many=True).data
 
 class YearResultSerializer(serializers.ModelSerializer):
     class Meta:

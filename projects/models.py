@@ -1,6 +1,7 @@
 from django.db import models
 from directions.models import ProjectDirection
 from logs.loggable_model import LoggableModel
+from django.utils import timezone
 
 
 class Project(LoggableModel):
@@ -34,6 +35,13 @@ class Project(LoggableModel):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    is_archived = models.BooleanField(default=False, verbose_name='В архиве')
+
+    @classmethod
+    def archive_expired(cls):
+        now = timezone.now()
+        cls.objects.filter(time_end__lt=now, is_archived=False).update(is_archived=True)
+
     def __str__(self):
         return self.name
 
@@ -49,7 +57,7 @@ class YearResult(models.Model):
     fundraising = models.IntegerField(verbose_name='Фандрайзинг')
     cultural = models.IntegerField(verbose_name='Культура')
     total_amount = models.IntegerField(verbose_name='Общая сумма')
-    
+
     class Meta:
         verbose_name = 'Результат года'
         verbose_name_plural = 'Результаты года'

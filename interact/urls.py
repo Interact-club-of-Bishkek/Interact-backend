@@ -12,7 +12,7 @@ from users.views import (
     VolunteerApplicationViewSet, VolunteerColumnsView, SendAcceptedVolunteersEmailsView
 )
 from directions.views import VolunteerDirectionViewSet, ProjectDirectionViewSet
-from projects.views import ProjectListView, YearResultListView
+from projects.views import ProjectListView, YearResultListView, ProjectArchiveListView
 from teatre import views
 
 # ------------------ Swagger ------------------
@@ -54,6 +54,7 @@ urlpatterns = [
 
     # Projects
     path('api/projects', ProjectListView.as_view()),
+    path('api/projects/archive', ProjectArchiveListView.as_view(), name='projects-archive'),
     path('api/year-result', YearResultListView.as_view()),
 
     # Finik payments
