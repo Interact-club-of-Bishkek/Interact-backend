@@ -10,6 +10,10 @@ services:
     env_file:
       - .env
     volumes:
-      - ./staticfiles:/app/staticfiles
-      - ./media:/app/media
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
     restart: always
+
+volumes:
+  static_volume:
+  media_volume:
