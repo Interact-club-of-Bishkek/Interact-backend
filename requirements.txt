@@ -10,6 +10,7 @@ attrs==25.3.0
 Brotli==1.1.0
 certifi==2025.7.9
 cffi==1.17.1
+chardet==5.2.0
 charset-normalizer==3.4.3
 cssselect2==0.8.0
 customtkinter==5.2.2
@@ -34,10 +35,9 @@ opencv-python==4.12.0.88
 packaging==25.0
 pillow==11.3.0
 propcache==0.3.2
-psycopg2==2.9.10
+psycopg2-binary
 pycparser==2.22
 pycryptodome==3.23.0
-pymystem3==0.2.0
 pydantic==2.11.7
 pydantic_core==2.33.2
 pydyf==0.11.0
