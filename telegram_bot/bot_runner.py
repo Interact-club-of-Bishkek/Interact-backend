@@ -104,35 +104,27 @@ async def stats(msg: types.Message):
 @dp.callback_query()
 async def cb(call: types.CallbackQuery):
     session = manager.chats.get(call.message.chat.id)
+    if not session:
+        return await call.answer("Нет раунда", show_alert=True)
+
     user = call.from_user
     data = call.data
 
-    # Сначала безопасно отвечаем на callback
-    try:
-        if not session:
-            await call.answer("Нет раунда", show_alert=True)
-            return
-        if data in ("view_word","change_word") and user.id != session["leader_id"]:
-            await call.answer("Сейчас не ваша очередь.", show_alert=True)
-            return
-    except Exception as e:
-        print(f"[WARNING] Ошибка при call.answer: {e}")
-        return
+    if data in ("view_word","change_word") and user.id != session["leader_id"]:
+        return await call.answer("Сейчас не ваша очередь.", show_alert=True)
 
-    # Теперь выполняем основную логику
     if data == "view_word":
-        await call.answer(f"📝 Ваше слово:\n\n{session['word']}", show_alert=True)
-    elif data == "change_word":
-        # Сначала отвечаем, потом меняем слово в фоне
-        await call.answer("🔄 Меняем слово...", show_alert=False)
+        return await call.answer(f"📝 Ваше слово:\n\n{session['word']}", show_alert=True)
+
+    if data == "change_word":
         new_word = await manager.change_word(call.message.chat.id)
-        await call.message.answer(f"🔄 Новое слово:\n{new_word}")
-    elif data == "want_leader":
-        await call.answer("⭐ Запрос на ведущего принят", show_alert=False)
+        return await call.answer(f"🔄 Новое слово:\n{new_word}", show_alert=True)
+
+    if data == "want_leader":
         new_word = await manager.ask_to_be_leader(call.message.chat.id, user.id, user.username or user.first_name)
         await call.message.answer(f"⭐ @{user.username or user.first_name} теперь ведущий!", reply_markup=kb_start())
-        await call.message.answer(f"📝 Ваше слово:\n{new_word}")
-        
+        return await call.answer(f"📝 Ваше слово:\n{new_word}", show_alert=True)
+
 # --- Запуск ---
 async def main():
     print("[INFO] Бот запущен")
