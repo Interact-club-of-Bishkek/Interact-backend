@@ -4,13 +4,13 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# копируем зависимости бота
-COPY requirements.txt .
+# копируем только requirements из родителя
+COPY ../requirements.txt .
 
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# копируем все остальные файлы
+# копируем весь код бота
 COPY . .
 
 CMD ["python", "bot_runner.py"]
