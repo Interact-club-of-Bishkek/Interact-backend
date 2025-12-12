@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.db import transaction
-from django.contrib.auth import authenticate
+from django.views.generic import TemplateView
 from django.core.mail import send_mail
 from django.conf import settings
 import random
@@ -140,7 +140,8 @@ class VolunteerColumnsView(APIView):
     """
     GET: возвращает три группы волонтёров для фронта
     """
-    permission_classes = [IsAdminUser]  # только админ видит
+    permission_classes = []  # убрали IsAdminUser
+
     def get(self, request):
         submitted = VolunteerApplication.objects.filter(status='submitted').order_by('-created_at')
         interview = VolunteerApplication.objects.filter(status='interview').order_by('-created_at')
@@ -152,6 +153,7 @@ class VolunteerColumnsView(APIView):
             'accepted': [v.volunteer for v in accepted if v.volunteer]
         })
         return Response(serializer.data)
+
 
 class SendAcceptedVolunteersEmailsView(APIView):
     """
@@ -212,3 +214,7 @@ class SendAcceptedVolunteersEmailsView(APIView):
             'count_sent': len(sent),
             'count_failed': len(failed)
         })
+
+
+class VolunteerBoardView(TemplateView):
+    template_name = "volunteers/columns.html" 

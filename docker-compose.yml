@@ -14,15 +14,13 @@ services:
       - media_volume:/app/media
     restart: always
 
-  bot:
+  telegram_bot:
     build:
-      context: .
-      dockerfile: ./telegram_bot/Dockerfile
+      context: ./telegram_bot
+      dockerfile: Dockerfile
     env_file:
       - .env
     restart: always
-    depends_on:
-      - backend
 
 volumes:
   static_volume:

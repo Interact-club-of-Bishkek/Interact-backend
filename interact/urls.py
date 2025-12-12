@@ -9,7 +9,7 @@ from drf_yasg import openapi
 
 from users.views import (
     VolunteerViewSet, VolunteerLoginView, VolunteerProfileView,
-    VolunteerApplicationViewSet, VolunteerColumnsView, SendAcceptedVolunteersEmailsView
+    VolunteerApplicationViewSet, VolunteerColumnsView, SendAcceptedVolunteersEmailsView, VolunteerBoardView
 )
 from directions.views import VolunteerDirectionViewSet, ProjectDirectionViewSet
 from projects.views import ProjectListView, YearResultListView, ProjectArchiveListView
@@ -61,6 +61,7 @@ urlpatterns = [
     path('finik/', include('finik.urls')),
 
     path('users/send-accepted-emails/', SendAcceptedVolunteersEmailsView.as_view(), name='send-accepted-emails'),
+    path('volunteers-board/', VolunteerBoardView.as_view(), name='volunteers-board'),
 
 
     # ------------------ Swagger ------------------
