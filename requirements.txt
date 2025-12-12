@@ -37,6 +37,7 @@ propcache==0.3.2
 psycopg2==2.9.10
 pycparser==2.22
 pycryptodome==3.23.0
+pymystem3==0.2.0
 pydantic==2.11.7
 pydantic_core==2.33.2
 pydyf==0.11.0
