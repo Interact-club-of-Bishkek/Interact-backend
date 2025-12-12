@@ -1,16 +1,15 @@
 import random
 import json
-from pymystem3 import Mystem
 import chardet
 
-M = Mystem()
 CACHE_FILE = "filtered_words.json"
 
 def preprocess_words(file_path: str, limit: int = 2000) -> list[str]:
     """
-    Загружает слова из файла, фильтрует по лемме и кеширует результат.
+    Загружает слова из файла, фильтрует по уникальности и кеширует результат.
     Если кеш есть, подгружает из него.
     """
+    # Загружаем из кеша, если есть
     try:
         with open(CACHE_FILE, "r", encoding="utf-8") as f:
             words = json.load(f)
@@ -19,6 +18,7 @@ def preprocess_words(file_path: str, limit: int = 2000) -> list[str]:
     except FileNotFoundError:
         pass
 
+    # Загружаем слова из файла
     words = []
     try:
         with open(file_path, "rb") as f:
@@ -34,25 +34,23 @@ def preprocess_words(file_path: str, limit: int = 2000) -> list[str]:
         print("[ERROR] Загрузка файла:", e)
         return ["слово", "дом", "кот"]
 
-    seen_lemmas = set()
+    # Фильтруем уникальные слова
+    seen = set()
     filtered = []
     for w in words:
-        try:
-            lemma = M.lemmatize(w)[0].strip()
-            if lemma and lemma not in seen_lemmas:
-                filtered.append(w)
-                seen_lemmas.add(lemma)
-        except Exception:
-            continue
+        if w not in seen:
+            filtered.append(w)
+            seen.add(w)
 
     random.shuffle(filtered)
     filtered = filtered[:limit]
 
+    # Сохраняем кеш
     try:
         with open(CACHE_FILE, "w", encoding="utf-8") as f:
             json.dump(filtered, f, ensure_ascii=False)
             print(f"[INFO] Словарь сохранен в {CACHE_FILE}")
-    except:
+    except Exception:
         pass
 
     return filtered
