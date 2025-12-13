@@ -1,117 +1,256 @@
 import random
 import asyncio
-import time
 import json
+from pathlib import Path
 from typing import Dict, Optional
-from .word_parser import preprocess_words
 
-STATS_FILE = "crocodile_stats.json"
-WORDS_FILE = "russian.txt"
+# ---------- PATHS ----------
+BASE_DIR = Path(__file__).resolve().parent
+STATS_FILE = BASE_DIR / "crocodile_stats.json"
+CACHE_DIR = BASE_DIR / "cache_words"
+CACHE_DIR.mkdir(exist_ok=True)
+
+# ---------- УРОВНИ ----------
+LEVELS = {
+    "easy": ["nouns"],                     # только существительные
+    "medium": ["nouns", "adjectives"],     # сущ + прил
+    "hard": ["nouns", "adjectives", "verbs"]  # сущ + прил + глаголы
+}
+
 
 class CrocodileManager:
     def __init__(self):
         self.chats: Dict[int, dict] = {}
-        self.stats = {}
-        self.words: list[str] = []
+        self.stats: Dict[int, dict] = {}
+        self.words: Dict[str, list[str]] = {}
         self.bot = None
+
         self._load_stats()
+        self._load_words_from_cache()
+
+    # ==========================================================
+    #                         СТАТИСТИКА
+    # ==========================================================
 
     def _load_stats(self):
-        try:
+        if STATS_FILE.exists():
             with open(STATS_FILE, "r", encoding="utf-8") as f:
-                self.stats = json.load(f)
-        except:
+                raw = json.load(f)
+                self.stats = {int(k): v for k, v in raw.items()}
+        else:
             self.stats = {}
 
     def _save_stats(self):
         with open(STATS_FILE, "w", encoding="utf-8") as f:
-            json.dump(self.stats, f, ensure_ascii=False, indent=2)
+            json.dump(
+                {str(k): v for k, v in self.stats.items()},
+                f,
+                ensure_ascii=False,
+                indent=2
+            )
 
-    def _ensure_user_stats(self, user_id: int, username: str = None):
-        if str(user_id) not in self.stats:
-            self.stats[str(user_id)] = {"led":0, "guessed":0, "failed":0, "name": username or f"ID {user_id}"}
-        else:
-            if username:
-                self.stats[str(user_id)]["name"] = username
+    def _ensure_user(self, user_id: int, name: Optional[str] = None):
+        if user_id not in self.stats:
+            self.stats[user_id] = {
+                "name": name or f"ID {user_id}",
+                "led": 0,
+                "guessed": 0,
+                "failed": 0
+            }
+        elif name:
+            self.stats[user_id]["name"] = name
 
-    def load_words(self):
-        self.words = preprocess_words(WORDS_FILE)
-        print(f"[INFO] Загружено {len(self.words)} слов для игры")
+    # ==========================================================
+    #                           СЛОВА
+    # ==========================================================
 
-    def get_random_word(self) -> str:
-        if not self.words:
-            return "слово"
-        return random.choice(self.words)
+    def _load_words_from_cache(self):
+        """
+        Загружает слова из:
+        cache_words/
+            nouns/summary.json
+            adjectives/summary.json
+            verbs/summary.json
+        """
+        self.words = {}
 
-    async def start_round(self, chat_id:int, leader_id:int, leader_name:str, duration:int=300):
-        word = self.get_random_word()
-        self._ensure_user_stats(leader_id, leader_name)
-        self.stats[str(leader_id)]["led"] += 1
+        for level, categories in LEVELS.items():
+            combined: list[str] = []
+
+            for cat in categories:
+                file_path = CACHE_DIR / cat / "summary.json"
+                if not file_path.exists():
+                    continue
+
+                try:
+                    with open(file_path, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                        combined.extend(
+                            w.lower()
+                            for w in data
+                            if isinstance(w, str) and w.isalpha()
+                        )
+                except Exception as e:
+                    print(f"[WARNING] Ошибка загрузки {file_path}: {e}")
+
+            random.shuffle(combined)
+            self.words[level] = combined
+            print(f"[INFO] Уровень {level}: {len(combined)} слов")
+
+        if not self.words.get("easy"):
+            raise RuntimeError("❌ Нет слов даже для уровня easy")
+
+    def get_random_word(self, level: str = "easy") -> str:
+        if level not in self.words or not self.words[level]:
+            level = "easy"
+
+        if not self.words[level]:
+            raise RuntimeError(f"Нет слов для уровня {level}")
+
+        return random.choice(self.words[level])
+
+    # ==========================================================
+    #                           ИГРА
+    # ==========================================================
+
+    async def start_round(
+        self,
+        chat_id: int,
+        leader_id: int,
+        leader_name: str,
+        duration: int = 300,
+        level: str = "easy"
+    ) -> str:
+
+        self._ensure_user(leader_id, leader_name)
+        self.stats[leader_id]["led"] += 1
         self._save_stats()
 
-        session = self.chats.get(chat_id)
-        if session and session.get("task"):
-            session["task"].cancel()
+        # Останавливаем старый таймер
+        if chat_id in self.chats and self.chats[chat_id].get("task"):
+            self.chats[chat_id]["task"].cancel()
 
-        task = asyncio.create_task(self._timeout_task(chat_id, duration))
+        word = self.get_random_word(level)
+        task = asyncio.create_task(self._timeout(chat_id, duration))
+
         self.chats[chat_id] = {
             "leader_id": leader_id,
             "leader_name": leader_name,
             "word": word,
-            "start_at": time.time(),
             "guessed": False,
+            "task": task,
             "duration": duration,
-            "task": task
+            "level": level
         }
+
         return word
 
-    async def _timeout_task(self, chat_id:int, duration:int):
+    async def _timeout(self, chat_id: int, duration: int):
         try:
-            # напоминание за минуту
             await asyncio.sleep(duration - 60)
+
             session = self.chats.get(chat_id)
             if session and not session["guessed"]:
                 await self.bot.send_message(chat_id, "⏱ Осталась 1 минута!")
 
             await asyncio.sleep(60)
+
             session = self.chats.get(chat_id)
             if not session or session["guessed"]:
                 return
+
             leader_id = session["leader_id"]
-            self._ensure_user_stats(leader_id)
-            self.stats[str(leader_id)]["failed"] += 1
+            self._ensure_user(leader_id)
+            self.stats[leader_id]["failed"] += 1
             self._save_stats()
-            await self.bot.send_message(chat_id, f"💀 @{session['leader_name']} проиграл! Слово было: {session['word']}")
+
+            await self.bot.send_message(
+                chat_id,
+                f"💀 @{session['leader_name']} проиграл!\n"
+                f"Слово было: {session['word']}"
+            )
+
             del self.chats[chat_id]
+
         except asyncio.CancelledError:
             pass
 
-    async def change_word(self, chat_id:int) -> Optional[str]:
+    async def change_word(self, chat_id: int) -> Optional[str]:
         session = self.chats.get(chat_id)
         if not session:
             return None
-        new_word = self.get_random_word()
-        session["word"] = new_word
-        session["start_at"] = time.time()
+
+        level = session.get("level", "easy")
+        session["word"] = self.get_random_word(level)
+        session["guessed"] = False
+
         if session.get("task"):
             session["task"].cancel()
-        session["task"] = asyncio.create_task(self._timeout_task(chat_id, session["duration"]))
-        session["guessed"] = False
-        return new_word
 
-    async def register_guess(self, chat_id:int, user_id:int, username:str, text:str):
+        session["task"] = asyncio.create_task(
+            self._timeout(chat_id, session["duration"])
+        )
+
+        return session["word"]
+
+    async def register_guess(
+        self,
+        chat_id: int,
+        user_id: int,
+        username: str,
+        text: str
+    ):
         session = self.chats.get(chat_id)
+
         if not session or session["guessed"]:
             return None
-        if text.strip().lower() == session["word"].strip().lower():
+
+        # 🚫 Ведущий НЕ может угадывать
+        if user_id == session["leader_id"]:
+            return None
+
+        if text.strip().lower() == session["word"].lower():
             session["guessed"] = True
+
             if session.get("task"):
                 session["task"].cancel()
-            self._ensure_user_stats(user_id, username)
-            self.stats[str(user_id)]["guessed"] += 1
+
+            self._ensure_user(user_id, username)
+            self.stats[user_id]["guessed"] += 1
             self._save_stats()
-            return {"word": session["word"], "user_id": user_id, "username": username}
+
+            return {
+                "word": session["word"],
+                "user_id": user_id,
+                "username": username
+            }
+
         return None
 
-    async def ask_to_be_leader(self, chat_id:int, user_id:int, username:str):
-        return await self.start_round(chat_id, user_id, username)
+    # ==========================================================
+    #                    СМЕНА ВЕДУЩЕГО
+    # ==========================================================
+
+    async def ask_to_be_leader(
+        self,
+        chat_id: int,
+        user_id: int,
+        username: str,
+        duration: int = 300
+    ) -> str:
+        """
+        Делает пользователя ведущим и запускает новый раунд
+        с текущим уровнем сложности.
+        """
+
+        level = "easy"
+        if chat_id in self.chats:
+            level = self.chats[chat_id].get("level", "easy")
+
+        return await self.start_round(
+            chat_id=chat_id,
+            leader_id=user_id,
+            leader_name=username,
+            duration=duration,
+            level=level
+        )
