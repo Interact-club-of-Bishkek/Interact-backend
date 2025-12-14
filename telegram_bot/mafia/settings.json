@@ -1,0 +1,17 @@
+{
+  "lobby_time": 60,
+  "night_time": 45,
+  "vote_time": 45,
+  "min_players": 5,
+  "roles": {
+    "mafia": true,
+    "don": true,
+    "maniac": true,
+    "doctor": true,
+    "sheriff": true,
+    "bodyguard": true,
+    "prostitute": true,
+    "kamikaze": true
+  },
+  "narrator_style": "serious"
+}
