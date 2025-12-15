@@ -37,7 +37,7 @@ def generate_lobby_text(game: MafiaGame) -> str:
     )
 
 # ---------- СТАРТ ИГРЫ (ЛОББИ) ----------
-@mafia_router.message(Command("start_mafia"))
+@mafia_router.message(Command("start_mafia"), F.chat.type.in_({"group", "supergroup"}))
 async def start_lobby(msg: types.Message):
     chat_id = msg.chat.id
     creator_id = str(msg.from_user.id)
@@ -64,7 +64,7 @@ async def start_lobby(msg: types.Message):
     asyncio.create_task(lobby_cycle(msg.bot, chat_id))
 
 # ---------- НОВАЯ КОМАНДА: ОТМЕНА ЛОББИ ----------
-@mafia_router.message(Command("cancel_mafia"))
+@mafia_router.message(Command("cancel_mafia"), F.chat.type.in_({"group", "supergroup"}))
 async def cancel_lobby(msg: types.Message):
     chat_id = msg.chat.id
     uid = str(msg.from_user.id)
@@ -95,7 +95,7 @@ async def cancel_lobby(msg: types.Message):
 
 
 # ---------- ОСТАНОВКА ИГРЫ (принудительная, включая начатую) ----------
-@mafia_router.message(Command("stop_mafia"))
+@mafia_router.message(Command("stop_mafia"), F.chat.type.in_({"group", "supergroup"}))
 async def stop_mafia(msg: types.Message):
     chat_id = msg.chat.id
     game = storage.load_game(chat_id)
@@ -538,7 +538,7 @@ async def check_end_game(bot: Bot, game: MafiaGame) -> bool:
     return True
 
 # ---------- НАСТРОЙКИ ----------
-@mafia_router.message(Command("settings_mafia"))
+@mafia_router.message(Command("settings_mafia"), F.chat.type.in_({"group", "supergroup"}))
 async def settings_mafia(msg: types.Message):
     chat_id = msg.chat.id
     game = storage.load_game(chat_id)
