@@ -1,77 +1,21 @@
-# mafia/keyboards.py
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-# ---------- КНОПКИ ----------
-def join_kb() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="➕ Войти в игру", callback_data="join")]
-        ]
-    )
+def join_kb():
+    kb = InlineKeyboardBuilder()
+    kb.button(text="✅ Присоединиться", callback_data="join")
+    return kb.as_markup()
 
-
-def players_kb(players: dict, action: str) -> InlineKeyboardMarkup:
+def players_kb(players_dict: dict, action: str):
     """
-    Кнопки с игроками для выбора действия (например, для ночи или голосования)
-    players: {user_id: {"name": str, "alive": bool}}
-    action: str, callback action prefix
+    Генерирует кнопки со списком живых игроков.
+    action: 'kill' или 'vote'
     """
-    buttons = [
-        [InlineKeyboardButton(text=f"👤 {p['name']}", callback_data=f"{action}:{uid}")]
-        for uid, p in players.items() if p["alive"]
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
-
-
-def settings_kb(game) -> InlineKeyboardMarkup:
-    """
-    Клавиатура настроек игры
-    game.settings = {
-        "lobby_time": int,
-        "night_time": int,
-        "vote_time": int,
-        "min_players": int,
-        "roles": {"mafia": True, "doctor": False, ...}
-    }
-    """
-    kb = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text=f"⏱ Лобби: {game.settings['lobby_time']} сек",
-                    callback_data="lobby_time"
-                ),
-                InlineKeyboardButton(
-                    text=f"🌙 Ночь: {game.settings['night_time']} сек",
-                    callback_data="night_time"
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text=f"🗳 Голосование: {game.settings['vote_time']} сек",
-                    callback_data="vote_time"
-                ),
-                InlineKeyboardButton(
-                    text=f"👥 Мин. игроков: {game.settings['min_players']}",
-                    callback_data="min_players"
-                )
-            ]
-        ]
-    )
-
-    # Добавляем кнопки с ролями
-    for role, enabled in game.settings.get("roles", {}).items():
-        kb.inline_keyboard.append([
-            InlineKeyboardButton(
-                text=f"{role.capitalize()} {'✅' if enabled else '❌'}",
-                callback_data=f"role_{role}"
-            )
-        ])
-
-    # Кнопка "Начать игру"
-    kb.inline_keyboard.append([
-        InlineKeyboardButton(text="✅ Начать игру", callback_data="start_game")
-    ])
-
-    return kb
+    kb = InlineKeyboardBuilder()
+    for uid, data in players_dict.items():
+        # callback_data будет вида "kill:123456789"
+        kb.button(text=data['name'], callback_data=f"{action}:{uid}")
     
+    # Выстраиваем в 1 столбец (можно 2)
+    kb.adjust(1)
+    return kb.as_markup()

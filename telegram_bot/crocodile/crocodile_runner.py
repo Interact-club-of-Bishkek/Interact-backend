@@ -1,29 +1,23 @@
 # crocodile/bot_handlers.py
 import os
-import asyncio
-from aiogram import Bot, types, F, Router
+from aiogram import types, F, Router, Bot
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from dotenv import load_dotenv
 from pathlib import Path
-import json
-import random
 
+# Импортируем менеджер (но не создаем бота здесь!)
 from crocodile.crocodile_game import CrocodileManager
 
-load_dotenv()
-TOKEN = os.getenv("BOT_TOKEN")
+# Создаем роутер
+crocodile_router = Router()
 
-bot = Bot(TOKEN)
-crocodile_router = Router()  # <-- Используем Router вместо Dispatcher
-
+# Создаем менеджер игры.
+# ВАЖНО: Мы пока не присваиваем ему bot, сделаем это в main.py
 manager = CrocodileManager()
-manager.bot = bot  # для таймера
 
 BASE_DIR = Path(__file__).resolve().parent
-LEVELS_FILE = BASE_DIR / "words_by_level.json"  # JSON с уровнями
 
-# ---------- КНОПКИ ----------
+# ---------- КНОПКИ (Без изменений) ----------
 def kb_start() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
@@ -51,7 +45,7 @@ def kb_level_selection() -> InlineKeyboardMarkup:
     )
 
 # ---------- УРОВЕНЬ СЛОЖНОСТИ ----------
-chat_levels: dict[int, str] = {}  # chat_id -> "easy"/"medium"/"hard"
+chat_levels: dict[int, str] = {}
 
 @crocodile_router.message(Command("choose_level"))
 async def choose_level(msg: types.Message):
@@ -60,32 +54,23 @@ async def choose_level(msg: types.Message):
         return
     await msg.answer("Выберите уровень сложности для текущей игры:", reply_markup=kb_level_selection())
 
-@crocodile_router.callback_query(lambda c: c.data.startswith("level_"))
+@crocodile_router.callback_query(F.data.startswith("level_"))
 async def set_level_callback(call: types.CallbackQuery):
-    level = call.data.split("_")[1]  # easy / medium / hard
+    level = call.data.split("_")[1]
     chat_levels[call.message.chat.id] = level
     await call.answer(f"✅ Уровень сложности установлен: {level.capitalize()}")
     await call.message.edit_text(f"✅ Уровень сложности выбран: {level.capitalize()}")
 
-# ---------- /start ----------
-@crocodile_router.message(Command("start"))
-async def start(msg: types.Message):
-    if msg.chat.type == "private":
-        await msg.answer(
-            "Привет!\n\n"
-            "Этот бот создан IT-командой Interact Club of Bishkek "
-            "для проведения командных игр.\n\n"
-            "Добавьте бота в группу и дайте ему права администратора."
-        )
-    else:
-        await msg.answer("Бот готов! Используйте /choose_level чтобы выбрать уровень игры или /start_crocodile чтобы начать.")
-
 # ---------- /start_crocodile ----------
 @crocodile_router.message(Command("start_crocodile"))
-async def start_game(msg: types.Message):
+async def start_game(msg: types.Message, bot: Bot): # bot прилетит автоматически
     if msg.chat.type == "private":
         await msg.answer("Игра доступна только в группах.")
         return
+    
+    # На всякий случай обновляем бота в менеджере, чтобы таймеры работали
+    if manager.bot is None:
+        manager.bot = bot
 
     level = chat_levels.get(msg.chat.id, "easy")
     word = manager.get_random_word(level)
@@ -102,10 +87,19 @@ async def start_game(msg: types.Message):
     )
 
 # ---------- ПРОВЕРКА УГАДЫВАНИЙ ----------
+# ВАЖНОЕ ИСПРАВЛЕНИЕ:
+# Добавляем фильтр: срабатывать ТОЛЬКО если в этом чате идет игра.
+# Иначе этот хендлер будет воровать сообщения у Мафии.
+
+def is_game_active(msg: types.Message) -> bool:
+    # Проверяем, есть ли этот чат в активных играх менеджера
+    return msg.chat.id in manager.chats
+
 @crocodile_router.message(
-    F.chat.type.in_({"group", "supergroup"}) &
-    F.text &
-    ~F.text.startswith("/")
+    F.chat.type.in_({"group", "supergroup"}),
+    F.text,
+    ~F.text.startswith("/"),
+    is_game_active  # <--- Вот этот фильтр спасает ситуацию
 )
 async def check_guess(msg: types.Message):
     result = await manager.register_guess(
@@ -124,9 +118,7 @@ async def check_guess(msg: types.Message):
 # ---------- /stats ----------
 @crocodile_router.message(Command("stats"))
 async def stats(msg: types.Message):
-    if msg.chat.type == "private":
-        await msg.answer("Статистика доступна только в группах.")
-        return
+    if msg.chat.type == "private": return
 
     if not manager.stats:
         await msg.answer("Статистика пока пуста.")
@@ -140,7 +132,7 @@ async def stats(msg: types.Message):
         failed = stat.get("failed", 0)
 
         lines.append(
-            f"👤 [{display_name}](tg://user?id={user_id})\n"
+            f"👤 {display_name}\n" # Убрал markdown ссылку, часто вызывает ошибки парсинга если нет username
             f"   🎭 Ведущий: {led}\n"
             f"   ✅ Угадал: {guessed}\n"
             f"   💀 Проиграл: {failed}\n"
@@ -148,8 +140,8 @@ async def stats(msg: types.Message):
 
     await msg.answer("\n".join(lines), parse_mode="Markdown")
 
-# ---------- CALLBACKS ----------
-@crocodile_router.callback_query()
+# ---------- CALLBACKS (Общий обработчик) ----------
+@crocodile_router.callback_query(F.data.in_({"view_word", "change_word", "want_leader"}))
 async def callbacks(call: types.CallbackQuery):
     session = manager.chats.get(call.message.chat.id)
     if not session:
