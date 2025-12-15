@@ -1,26 +1,26 @@
+# mafia/stats.py
 import json
-from pathlib import Path
 
-FILE = Path("stats.json")
+PLAYER_STATS = {}
+STATS_FILE = "stats_data.json"
 
-def load():
-    if not FILE.exists():
-        return {}
+def load_stats():
+    global PLAYER_STATS
     try:
-        return json.loads(FILE.read_text(encoding='utf-8'))
-    except json.JSONDecodeError:
-        return {}
+        with open(STATS_FILE, 'r', encoding='utf-8') as f:
+            PLAYER_STATS = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        PLAYER_STATS = {}
 
-def save(data):
-    FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding='utf-8')
+def save_stats():
+    try:
+        with open(STATS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(PLAYER_STATS, f, ensure_ascii=False, indent=4)
+    except Exception as e:
+        print(f"Ошибка сохранения статистики: {e}")
 
-def inc(user_id, field):
-    if field not in ("games", "wins", "deaths"):
-        raise ValueError(f"Недопустимое поле: {field}")
-
-    data = load()
-    # Ключ должен быть строкой для JSON
-    uid = str(user_id)
-    user = data.setdefault(uid, {"games": 0, "wins": 0, "deaths": 0})
-    user[field] += 1
-    save(data)
+def inc(uid: str, key: str, value: int = 1):
+    if uid not in PLAYER_STATS:
+        PLAYER_STATS[uid] = {"games": 0, "wins": 0}
+    PLAYER_STATS[uid][key] = PLAYER_STATS[uid].get(key, 0) + value
+    # В реальном проекте: вызывать save_stats периодически, а не на каждое изменение.

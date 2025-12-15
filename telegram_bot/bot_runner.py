@@ -9,6 +9,8 @@ from dotenv import load_dotenv
 # Импортируем роутер И объект manager, чтобы передать ему бота
 from crocodile.crocodile_runner import crocodile_router, manager as crocodile_manager
 from mafia.handlers import mafia_router 
+# ❗ НОВЫЙ ИМПОРТ ❗
+from general.handlers import general_router 
 
 # ---------- Загрузка конфига ----------
 load_dotenv()
@@ -26,10 +28,11 @@ async def main():
     dp = Dispatcher()
 
     # 2. Передаем этого бота в менеджер крокодила
-    # Это нужно, чтобы внутри crocodile_game можно было писать self.bot.send_message
     crocodile_manager.bot = bot 
 
     # 3. Подключение роутеров
+    # ❗ ВАЖНО: general_router должен быть первым, чтобы ловить /start в ЛС
+    dp.include_router(general_router) 
     dp.include_router(crocodile_router)
     dp.include_router(mafia_router)
 
