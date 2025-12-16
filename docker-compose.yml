@@ -15,6 +15,7 @@ services:
       - POSTGRES_PASSWORD=${DB_PASSWORD}
     restart: always
     healthcheck:
+      # Проверка здоровья базы данных
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
@@ -34,10 +35,10 @@ services:
     volumes:
       - static_volume:/app/staticfiles
       - media_volume:/app/media
-      - ./entrypoint.sh:/app/entrypoint.sh # <--- Добавлено
+      - ./entrypoint.sh:/app/entrypoint.sh # Скрипт для запуска
     depends_on:
       db:
-        condition: service_healthy 
+        condition: service_healthy # Ждет, пока база данных будет готова
     restart: always
     # ИСПОЛЬЗУЕМ ENTRYPOINT: Скрипт управляет миграциями и запуском Gunicorn
     entrypoint: ["/app/entrypoint.sh"] 

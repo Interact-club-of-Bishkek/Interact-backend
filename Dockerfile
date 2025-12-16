@@ -2,11 +2,11 @@ FROM python:3.11-slim
 
 ENV PYTHONUNBUFFERED=1
 
-# ИЗМЕНЕНО: Рабочий каталог теперь /app
+# Устанавливаем рабочий каталог в корень приложения
 WORKDIR /app
 
-# Устанавливаем необходимые пакеты
-# netcat-traditional добавлен, чтобы обеспечить работу команды 'nc' в entrypoint.sh
+# Устанавливаем необходимые системные пакеты
+# netcat-traditional нужен для скрипта entrypoint.sh для ожидания БД
 RUN apt-get update && apt-get install -y \
     git \
     build-essential \
@@ -28,7 +28,11 @@ COPY . .
 RUN adduser --disabled-password --gecos '' appuser
 RUN chown -R appuser:appuser /app
 
+# ИСПРАВЛЕНИЕ: Установка прав доступа для томов
+# Это гарантирует, что appuser может создавать/изменять файлы в /app/media и /app/staticfiles
+RUN chmod -R 775 /app/media
+RUN chmod -R 775 /app/staticfiles
+
 EXPOSE 8000
 
-# КОМАНДА ЗАПУСКА УДАЛЕНА: Мы будем использовать скрипт entrypoint
-# CMD ["gunicorn", "interact.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3"]
+# CMD удалена, так как запуск осуществляется через entrypoint.sh
