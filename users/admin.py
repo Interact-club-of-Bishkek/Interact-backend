@@ -11,17 +11,20 @@ class VolunteerApplicationAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ('Личная информация', {
-            'fields': ('full_name', 'email', 'phone_number', 'photo', 'photo_tag')
+            'fields': ('full_name', 'email', 'phone_number', 'photo', 'photo_tag',
+                       # ДОБАВЛЕНЫ НОВЫЕ ПОЛЯ
+                       'date_of_birth', 'place_of_study')
         }),
         ('Анкетные вопросы', {
             'fields': (
                 'why_volunteer', 'volunteer_experience', 'hobbies_skills', 'strengths',
-                'why_choose_you', 'agree_inactivity_removal', 'agree_terms', 'ready_travel',
+                'why_choose_you', 'choice_motives', # ДОБАВЛЕНО choice_motives
+                'agree_inactivity_removal', 'agree_terms', 'ready_travel',
                 'ideas_improvements', 'expectations', 'directions', 'weekly_hours', 'attend_meetings'
             )
         }),
         ('Статус', {
-            'fields': ('status',)
+            'fields': ('status', 'volunteer_created', 'volunteer') # добавлено volunteer_created, volunteer
         }),
     )
 

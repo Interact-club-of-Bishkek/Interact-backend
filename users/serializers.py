@@ -5,23 +5,34 @@ from directions.serializers import VolunteerDirectionSerializer
 
 
 # --------- Короткий сериализатор для направлений ---------
+# --------- Короткий сериализатор для направлений ---------
 class VolunteerDirectionShortSerializer(serializers.ModelSerializer):
     class Meta:
         model = VolunteerDirection
         fields = ['id', 'name']
 
 
-# --------- Волонтёр ---------
+# --------- Волонтёр (Исправлено: URL фото) ---------
 class VolunteerSerializer(serializers.ModelSerializer):
-    direction = VolunteerDirectionSerializer(many=True, read_only=True)
+    # Используем SerializerMethodField для фото, чтобы вернуть полный URL
+    image_url = serializers.SerializerMethodField(read_only=True)
+    direction = VolunteerDirectionShortSerializer(many=True, read_only=True)
 
     class Meta:
         model = Volunteer
         fields = [
-            'id', 'login', 'name', 'phone_number', 'email', 'image',
+            'id', 'login', 'name', 'phone_number', 'email', 'image_url', # ИЗМЕНЕНО: image -> image_url
             'telegram_username', 'telegram_id', 'board', 'direction',
             'point', 'yellow_card'
         ]
+
+    def get_image_url(self, obj):
+        if obj.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url # Возвращаем относительный путь, если нет контекста
+        return None
 
 
 # --------- Авторизация ---------
@@ -42,20 +53,35 @@ class VolunteerLoginSerializer(serializers.Serializer):
 
 
 # --------- Заявки волонтёров ---------
+# --------- Заявки волонтёров (Исправлено: URL фото и поля анкеты) ---------
 class VolunteerApplicationSerializer(serializers.ModelSerializer):
-    directions = VolunteerDirectionShortSerializer(many=True, read_only=True)  # короткий сериализатор!
+    directions = VolunteerDirectionShortSerializer(many=True, read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    # Используем SerializerMethodField для фото, чтобы вернуть полный URL
+    photo_url = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = VolunteerApplication
         fields = [
-            'id', 'full_name', 'email', 'phone_number', 'photo', 'why_volunteer',
-            'volunteer_experience', 'hobbies_skills', 'strengths', 'why_choose_you',
-            'agree_inactivity_removal', 'agree_terms', 'ready_travel', 'ideas_improvements',
-            'expectations', 'directions', 'weekly_hours', 'attend_meetings',
+            'id', 'full_name', 'email', 'phone_number', 'photo_url', # ИЗМЕНЕНО: photo -> photo_url
+            
+            # --- ДОБАВЛЕННЫЕ ПОЛЯ АНКЕТЫ ---
+            'date_of_birth', 'place_of_study', 'choice_motives',
+            # -------------------------------
+            
+            'why_volunteer', 'volunteer_experience', 'hobbies_skills', 'strengths',
+            'why_choose_you', 'agree_inactivity_removal', 'agree_terms', 'ready_travel',
+            'ideas_improvements', 'expectations', 'directions', 'weekly_hours', 'attend_meetings',
             'status', 'status_display', 'created_at', 'updated_at'
         ]
 
+    def get_photo_url(self, obj):
+        if obj.photo:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.photo.url)
+            return obj.photo.url # Возвращаем относительный путь, если нет контекста
+        return None
 
 # --------- Обновление статуса ---------
 class VolunteerApplicationStatusUpdateSerializer(serializers.ModelSerializer):
@@ -65,6 +91,7 @@ class VolunteerApplicationStatusUpdateSerializer(serializers.ModelSerializer):
 
 
 # --------- Для отображения колонок ---------
+# --------- Для отображения колонок (Без изменений) ---------
 class VolunteerColumnsSerializer(serializers.Serializer):
     submitted = VolunteerApplicationSerializer(many=True, read_only=True)
     interview = VolunteerApplicationSerializer(many=True, read_only=True)

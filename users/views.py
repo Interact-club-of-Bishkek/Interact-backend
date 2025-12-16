@@ -140,18 +140,28 @@ class VolunteerColumnsView(APIView):
     """
     GET: возвращает три группы волонтёров для фронта
     """
-    permission_classes = []  # убрали IsAdminUser
+    permission_classes = []  
 
     def get(self, request):
         submitted = VolunteerApplication.objects.filter(status='submitted').order_by('-created_at')
         interview = VolunteerApplication.objects.filter(status='interview').order_by('-created_at')
-        accepted = VolunteerApplication.objects.filter(status='accepted', volunteer_created=True).select_related('volunteer').order_by('-created_at')
-
-        serializer = VolunteerColumnsSerializer({
-            'submitted': submitted,
-            'interview': interview,
-            'accepted': [v.volunteer for v in accepted if v.volunteer]
-        })
+        
+        # --- ИСПРАВЛЕНО: Выбираем только созданных Volunteer, используя связь с Application ---
+        # Это гарантирует, что VolunteerSerializer получит правильные объекты
+        accepted = Volunteer.objects.filter(application__status='accepted', application__volunteer_created=True).order_by('-application__created_at')
+        
+        # --- КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: ПЕРЕДАЧА КОНТЕКСТА ---
+        context = {'request': request} 
+        
+        serializer = VolunteerColumnsSerializer(
+            {
+                'submitted': submitted,
+                'interview': interview,
+                'accepted': accepted # Теперь это QuerySet объектов Volunteer
+            }, 
+            context=context # ПЕРЕДАЁМ КОНТЕКСТ для корректной работы get_photo_url/get_image_url
+        )
+        
         return Response(serializer.data)
 
 

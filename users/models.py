@@ -39,6 +39,12 @@ class VolunteerApplication(models.Model):
     email = models.EmailField(verbose_name='Email', blank=True, null=True)
     phone_number = models.CharField(max_length=50, verbose_name="Телефон")
     photo = models.ImageField(upload_to='volunteers_photos/', verbose_name="Фото", null=True, blank=True)
+    
+    # --- ДОБАВЛЕННЫЕ ПОЛЯ (для соответствия фронтенду) ---
+    date_of_birth = models.DateField(verbose_name="Дата рождения", null=True, blank=True)
+    place_of_study = models.CharField(max_length=255, verbose_name="Место учебы/работы", blank=True)
+    choice_motives = models.TextField(verbose_name="Мотивы выбора направлений", blank=True)
+    # -----------------------------------------------------
 
     why_volunteer = models.TextField(verbose_name="Почему Вы хотите стать волонтером?")
     volunteer_experience = models.TextField(verbose_name="Опыт волонтёрства")
