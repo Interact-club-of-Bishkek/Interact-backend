@@ -27,7 +27,11 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
-
+crocodile_stats.json
+filtered_words.json
+stats.json
+active_games.json
+mafia_db.json
 # PyInstaller
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.

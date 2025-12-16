@@ -2,13 +2,16 @@ FROM python:3.11-slim
 
 ENV PYTHONUNBUFFERED=1
 
-WORKDIR /app/backend
+# ИЗМЕНЕНО: Рабочий каталог теперь /app
+WORKDIR /app
 
 # Устанавливаем необходимые пакеты
 RUN apt-get update && apt-get install -y \
     git \
     build-essential \
     libpq-dev \
+    # Добавляем gosu для управления пользователями (не обязательно, но хорошая практика)
+    gosu \
     && rm -rf /var/lib/apt/lists/*
 
 # Копируем только requirements, чтобы кэшировать зависимости
@@ -17,10 +20,14 @@ COPY requirements.txt .
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Копируем весь проект, кроме media
+# Копируем весь проект
 COPY . .
 
+# Создаем не-root пользователя для запуска Gunicorn
+RUN adduser --disabled-password --gecos '' appuser
+RUN chown -R appuser:appuser /app
 
 EXPOSE 8000
 
-CMD ["gunicorn", "interact.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3"]
+# КОМАНДА ЗАПУСКА УДАЛЕНА: Мы будем использовать скрипт entrypoint
+# CMD ["gunicorn", "interact.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3"]
