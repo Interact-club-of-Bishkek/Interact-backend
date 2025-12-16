@@ -175,10 +175,10 @@ async def submit_application_to_django(bot, data: dict):
             
             # Собираем объект для requests.post. Имя поля 'photo' должно соответствовать модели Django.
             files['photo'] = ('volunteer_photo.jpg', photo_bytes, 'image/jpeg')
-            logging.info("Фото успешно скачано и добавлено для отправки.") # <--- УЛУЧШЕННАЯ ДИАГНОСТИКА
+            logging.info("Фото успешно скачано и добавлено для отправки.") 
             
         except Exception as e:
-            logging.error(f"КРИТИЧЕСКАЯ ОШИБКА: Не удалось загрузить или подготовить фото: {e}") # <--- УЛУЧШЕННАЯ ДИАГНОСТИКА
+            logging.error(f"КРИТИЧЕСКАЯ ОШИБКА: Не удалось загрузить или подготовить фото: {e}") 
             # В случае ошибки просто продолжаем без файла
             pass
 
@@ -198,7 +198,7 @@ async def submit_application_to_django(bot, data: dict):
 
 
 # --- ХЕНДЛЕР ОТМЕНЫ (CANCEL) ---
-# ИСПРАВЛЕНИЕ: Используем StateFilter(ApplicationSteps) вместо несуществующего ApplicationSteps.all_states
+# ИСПРАВЛЕНИЕ: Используем StateFilter(ApplicationSteps)
 @application_router.message(F.text.in_(['/cancel', 'Отмена', 'отмена']), StateFilter(ApplicationSteps))
 @application_router.message(F.text == '/cancel', StateFilter(ApplicationSteps))
 async def cancel_handler(message: types.Message, state: FSMContext):
@@ -413,7 +413,7 @@ async def process_strengths(message: types.Message, state: FSMContext):
                 [InlineKeyboardButton(text=f"{name}", callback_data=f"select_dir_{pk}")]
             )
     else:
-        # Если API недоступен (но есть ошибка, которую мы не можем решить из бота), даем продолжить
+        # Если API недоступен, даем продолжить (но логируем ошибку)
         direction_buttons.append(
             [InlineKeyboardButton(text="Направления недоступны. Продолжить ➡️", callback_data="finish_directions")]
         )
@@ -548,19 +548,10 @@ async def process_weekly_hours_callback(call: types.CallbackQuery, state: FSMCon
             hours_text = "5 - 10 часов"
         elif choice == "10_15":
             hours_text = "10 - 15 часов"
-        elif choice == "plus":
-            # ❗ ИСПРАВЛЕНИЕ: Нужно проверить выбор '15_plus', а не просто 'plus'.
-            # Поскольку choice - это только последняя часть, choice = 'plus' 
-            # НЕ МОЖЕТ сработать для callback_data="hours_15_plus". 
-            # Нужно использовать: 
-            # choice = call.data.replace('hours_', '')
-            # ИЛИ просто проверить choice на '15_plus'.
-            if choice == "15_plus":
-                 hours_text = "Более 15 часов"
-            else:
-                 hours_text = "Неизвестный интервал" # ЭТОТ БЛОК ТЕПЕРЬ ЛОГИЧНЕЕ
+        elif call.data == "hours_15_plus": # <--- КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Прямая проверка полного callback_data
+             hours_text = "Более 15 часов"
         else:
-            hours_text = "Неизвестный интервал"
+             hours_text = "Неизвестный интервал"
 
         # ПРОВЕРКА: Если все равно "Неизвестный интервал", это ошибка, прерываем.
         if hours_text == "Неизвестный интервал":
