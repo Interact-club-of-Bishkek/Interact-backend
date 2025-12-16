@@ -3,7 +3,7 @@ import logging
 import requests
 import os
 import re
-import io # Добавлен импорт io
+import io 
 from datetime import datetime, timezone, timedelta 
 
 # Импорт TelegramBadRequest для более точной обработки ошибок при редактировании
@@ -39,7 +39,9 @@ def get_current_time_aware():
     return datetime.now(BISHKEK_TIMEZONE)
 
 # --- КОНФИГУРАЦИЯ API И БОТА ---
-DJANGO_API_BASE_URL = os.getenv("DJANGO_API_URL", "http://147.45.107.186:8000/api/") 
+# --- КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ 1: Использование имени сервиса Docker 'backend' вместо внешнего IP ---
+# Считаем, что сервис Django в docker-compose назван 'backend'
+DJANGO_API_BASE_URL = os.getenv("DJANGO_API_URL", "http://backend:8000/api/") 
 APPLICATION_ENDPOINT = f"{DJANGO_API_BASE_URL}applications/"
 DIRECTIONS_ENDPOINT = f"{DJANGO_API_BASE_URL}volunteer-directions/"
 
@@ -128,6 +130,7 @@ async def fetch_directions():
         }
         return DIRECTIONS_CACHE
     except requests.RequestException as e:
+        # Теперь, когда URL исправлен, этот лог должен быть чистым.
         logging.error(f"Не удалось загрузить направления из API ({DIRECTIONS_ENDPOINT}): {e}")
         return {}
 
@@ -167,15 +170,16 @@ async def submit_application_to_django(bot, data: dict):
             file_info = await bot.get_file(photo_file_id)
             file_path = file_info.file_path
             
-            # --- ИСПРАВЛЕНИЕ ДЛЯ НАДЕЖНОЙ ЗАГРУЗКИ ФАЙЛА ---
             # Скачиваем файл в объект BytesIO
             file_stream = await bot.download_file(file_path, destination=io.BytesIO())
             
-            # Обязательно сбрасываем курсор на начало объекта-файла перед чтением/отправкой
-            file_stream.seek(0)
+            # --- КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ 2: Используем getvalue() для надежной отправки байтов файла ---
+            # Это гарантирует, что мы берем все содержимое буфера, 
+            # независимо от положения курсора, что надежнее при multipart-отправке.
+            photo_bytes = file_stream.getvalue()
             
-            # Собираем объект для requests.post
-            files['photo'] = ('volunteer_photo.jpg', file_stream.read(), 'image/jpeg')
+            # Собираем объект для requests.post. Имя поля 'photo' должно соответствовать модели Django.
+            files['photo'] = ('volunteer_photo.jpg', photo_bytes, 'image/jpeg')
             
         except Exception as e:
             logging.error(f"Ошибка при загрузке или подготовке фото: {e}")
@@ -192,6 +196,7 @@ async def submit_application_to_django(bot, data: dict):
     except requests.exceptions.RequestException as e:
         logging.error(f"Ошибка API при отправке заявки: {e}")
         if 'response' in locals() and response.status_code == 400:
+            # Выводим тело ответа 400 для лучшей диагностики
             logging.error(f"Детали ошибки API (400 Bad Request): {response.text}")
         return False
 
@@ -217,7 +222,7 @@ async def cancel_handler(message: types.Message, state: FSMContext):
         parse_mode="HTML"
     )
 
-# --- ХЕНДЛЕРЫ ---
+# --- ХЕНДЛЕРЫ (без изменений, кроме вызова функций) ---
 
 # 1. СТАРТ (С ПРОВЕРКОЙ ВРЕМЕНИ)
 @application_router.callback_query(F.data == "volunteer_apply")
@@ -402,6 +407,7 @@ async def process_strengths(message: types.Message, state: FSMContext):
     await state.update_data(strengths=message.text.strip())
     await state.set_state(ApplicationSteps.waiting_directions)
     
+    # Теперь fetch_directions должен работать, если Django API доступен по 'http://backend:8000/api/'
     directions_map = await fetch_directions()
     direction_buttons = []
     
@@ -411,6 +417,7 @@ async def process_strengths(message: types.Message, state: FSMContext):
                 [InlineKeyboardButton(text=f"{name}", callback_data=f"select_dir_{pk}")]
             )
     else:
+        # Если API недоступен (но есть ошибка, которую мы не можем решить из бота), даем продолжить
         direction_buttons.append(
             [InlineKeyboardButton(text="Направления недоступны. Продолжить ➡️", callback_data="finish_directions")]
         )
@@ -704,6 +711,7 @@ async def process_feedback_and_submit(message: types.Message, state: FSMContext)
 async def final_submit(message: types.Message, state: FSMContext):
     data = await state.get_data()
     
+    # Используем обновленную функцию submit_application_to_django
     success = await submit_application_to_django(message.bot, data)
     
     if success:
