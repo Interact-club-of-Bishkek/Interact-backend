@@ -53,47 +53,45 @@ class VolunteerLoginSerializer(serializers.Serializer):
 
 
 # --------- Заявки волонтёров (Исправлено: URL фото и поля анкеты) ---------
+# --------- Заявки волонтёров (Исправлено: URL фото и поля анкеты) ---------
 class VolunteerApplicationSerializer(serializers.ModelSerializer):
-    # ! ВАЖНО: ManyToManyField "directions" должен быть либо явно задан 
-    # для записи (например, PrimaryKeyRelatedField), либо исключен из fields 
-    # в API, который принимает данные из бота, и обрабатываться в методе create/update.
-    # Но поскольку бот посылает "directions" как список ID, ModelSerializer 
-    # может обработать это автоматически, если поле не read_only.
+    
+    # 1. ЧТЕНИЕ: красиво выводим направления
+    directions_display = VolunteerDirectionShortSerializer(source='directions', many=True, read_only=True) 
+    
+    # 2. ЗАПИСЬ: принимаем список ID от бота
+    directions = serializers.PrimaryKeyRelatedField(
+        queryset=VolunteerDirection.objects.all(), 
+        many=True, 
+        write_only=True
+    )
 
-    directions = VolunteerDirectionShortSerializer(many=True, read_only=True) # Чтение: красивый вывод
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     photo_url = serializers.SerializerMethodField(read_only=True) # Чтение: полный URL фото
-    
-    # ИСПРАВЛЕНИЕ ДЛЯ ЗАПИСИ:
-    # Добавляем поле directions_ids для приема списка ID при POST/PUT, 
-    # если не хотим, чтобы DRF обрабатывал ManyToManyField 'directions' сам.
-    # В данном случае, так как бот отправляет список ID, ModelSerializer справится 
-    # с полем 'directions' самостоятельно, если оно не помечено как read_only.
 
     class Meta:
         model = VolunteerApplication
         fields = [
             'id', 'full_name', 'email', 'phone_number', 'photo_url', 
             
-            # --- ДОБАВЛЕННЫЕ ПОЛЯ АНКЕТЫ ---
             'date_of_birth', 'place_of_study', 'choice_motives',
-            # -------------------------------
             
             'why_volunteer', 'volunteer_experience', 'hobbies_skills', 'strengths',
             'why_choose_you', 'agree_inactivity_removal', 'agree_terms', 'ready_travel',
             'ideas_improvements', 'expectations', 
             
-            'directions', # Оставлено для чтения, но также принимает список ID при записи
+            'directions', # <-- Используется для записи (список ID)
+            'directions_display', # <-- Используется для чтения (объекты)
             
             'weekly_hours', 'attend_meetings',
             
-            # --- КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: ДОБАВЛЕНО ПОЛЕ FEEDBACK ---
             'feedback',
-            # --------------------------------------------------------
             
             'status', 'status_display', 'created_at', 'updated_at'
         ]
         
+        read_only_fields = ('photo_url', 'status_display', 'created_at', 'updated_at')
+# ...
         # Убедимся, что directions не будет использоваться для записи, 
         # если используется его read_only представление (VolunteerDirectionShortSerializer)
         # Если API принимает 'directions' как список ID, то нужно 
