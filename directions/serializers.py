@@ -21,7 +21,7 @@ class ProjectSerializer(serializers.ModelSerializer):
             'id', 'image', 'name', 'title', 'price',
             'time_start', 'time_end', 'direction', 'phone_number', 'address'
         ]
-
+    ref_name = 'DirectionsProjectSerializer'
 
 class VolunteerDirectionSerializer(serializers.ModelSerializer):
     volunteers = VolunteerSerializer(many=True, read_only=True)
@@ -37,3 +37,4 @@ class ProjectDirectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProjectDirection
         fields = ['id', 'name', 'projects']
+    

@@ -37,6 +37,7 @@ class ProjectSerializer(serializers.ModelSerializer):
             'phone_number', 'address',
             'date'
         )
+    ref_name = 'ProjectsProjectSerializer'
 
     def get_date(self, obj):
         if obj.created_at:

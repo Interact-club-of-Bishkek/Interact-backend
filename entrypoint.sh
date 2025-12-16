@@ -22,6 +22,8 @@ echo "PostgreSQL запущен!"
 # ----------------------------------------------------
 # Применяем права к смонтированным томам, чтобы appuser мог писать в них.
 echo "Установка прав доступа (775) для смонтированных томов media и staticfiles..."
+chown -R appuser:appuser /app/media
+chown -R appuser:appuser /app/staticfiles
 chmod -R 775 /app/media
 chmod -R 775 /app/staticfiles
 
