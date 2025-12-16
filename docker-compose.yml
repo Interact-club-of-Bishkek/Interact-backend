@@ -1,27 +1,65 @@
 version: "3.9"
 
 services:
+  # 1. СЕРВИС БАЗЫ ДАННЫХ (PostgreSQL)
+  # Использует именованный том 'postgres_data' для сохранения всех данных.
+  db:
+    image: postgres:14-alpine
+    container_name: interact_postgres_db
+    # Использование тома для постоянного хранения данных. Данные не удалятся
+    # при обновлении или перезапуске контейнера, если вы не удалите сам том.
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      # Переменные берутся из .env файла
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    ports:
+      # Опционально: Открыть порт на хосте только для отладки
+      # - "5432:5432" 
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. СЕРВИС БЭКЕНДА (Django)
   backend:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: interact_backend
     ports:
       - "8000:8000"
     env_file:
       - .env
     volumes:
+      # Тома для статики и медиа, которые также будут сохранены
       - static_volume:/app/staticfiles
       - media_volume:/app/media
+    depends_on:
+      db:
+        condition: service_healthy # Ждет, пока база данных пройдет проверку Healthcheck
     restart: always
 
+  # 3. СЕРВИС TELEGRAM БОТА
   telegram_bot:
     build:
       context: ./telegram_bot
       dockerfile: Dockerfile
+    container_name: interact_telegram_bot
     env_file:
       - .env
+    depends_on:
+      - backend # Бот, возможно, должен ждать, пока бэкенд запустится
     restart: always
 
+# 4. ИМЕНОВАННЫЕ ТОМА (ГАРАНТИЯ СОХРАНЕНИЯ ДАННЫХ)
 volumes:
+  # Том для данных PostgreSQL. Не удаляется командой 'docker compose down'.
+  postgres_data:
+  # Тома для статических/медиафайлов.
   static_volume:
   media_volume:
