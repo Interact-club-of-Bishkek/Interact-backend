@@ -29,8 +29,8 @@ BISHKEK_TIMEZONE = timezone(timedelta(hours=6))
 # ----------------------------------------------------------------------
 # Текущее время (Bishkek) - 2025-12-16 20:35:59
 # Установил диапазон, чтобы регистрация была ОТКРЫТА для тестирования:
-REGISTRATION_START = datetime(2025, 12, 16, 20, 0, 0).replace(tzinfo=BISHKEK_TIMEZONE)
-REGISTRATION_END = datetime(2025, 12, 19, 21, 0, 0).replace(tzinfo=BISHKEK_TIMEZONE)
+REGISTRATION_START = datetime(2026, 01, 01, 0, 0, 0).replace(tzinfo=BISHKEK_TIMEZONE)
+REGISTRATION_END = datetime(2026, 01, 04, 0, 0, 0).replace(tzinfo=BISHKEK_TIMEZONE)
 
 # Функция для получения текущего времени с учетом часового пояса (GMT+6)
 def get_current_time_aware():
