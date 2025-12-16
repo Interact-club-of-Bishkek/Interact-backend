@@ -29,6 +29,9 @@ chmod -R 775 /app/staticfiles
 # 4. ПОДГОТОВКА (Миграции и Статика)
 # ----------------------------------------------------
 echo "Применение миграций Django..."
+python manage.py makemigrations --noinput
+
+echo "Применение миграций Django..."
 python manage.py migrate --noinput
 
 echo "Сбор статических файлов..."
