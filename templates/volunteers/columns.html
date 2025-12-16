@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Доска Волонтёров</title>
 <style>
+/* ОСНОВНОЙ СТИЛЬ */
 body {
     font-family: 'Arial', sans-serif;
     background: linear-gradient(135deg,#f0f2f5,#e0e7ff);
@@ -21,7 +22,7 @@ h1 {
 .columns {
     display: flex;
     gap: 20px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: center;
 }
 .column {
@@ -38,6 +39,8 @@ h1 {
     text-transform: uppercase;
     color: #1e40af;
 }
+
+/* СТИЛИ КАРТОЧЕК */
 .card {
     background: #f9fafb;
     border-radius: 12px;
@@ -73,6 +76,8 @@ h1 {
     font-size: 0.85rem;
     color: #555;
 }
+
+/* СТИЛИ МОДАЛЬНОГО ОКНА (Без изменений) */
 .modal {
     display: none;
     position: fixed;
@@ -145,14 +150,78 @@ h1 {
 .btn-stage:hover { background: #2563eb; }
 .btn-reject { background: #ef4444; }
 .btn-reject:hover { background: #b91c1c; }
+
+
+/* --- АДАПТИВНОСТЬ (МОБИЛЬНЫЙ РЕЖИМ) --- */
+
+/* Стили для вкладок */
+.tabs {
+    display: none; /* Скрываем на больших экранах */
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-around;
+}
+.tab-button {
+    flex: 1;
+    padding: 15px 10px;
+    text-align: center;
+    cursor: pointer;
+    font-weight: bold;
+    color: #6b7280;
+    transition: all 0.3s;
+    border-bottom: 3px solid transparent;
+}
+.tab-button.active {
+    color: #1e40af;
+    border-bottom: 3px solid #3b82f6;
+    background: #f9fafb;
+}
+
+/* Медиазапрос для мобильных устройств */
+@media (max-width: 768px) {
+    .columns {
+        flex-direction: column; /* Колонки становятся вертикальными */
+        gap: 0;
+    }
+    .column {
+        display: none; /* Скрываем все колонки по умолчанию */
+        flex: none;
+        width: 100%;
+        border-radius: 0;
+        box-shadow: none;
+        padding: 10px;
+        min-width: unset;
+    }
+    .column.active {
+        display: block; /* Показываем только активную колонку */
+    }
+    .tabs {
+        display: flex; /* Показываем вкладки */
+    }
+    body {
+        padding: 10px;
+    }
+    h1 {
+        font-size: 1.8rem;
+    }
+}
 </style>
 </head>
 <body>
 
 <h1>Доска Волонтёров</h1>
 
+<div class="tabs" id="tabs">
+    <div class="tab-button active" data-target="submitted">Отправлено</div>
+    <div class="tab-button" data-target="interview">Собеседование</div>
+    <div class="tab-button" data-target="accepted">Приняты</div>
+</div>
+
 <div class="columns">
-  <div class="column" id="submitted"><h2>Отправлено</h2></div>
+  <div class="column active" id="submitted"><h2>Отправлено</h2></div>
   <div class="column" id="interview"><h2>Собеседование</h2></div>
   <div class="column" id="accepted"><h2>Приняты</h2></div>
 </div>
@@ -164,19 +233,25 @@ h1 {
     <h3 id="volunteerName"></h3>
     <p><strong>Email:</strong> <span id="volunteerEmail"></span></p>
     <p><strong>Телефон:</strong> <span id="volunteerPhone"></span></p>
+    
+    <p><strong>Дата рождения:</strong> <span id="volunteerDOB"></span></p>
+    <p><strong>Место учебы:</strong> <span id="volunteerStudy"></span></p>
     <p><strong>Почему Вы хотите стать волонтером:</strong> <span id="volunteerWhy"></span></p>
     <p><strong>Опыт волонтёрства:</strong> <span id="volunteerExperience"></span></p>
     <p><strong>Навыки и хобби:</strong> <span id="volunteerHobbies"></span></p>
     <p><strong>Сильные качества:</strong> <span id="volunteerStrengths"></span></p>
+    
+    <p><strong>Мотивы выбора направлений:</strong> <span id="volunteerChoiceMotives"></span></p>
     <p><strong>Почему выбрать Вас:</strong> <span id="volunteerChoose"></span></p>
+    <p><strong>Направления:</strong> <span id="volunteerDirections"></span></p>
+    <p><strong>Время в неделю:</strong> <span id="volunteerHours"></span></p>
+    <p><strong>Ожидания:</strong> <span id="volunteerExpectations"></span></p>
+    <p><strong>Идеи и улучшения:</strong> <span id="volunteerIdeas"></span></p>
+    <p><strong>Будет присутствовать на собраниях:</strong> <span id="volunteerMeetings"></span></p>
     <p><strong>Согласны с удалением при низкой активности:</strong> <span id="volunteerAgreeInactivity"></span></p>
     <p><strong>Согласны с условиями клуба:</strong> <span id="volunteerAgreeTerms"></span></p>
     <p><strong>Готовы к выездам:</strong> <span id="volunteerReadyTravel"></span></p>
-    <p><strong>Идеи и улучшения:</strong> <span id="volunteerIdeas"></span></p>
-    <p><strong>Ожидания:</strong> <span id="volunteerExpectations"></span></p>
-    <p><strong>Направления:</strong> <span id="volunteerDirections"></span></p>
-    <p><strong>Время в неделю:</strong> <span id="volunteerHours"></span></p>
-    <p><strong>Будет присутствовать на собраниях:</strong> <span id="volunteerMeetings"></span></p>
+    
     <div class="buttons" id="modalButtons"></div>
   </div>
 </div>
@@ -193,6 +268,13 @@ const volunteerPhoto = document.getElementById('volunteerPhoto');
 const volunteerName = document.getElementById('volunteerName');
 const volunteerEmail = document.getElementById('volunteerEmail');
 const volunteerPhone = document.getElementById('volunteerPhone');
+
+// НОВЫЕ ЭЛЕМЕНТЫ МОДАЛЬНОГО ОКНА
+const volunteerDOB = document.getElementById('volunteerDOB'); 
+const volunteerStudy = document.getElementById('volunteerStudy');
+const volunteerChoiceMotives = document.getElementById('volunteerChoiceMotives'); 
+// КОНЕЦ НОВЫХ ЭЛЕМЕНТОВ
+
 const volunteerWhy = document.getElementById('volunteerWhy');
 const volunteerExperience = document.getElementById('volunteerExperience');
 const volunteerHobbies = document.getElementById('volunteerHobbies');
@@ -209,10 +291,16 @@ const volunteerMeetings = document.getElementById('volunteerMeetings');
 const modalButtons = document.getElementById('modalButtons');
 const closeModal = document.getElementById('closeModal');
 
+// Элементы вкладок
+const tabsContainer = document.getElementById('tabs');
+const tabButtons = tabsContainer.querySelectorAll('.tab-button');
+
+
 let volunteers = [];
 
 async function fetchVolunteers() {
   try {
+    // ВАЖНО: Используйте корректный API путь, который ваш Django-бэкенд открывает
     const res = await fetch('/api/volunteer-columns/'); 
     const data = await res.json();
     volunteers = [];
@@ -228,8 +316,20 @@ async function fetchVolunteers() {
 }
 
 function renderColumns() {
+  let firstRender = true;
   for (let col in columns) {
-    columns[col].innerHTML = `<h2>${columns[col].querySelector('h2').textContent}</h2>`;
+    const headerHtml = `<h2>${columns[col].querySelector('h2') ? columns[col].querySelector('h2').textContent : (col.charAt(0).toUpperCase() + col.slice(1))}</h2>`;
+    columns[col].innerHTML = headerHtml;
+    
+    // Логика активации для мобильного режима
+    if (window.innerWidth <= 768) {
+        if (col === 'submitted') {
+            columns[col].classList.add('active');
+        } else {
+            columns[col].classList.remove('active');
+        }
+    }
+
     volunteers.filter(v => v.status === col).forEach(v => {
       const card = document.createElement('div');
       card.className = 'card';
@@ -250,19 +350,29 @@ function openModal(v) {
   volunteerName.textContent = v.full_name || v.name;
   volunteerEmail.textContent = v.email || '-';
   volunteerPhone.textContent = v.phone_number || '-';
+  
+  // ОТОБРАЖЕНИЕ НОВЫХ ПОЛЕЙ
+  volunteerDOB.textContent = v.date_of_birth || '-';
+  volunteerStudy.textContent = v.place_of_study || '-';
+  volunteerChoiceMotives.textContent = v.choice_motives || '-';
+  // КОНЕЦ ОТОБРАЖЕНИЯ
+
   volunteerWhy.textContent = v.why_volunteer || '-';
   volunteerExperience.textContent = v.volunteer_experience || '-';
   volunteerHobbies.textContent = v.hobbies_skills || '-';
   volunteerStrengths.textContent = v.strengths || '-';
   volunteerChoose.textContent = v.why_choose_you || '-';
+  
+  // Булевы поля
   volunteerAgreeInactivity.textContent = v.agree_inactivity_removal ? 'Да' : 'Нет';
   volunteerAgreeTerms.textContent = v.agree_terms ? 'Да' : 'Нет';
   volunteerReadyTravel.textContent = v.ready_travel ? 'Да' : 'Нет';
+  volunteerMeetings.textContent = v.attend_meetings ? 'Да' : 'Нет';
+  
   volunteerIdeas.textContent = v.ideas_improvements || '-';
   volunteerExpectations.textContent = v.expectations || '-';
   volunteerDirections.textContent = v.directions ? v.directions.map(d => d.name).join(', ') : '-';
   volunteerHours.textContent = v.weekly_hours || '-';
-  volunteerMeetings.textContent = v.attend_meetings ? 'Да' : 'Нет';
 
   modalButtons.innerHTML = '';
   let buttons = [];
@@ -289,18 +399,41 @@ async function updateStatus(id, action) {
   const newStatus = statusMap[action];
 
   try {
+    // ВАЖНО: Используйте корректный API путь, который ваш Django-бэкенд ожидает
     await fetch(`/api/applications/${id}/update_status/`, {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({status: newStatus})
     });
+    // Обновляем данные локально
     volunteers = volunteers.map(v => v.id === id ? {...v, status: newStatus} : v);
     modal.style.display = 'none';
     renderColumns();
   } catch(err) {
     console.error('Ошибка обновления статуса:', err);
+    alert('Ошибка при обновлении статуса. Проверьте API бэкенда.');
   }
 }
+
+// --- ЛОГИКА ВЛАДОК (МОБИЛЬНЫЙ) ---
+tabButtons.forEach(button => {
+    button.addEventListener('click', () => {
+        const targetId = button.getAttribute('data-target');
+        
+        // 1. Сброс активного состояния кнопок
+        tabButtons.forEach(btn => btn.classList.remove('active'));
+        button.classList.add('active');
+        
+        // 2. Скрытие/показ колонок
+        for (let colId in columns) {
+            columns[colId].classList.remove('active');
+        }
+        // Показываем целевую колонку
+        document.getElementById(targetId).classList.add('active');
+    });
+});
+// --- КОНЕЦ ЛОГИКИ ВЛАДОК ---
+
 
 closeModal.onclick = () => modal.style.display = 'none';
 window.onclick = (e) => { if(e.target === modal) modal.style.display='none'; }
