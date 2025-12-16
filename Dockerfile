@@ -6,12 +6,13 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 
 # Устанавливаем необходимые пакеты
+# netcat-traditional добавлен, чтобы обеспечить работу команды 'nc' в entrypoint.sh
 RUN apt-get update && apt-get install -y \
     git \
     build-essential \
     libpq-dev \
-    # Добавляем gosu для управления пользователями (не обязательно, но хорошая практика)
     gosu \
+    netcat-traditional \
     && rm -rf /var/lib/apt/lists/*
 
 # Копируем только requirements, чтобы кэшировать зависимости
