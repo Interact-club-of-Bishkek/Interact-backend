@@ -2,7 +2,7 @@ import random
 import asyncio
 import json
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 
 # ---------- PATHS ----------
 BASE_DIR = Path(__file__).resolve().parent
@@ -12,24 +12,45 @@ CACHE_DIR.mkdir(exist_ok=True)
 
 # ---------- УРОВНИ ----------
 LEVELS = {
-    "easy": ["nouns"],                     # только существительные
-    "medium": ["nouns", "adjectives"],     # сущ + прил
-    "hard": ["nouns", "adjectives", "verbs"]  # сущ + прил + глаголы
+    "easy": ["nouns"], 					    # только существительные
+    "medium": ["nouns", "adjectives"], 		# сущ + прил
+    "hard": ["nouns", "adjectives", "verbs"] 	# сущ + прил + глаголы
 }
 
+# ---------- КОЛОДЫ СЛОВ ----------
+# Словарь для хранения "колод" слов, из которых будем брать слова, 
+# чтобы избежать повторений в короткой серии игр.
+class WordDeck:
+    def __init__(self, all_words: List[str]):
+        self._all_words = all_words
+        self._deck = list(all_words)
+        random.shuffle(self._deck)
+
+    def get_word(self) -> str:
+        if not self._deck:
+            # Если колода пуста, перемешиваем все слова и пополняем
+            self._deck = list(self._all_words)
+            random.shuffle(self._deck)
+            if not self._deck:
+                 raise RuntimeError("Словарь пуст, не могу пополнить колоду.")
+            print("[INFO] Колода слов пополнена и перемешана.")
+            
+        return self._deck.pop()
 
 class CrocodileManager:
     def __init__(self):
         self.chats: Dict[int, dict] = {}
         self.stats: Dict[int, dict] = {}
-        self.words: Dict[str, list[str]] = {}
+        # Словарь для хранения объектов WordDeck по уровням сложности
+        self.words_decks: Dict[str, WordDeck] = {} 
         self.bot = None
+        self.DEFAULT_DURATION = 300 # 5 минут
 
         self._load_stats()
         self._load_words_from_cache()
 
     # ==========================================================
-    #                         СТАТИСТИКА
+    #                         СТАТИСТИКА (Без изменений)
     # ==========================================================
 
     def _load_stats(self):
@@ -58,21 +79,18 @@ class CrocodileManager:
                 "failed": 0
             }
         elif name:
+            # Обновляем имя, если оно изменилось
             self.stats[user_id]["name"] = name
 
     # ==========================================================
-    #                           СЛОВА
+    #                           СЛОВА
     # ==========================================================
 
     def _load_words_from_cache(self):
         """
-        Загружает слова из:
-        cache_words/
-            nouns/summary.json
-            adjectives/summary.json
-            verbs/summary.json
+        Загружает слова и инициализирует WordDeck для каждого уровня.
         """
-        self.words = {}
+        raw_words_by_level: Dict[str, List[str]] = {}
 
         for level, categories in LEVELS.items():
             combined: list[str] = []
@@ -88,29 +106,42 @@ class CrocodileManager:
                         combined.extend(
                             w.lower()
                             for w in data
-                            if isinstance(w, str) and w.isalpha()
+                            if isinstance(w, str) and w.isalpha() and len(w) > 2 # Убираем слишком короткие слова
                         )
                 except Exception as e:
                     print(f"[WARNING] Ошибка загрузки {file_path}: {e}")
 
-            random.shuffle(combined)
-            self.words[level] = combined
-            print(f"[INFO] Уровень {level}: {len(combined)} слов")
-
-        if not self.words.get("easy"):
+            raw_words_by_level[level] = list(set(combined)) # Удаляем дубликаты
+            print(f"[INFO] Уровень {level}: {len(raw_words_by_level[level])} уникальных слов")
+            
+        # Инициализация колод
+        for level, words in raw_words_by_level.items():
+             if words:
+                 self.words_decks[level] = WordDeck(words)
+        
+        if not self.words_decks.get("easy"):
             raise RuntimeError("❌ Нет слов даже для уровня easy")
 
     def get_random_word(self, level: str = "easy") -> str:
-        if level not in self.words or not self.words[level]:
+        """Получает слово из колоды соответствующего уровня, обеспечивая ротацию."""
+        
+        # Если уровня нет, берем easy
+        if level not in self.words_decks:
             level = "easy"
+            
+        deck = self.words_decks.get(level)
+        if not deck:
+            # Fallback на easy, если основная колода не инициализирована
+            deck = self.words_decks.get("easy")
+        
+        if not deck:
+             raise RuntimeError(f"Нет слов для уровня {level}")
+             
+        return deck.get_word()
 
-        if not self.words[level]:
-            raise RuntimeError(f"Нет слов для уровня {level}")
-
-        return random.choice(self.words[level])
 
     # ==========================================================
-    #                           ИГРА
+    #                           ИГРА
     # ==========================================================
 
     async def start_round(
@@ -118,20 +149,24 @@ class CrocodileManager:
         chat_id: int,
         leader_id: int,
         leader_name: str,
-        duration: int = 300,
+        duration: int = None, # Используем стандартное значение, если не передано
         level: str = "easy"
     ) -> str:
+        
+        duration = duration or self.DEFAULT_DURATION
 
         self._ensure_user(leader_id, leader_name)
         self.stats[leader_id]["led"] += 1
         self._save_stats()
 
-        # Останавливаем старый таймер
+        # Останавливаем старый таймер, если есть
         if chat_id in self.chats and self.chats[chat_id].get("task"):
             self.chats[chat_id]["task"].cancel()
 
         word = self.get_random_word(level)
-        task = asyncio.create_task(self._timeout(chat_id, duration))
+        
+        # Передаем bot в _timeout, чтобы не было ошибки, если self.bot=None
+        task = asyncio.create_task(self._timeout(chat_id, duration, self.bot)) 
 
         self.chats[chat_id] = {
             "leader_id": leader_id,
@@ -145,14 +180,28 @@ class CrocodileManager:
 
         return word
 
-    async def _timeout(self, chat_id: int, duration: int):
+    async def _timeout(self, chat_id: int, duration: int, bot_instance):
+        
+        # ⚠️ ИСПРАВЛЕНИЕ: Проверяем, есть ли бот для отправки сообщений
+        if not bot_instance:
+             print(f"[ERROR] Бот не был передан в CrocodileManager! Таймер не может отправлять сообщения.")
+             # Не завершаем раунд, но не отправляем сообщения
+             try:
+                 await asyncio.sleep(duration)
+             except asyncio.CancelledError:
+                 pass
+             return
+
+
         try:
+            # Первое ожидание (до 1 минуты до конца)
             await asyncio.sleep(duration - 60)
 
             session = self.chats.get(chat_id)
             if session and not session["guessed"]:
-                await self.bot.send_message(chat_id, "⏱ Осталась 1 минута!")
+                await bot_instance.send_message(chat_id, "⏱ Осталась 1 минута!")
 
+            # Второе ожидание (финальная минута)
             await asyncio.sleep(60)
 
             session = self.chats.get(chat_id)
@@ -164,16 +213,18 @@ class CrocodileManager:
             self.stats[leader_id]["failed"] += 1
             self._save_stats()
 
-            await self.bot.send_message(
+            await bot_instance.send_message(
                 chat_id,
                 f"💀 @{session['leader_name']} проиграл!\n"
-                f"Слово было: {session['word']}"
+                f"Слово было: **{session['word']}**"
             )
 
             del self.chats[chat_id]
 
         except asyncio.CancelledError:
             pass
+        except Exception as e:
+            print(f"[ERROR] Ошибка в таймауте для {chat_id}: {e}")
 
     async def change_word(self, chat_id: int) -> Optional[str]:
         session = self.chats.get(chat_id)
@@ -181,14 +232,21 @@ class CrocodileManager:
             return None
 
         level = session.get("level", "easy")
-        session["word"] = self.get_random_word(level)
+        
+        # 🔄 Используем новый метод, чтобы получить слово из колоды
+        try:
+            session["word"] = self.get_random_word(level)
+        except RuntimeError:
+            return None # Если слова закончились
+
         session["guessed"] = False
 
         if session.get("task"):
             session["task"].cancel()
 
+        # ⚠️ ИСПРАВЛЕНИЕ: Перезапускаем таймаут
         session["task"] = asyncio.create_task(
-            self._timeout(chat_id, session["duration"])
+            self._timeout(chat_id, session["duration"], self.bot)
         )
 
         return session["word"]
@@ -209,6 +267,7 @@ class CrocodileManager:
         if user_id == session["leader_id"]:
             return None
 
+        # 🔍 Упрощенная проверка: угадывание должно быть точным совпадением (без учета регистра)
         if text.strip().lower() == session["word"].lower():
             session["guessed"] = True
 
@@ -218,6 +277,9 @@ class CrocodileManager:
             self._ensure_user(user_id, username)
             self.stats[user_id]["guessed"] += 1
             self._save_stats()
+            
+            # Удаляем игру после угадывания
+            del self.chats[chat_id] 
 
             return {
                 "word": session["word"],
@@ -228,7 +290,7 @@ class CrocodileManager:
         return None
 
     # ==========================================================
-    #                    СМЕНА ВЕДУЩЕГО
+    #                    СМЕНА ВЕДУЩЕГО
     # ==========================================================
 
     async def ask_to_be_leader(
@@ -236,17 +298,25 @@ class CrocodileManager:
         chat_id: int,
         user_id: int,
         username: str,
-        duration: int = 300
+        duration: int = None
     ) -> str:
         """
         Делает пользователя ведущим и запускает новый раунд
         с текущим уровнем сложности.
         """
+        
+        duration = duration or self.DEFAULT_DURATION
 
         level = "easy"
         if chat_id in self.chats:
             level = self.chats[chat_id].get("level", "easy")
-
+        
+        # ⚠️ НОВЫЙ ЛОГИЧЕСКИЙ ШАГ: 
+        # Если слово было угадано в предыдущем раунде, игра уже должна быть удалена из self.chats 
+        # (см. register_guess). Но если мы вызываем ask_to_be_leader после тайм-аута,
+        # session может отсутствовать. start_round инициирует новый раунд, 
+        # используя уровень из прошлого сеанса, если возможно.
+        
         return await self.start_round(
             chat_id=chat_id,
             leader_id=user_id,

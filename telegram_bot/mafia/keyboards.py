@@ -61,3 +61,12 @@ def sheriff_choice_kb(chat_id: int) -> InlineKeyboardMarkup:
     
     kb.adjust(1)
     return kb.as_markup()
+
+# --- ДОБАВЛЕНО ---
+def games_menu_kb() -> InlineKeyboardMarkup:
+    """Клавиатура с выбором игр по команде /start в группе."""
+    builder = InlineKeyboardBuilder()
+    builder.button(text="Начать Мафию 🐺", callback_data="start_mafia_from_menu")
+    builder.adjust(1)
+    return builder.as_markup()
+# -----------------

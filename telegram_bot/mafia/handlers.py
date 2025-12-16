@@ -3,16 +3,20 @@ import html
 from collections import Counter
 from aiogram import Router, types, Bot, F
 from aiogram.filters import Command
+from aiogram.enums import ChatType
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError 
+from typing import Optional
 
+# !!! ВАЖНОЕ ИСПРАВЛЕНИЕ: Нужен импорт MafiaGame, storage, stats !!!
 from mafia.game import MafiaGame, MAFIA_TEAM, ROLE_NAMES
 from mafia import storage, stats
-# Предполагаем, что join_kb(is_creator) возвращает кнопку "Начать сейчас", если is_creator=True
-from mafia.keyboards import join_kb, settings_kb, players_kb, sheriff_choice_kb
+
+# !!! ИМПОРТ: Добавляем games_menu_kb для обработки /start в группе !!!
+from mafia.keyboards import join_kb, settings_kb, players_kb, sheriff_choice_kb, games_menu_kb
 
 mafia_router = Router()
 
-# ---------- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ----------
+# ---------- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ (без изменений) ----------
 
 def generate_lobby_text(game: MafiaGame) -> str:
     """Генерирует кликабельный список игроков в HTML с учетом создателя."""
@@ -36,7 +40,108 @@ def generate_lobby_text(game: MafiaGame) -> str:
         f"⏳ <i>Нажмите кнопку, чтобы вступить.</i>"
     )
 
-# ---------- СТАРТ ИГРЫ (ЛОББИ) ----------
+async def check_end_game(bot: Bot, game: MafiaGame) -> bool:
+    """Проверяет условия окончания игры и объявляет результат."""
+    alive = list(game.alive().values())
+    mafia_count = sum(1 for p in alive if p["role"] in MAFIA_TEAM)
+    civil_count = sum(1 for p in alive if p["role"] not in MAFIA_TEAM)
+
+    winner = None
+    if mafia_count == 0:
+        winner = "civilian"
+        win_text = "🕊 <b>ПОБЕДА МИРНЫХ!</b> Вся мафия уничтожена."
+    elif mafia_count >= civil_count:
+        winner = "mafia"
+        win_text = "🔫 <b>ПОБЕДА МАФИИ!</b> Мафия захватила город."
+
+    if not winner: return False
+
+    # --- РАСКРЫТИЕ РОЛЕЙ ---
+    
+    role_reveal_text = "\n\n--- 🎭 Роли игроков ---\n"
+    
+    # Сортируем игроков: мафия (или дон) в начале, затем мирные
+    sorted_players = sorted(
+        game.players.values(), 
+        key=lambda p: p['role'] not in MAFIA_TEAM
+    )
+
+    for p in sorted_players:
+        # Статус: 💀 если мертв, 🟢 если жив
+        status_icon = "🟢" if p['alive'] else "💀"
+        role_name = ROLE_NAMES.get(p["role"], p["role"])
+        
+        role_reveal_text += (
+            f"{status_icon} <b>{p['name']}</b>: <i>{role_name}</i>\n"
+        )
+    
+    final_text = win_text + role_reveal_text
+    
+    # -----------------------
+
+    await bot.send_message(game.chat_id, final_text, parse_mode="HTML")
+    
+    for uid, p in game.players.items():
+        if (winner == "mafia" and p["role"] in MAFIA_TEAM) or \
+           (winner == "civilian" and p["role"] not in MAFIA_TEAM):
+            stats.inc(uid, "wins")
+            
+    storage.delete_game(game.chat_id)
+    return True
+
+# -----------------------------------------------
+# ИСПРАВЛЕННЫЙ ХЕНДЛЕР: ЗАПУСК МАФИИ ИЗ МЕНЮ (CALLBACK)
+# -----------------------------------------------
+@mafia_router.callback_query(F.data == "start_mafia_game") # <-- ЛОВИМ КОЛБЭК ИЗ general/handlers.py
+async def start_mafia_from_menu_callback(call: types.CallbackQuery):
+    """
+    Обрабатывает нажатие кнопки 'Играть в Мафию' (start_mafia_game) 
+    из главного меню, инициируя лобби.
+    """
+    
+    chat_id = call.message.chat.id
+    creator_user = call.from_user
+    creator_id = str(creator_user.id)
+    
+    if storage.load_game(chat_id):
+        await call.answer("⚠️ В этом чате уже есть активная игра.", show_alert=True)
+        return
+
+    # 1. Редактируем сообщение, чтобы убрать меню (если оно было)
+    try:
+        await call.message.edit_text("🚀 Создаем лобби Мафии...")
+    except TelegramBadRequest:
+        pass 
+        
+    # 2. Логика создания лобби (скопирована из start_lobby)
+    game = MafiaGame(chat_id)
+    game.add_player(creator_id, creator_user.full_name) 
+    game.creator_id = creator_id
+    storage.save_game(game)
+
+    text = generate_lobby_text(game)
+
+    # При создании лобби is_creator = True
+    # Отправляем НОВОЕ сообщение с лобби
+    try:
+        sent_msg = await call.message.answer(
+            text,
+            reply_markup=join_kb(is_creator=True), 
+            parse_mode="HTML"
+        )
+    except:
+         # На случай, если message.answer по какой-то причине не сработал
+         sent_msg = call.message 
+         
+    game.lobby_message_id = sent_msg.message_id
+    storage.save_game(game)
+    asyncio.create_task(lobby_cycle(call.bot, chat_id))
+
+    await call.answer("Лобби Мафии создано!")
+# -----------------------------------------------
+
+
+# ---------- СТАРТ ИГРЫ (ЛОББИ) - остальное без изменений ----------
 @mafia_router.message(Command("start_mafia"), F.chat.type.in_({"group", "supergroup"}))
 async def start_lobby(msg: types.Message):
     chat_id = msg.chat.id
@@ -158,7 +263,9 @@ async def join_game(call: types.CallbackQuery):
     text = generate_lobby_text(game)
 
     try:
-        await call.message.edit_text(text, reply_markup=join_kb(is_creator=True), parse_mode="HTML")
+        # Проверяем, является ли текущий пользователь создателем, чтобы отобразить кнопку "Начать сейчас"
+        is_creator_now = str(game.creator_id) == uid 
+        await call.message.edit_text(text, reply_markup=join_kb(is_creator=is_creator_now), parse_mode="HTML")
     except TelegramBadRequest: 
         pass 
     
@@ -428,7 +535,7 @@ async def day_phase(bot: Bot, chat_id: int):
         try:
             await bot.send_message(uid, "Кого вы хотите посадить в тюрьму?", reply_markup=players_kb(targets, chat_id, exclude=uid, action="vote"))
         except TelegramForbiddenError:
-             pass
+            pass
         except Exception: 
             pass
 
@@ -488,56 +595,7 @@ async def resolve_vote(bot: Bot, chat_id: int):
     await bot.send_message(chat_id, "🏙 Город засыпает...")
     await night_phase(bot, chat_id)
 
-# ---------- КОНЕЦ ИГРЫ (РАСКРЫТИЕ РОЛЕЙ) ----------
-async def check_end_game(bot: Bot, game: MafiaGame) -> bool:
-    alive = list(game.alive().values())
-    mafia_count = sum(1 for p in alive if p["role"] in MAFIA_TEAM)
-    civil_count = sum(1 for p in alive if p["role"] not in MAFIA_TEAM)
-
-    winner = None
-    if mafia_count == 0:
-        winner = "civilian"
-        win_text = "🕊 <b>ПОБЕДА МИРНЫХ!</b> Вся мафия уничтожена."
-    elif mafia_count >= civil_count:
-        winner = "mafia"
-        win_text = "🔫 <b>ПОБЕДА МАФИИ!</b> Мафия захватила город."
-
-    if not winner: return False
-
-    # --- РАСКРЫТИЕ РОЛЕЙ ---
-    
-    role_reveal_text = "\n\n--- 🎭 Роли игроков ---\n"
-    
-    # Сортируем игроков: мафия (или дон) в начале, затем мирные
-    sorted_players = sorted(
-        game.players.values(), 
-        key=lambda p: p['role'] not in MAFIA_TEAM
-    )
-
-    for p in sorted_players:
-        # Статус: 💀 если мертв, 🟢 если жив
-        status_icon = "🟢" if p['alive'] else "💀"
-        role_name = ROLE_NAMES.get(p["role"], p["role"])
-        
-        role_reveal_text += (
-            f"{status_icon} <b>{p['name']}</b>: <i>{role_name}</i>\n"
-        )
-    
-    final_text = win_text + role_reveal_text
-    
-    # -----------------------
-
-    await bot.send_message(game.chat_id, final_text, parse_mode="HTML")
-    
-    for uid, p in game.players.items():
-        if (winner == "mafia" and p["role"] in MAFIA_TEAM) or \
-           (winner == "civilian" and p["role"] not in MAFIA_TEAM):
-            stats.inc(uid, "wins")
-            
-    storage.delete_game(game.chat_id)
-    return True
-
-# ---------- НАСТРОЙКИ ----------
+# ---------- НАСТРОЙКИ - без изменений ----------
 @mafia_router.message(Command("settings_mafia"), F.chat.type.in_({"group", "supergroup"}))
 async def settings_mafia(msg: types.Message):
     chat_id = msg.chat.id
@@ -584,8 +642,8 @@ async def adjust_settings(call: types.CallbackQuery):
     await call.answer("✅ Настройки обновлены")
 
 
-# ---------- УДАЛЕНИЕ СООБЩЕНИЙ НОЧЬЮ И ОТ МЕРТВЫХ ----------
-@mafia_router.message(F.chat.type != "private")
+# ---------- УДАЛЕНИЕ СООБЩЕНИЙ НОЧЬЮ И ОТ МЕРТВЫХ - без изменений ----------
+@mafia_router.message(F.chat.type != ChatType.PRIVATE)
 async def delete_messages_check(msg: types.Message):
     """
     Удаляет все сообщения, если:
@@ -601,7 +659,7 @@ async def delete_messages_check(msg: types.Message):
     uid = str(msg.from_user.id)
     
     # Игнорируем команды и сообщения от самого бота
-    if msg.text and msg.text.startswith('/') or uid == str(msg.bot.id):
+    if (msg.text and msg.text.startswith('/')) or uid == str(msg.bot.id):
         return 
 
     should_delete = False
@@ -630,8 +688,8 @@ async def delete_messages_check(msg: types.Message):
         except Exception:
             pass
 
-# ---------- ЧАТ МАФИИ (ПЕРЕСЫЛКА) ----------
-@mafia_router.message(F.chat.type == "private")
+# ---------- ЧАТ МАФИИ (ПЕРЕСЫЛКА) - без изменений ----------
+@mafia_router.message(F.chat.type == ChatType.PRIVATE)
 async def private_chat_handler(msg: types.Message):
     """Обрабатывает сообщения в ЛС бота для чата мафии"""
     user_id = str(msg.from_user.id)

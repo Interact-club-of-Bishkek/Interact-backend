@@ -6,11 +6,10 @@ from aiogram import Bot, Dispatcher
 from dotenv import load_dotenv
 
 # ---------- Импорт роутеров ----------
-# Импортируем роутер И объект manager, чтобы передать ему бота
 from crocodile.crocodile_runner import crocodile_router, manager as crocodile_manager
 from mafia.handlers import mafia_router 
-# ❗ НОВЫЙ ИМПОРТ ❗
 from general.handlers import general_router 
+from volunteers.telegram_handlers import application_router 
 
 # ---------- Загрузка конфига ----------
 load_dotenv()
@@ -27,12 +26,15 @@ async def main():
     bot = Bot(token=TOKEN)
     dp = Dispatcher()
 
-    # 2. Передаем этого бота в менеджер крокодила
-    crocodile_manager.bot = bot 
+    # 2. Передаем этого бота в менеджер крокодила (если нужно)
+    try:
+        crocodile_manager.bot = bot 
+    except NameError:
+        pass # Игнорируем, если crocodile_manager не определен
 
-    # 3. Подключение роутеров
-    # ❗ ВАЖНО: general_router должен быть первым, чтобы ловить /start в ЛС
-    dp.include_router(general_router) 
+    # 3. Подключение роутеров (FSM ПЕРВЫМ)
+    dp.include_router(application_router) # <-- ЛОВИТ 'volunteer_apply'
+    dp.include_router(general_router)    # <-- ЛОВИТ /start и 'ai_assistant'
     dp.include_router(crocodile_router)
     dp.include_router(mafia_router)
 
