@@ -77,7 +77,7 @@ h1 {
     color: #555;
 }
 
-/* СТИЛИ МОДАЛЬНОГО ОКНА (Без изменений) */
+/* СТИЛИ МОДАЛЬНОГО ОКНА */
 .modal {
     display: none;
     position: fixed;
@@ -156,7 +156,7 @@ h1 {
 
 /* Стили для вкладок */
 .tabs {
-    display: none; /* Скрываем на больших экранах */
+    display: none; 
     background: #fff;
     border-radius: 10px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.05);
@@ -183,11 +183,11 @@ h1 {
 /* Медиазапрос для мобильных устройств */
 @media (max-width: 768px) {
     .columns {
-        flex-direction: column; /* Колонки становятся вертикальными */
+        flex-direction: column; 
         gap: 0;
     }
     .column {
-        display: none; /* Скрываем все колонки по умолчанию */
+        display: none; 
         flex: none;
         width: 100%;
         border-radius: 0;
@@ -196,10 +196,10 @@ h1 {
         min-width: unset;
     }
     .column.active {
-        display: block; /* Показываем только активную колонку */
+        display: block; 
     }
     .tabs {
-        display: flex; /* Показываем вкладки */
+        display: flex; 
     }
     body {
         padding: 10px;
@@ -347,6 +347,16 @@ function renderColumns() {
   }
 }
 
+function formatISODate(isoDate) {
+    if (!isoDate) return '-';
+    // Преобразование ISO строки 'YYYY-MM-DD' в формат 'DD.MM.YYYY'
+    const parts = isoDate.split('-');
+    if (parts.length === 3) {
+        return `${parts[2]}.${parts[1]}.${parts[0]}`;
+    }
+    return isoDate; // Возвращаем как есть, если формат не распознан
+}
+
 function openModal(v) {
   // ИСПРАВЛЕНО: Используем photo_url (Application) или image_url (Volunteer)
   volunteerPhoto.src = v.photo_url || v.image_url || '';
@@ -356,11 +366,12 @@ function openModal(v) {
   volunteerEmail.textContent = v.email || '-';
   volunteerPhone.textContent = v.phone_number || '-';
   
-  // ОТОБРАЖЕНИЕ НОВЫХ ПОЛЕЙ. Теперь они приходят из API с этими именами:
-  volunteerDOB.textContent = v.date_of_birth || '-';
+  // ИСПРАВЛЕНО: Форматирование даты
+  volunteerDOB.textContent = formatISODate(v.date_of_birth);
+  
+  // ИСПРАВЛЕНО: Надежная проверка на пустую строку или null
   volunteerStudy.textContent = v.place_of_study || '-';
   volunteerChoiceMotives.textContent = v.choice_motives || '-';
-  // КОНЕЦ ОТОБРАЖЕНИЯ
 
   volunteerWhy.textContent = v.why_volunteer || '-';
   volunteerExperience.textContent = v.volunteer_experience || '-';
@@ -368,18 +379,20 @@ function openModal(v) {
   volunteerStrengths.textContent = v.strengths || '-';
   volunteerChoose.textContent = v.why_choose_you || '-';
   
+  // ИСПРАВЛЕНО: Надёжная проверка на directions (массив объектов)
+  volunteerDirections.textContent = (v.directions && v.directions.length > 0) ? v.directions.map(d => d.name).join(', ') : '-';
+  
+  // Остальные поля:
+  volunteerHours.textContent = v.weekly_hours || '-';
+  volunteerIdeas.textContent = v.ideas_improvements || '-';
+  volunteerExpectations.textContent = v.expectations || '-';
+  
   // Булевы поля
   volunteerAgreeInactivity.textContent = v.agree_inactivity_removal ? 'Да' : 'Нет';
   volunteerAgreeTerms.textContent = v.agree_terms ? 'Да' : 'Нет';
   volunteerReadyTravel.textContent = v.ready_travel ? 'Да' : 'Нет';
   volunteerMeetings.textContent = v.attend_meetings ? 'Да' : 'Нет';
   
-  volunteerIdeas.textContent = v.ideas_improvements || '-';
-  volunteerExpectations.textContent = v.expectations || '-';
-  // directions теперь корректно обрабатывается (ожидаем массив объектов с полем name)
-  volunteerDirections.textContent = v.directions ? v.directions.map(d => d.name).join(', ') : '-';
-  volunteerHours.textContent = v.weekly_hours || '-';
-
   modalButtons.innerHTML = '';
   let buttons = [];
   if(v.status === 'submitted') buttons = ['На 2 этап', 'Отказ'];
@@ -405,7 +418,6 @@ async function updateStatus(id, action) {
   const newStatus = statusMap[action];
 
   try {
-    // ВАЖНО: Используйте корректный API путь, который ваш Django-бэкенд ожидает
     await fetch(`/api/applications/${id}/update_status/`, {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
@@ -414,7 +426,7 @@ async function updateStatus(id, action) {
     // Обновляем данные локально
     volunteers = volunteers.map(v => v.id === id ? {...v, status: newStatus} : v);
     modal.style.display = 'none';
-    renderColumns();
+    fetchVolunteers(); // Перезагружаем данные для актуализации
   } catch(err) {
     console.error('Ошибка обновления статуса:', err);
     alert('Ошибка при обновлении статуса. Проверьте API бэкенда.');
