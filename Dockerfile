@@ -6,7 +6,6 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 
 # Устанавливаем необходимые системные пакеты
-# netcat-traditional нужен для скрипта entrypoint.sh для ожидания БД
 RUN apt-get update && apt-get install -y \
     git \
     build-essential \
@@ -21,22 +20,18 @@ COPY requirements.txt .
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
-# ... (Предыдущие строки до сюда остаются без изменений)
-
 # Копируем весь проект
 COPY . .
 
-# Создаем пустые директории для статики и медиа, чтобы chmod мог работать
+# Создаем пустые директории для томов. (Решает проблему сборки)
 RUN mkdir -p /app/media /app/staticfiles
 
 # Создаем не-root пользователя для запуска Gunicorn
 RUN adduser --disabled-password --gecos '' appuser
 RUN chown -R appuser:appuser /app
 
-# ИСПРАВЛЕНИЕ: Установка прав доступа для созданных директорий
-# Это предотвратит ошибки, если директории не монтируются
+# Установка прав доступа для созданных директорий в образе
 RUN chmod -R 775 /app/media
 RUN chmod -R 775 /app/staticfiles
 
 EXPOSE 8000
-# CMD удалена, так как запуск осуществляется через entrypoint.sh
