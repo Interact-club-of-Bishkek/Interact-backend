@@ -3,6 +3,7 @@ import logging
 import requests
 import os
 import re
+import io # Добавлен импорт io
 from datetime import datetime, timezone, timedelta 
 
 # Импорт TelegramBadRequest для более точной обработки ошибок при редактировании
@@ -27,12 +28,8 @@ BISHKEK_TIMEZONE = timezone(timedelta(hours=6))
 # --- КОНФИГУРАЦИЯ ВРЕМЕННЫХ ЛИМИТОВ РЕГИСТРАЦИИ (GMT+6) ---
 # --- Введите время в формате YYYY, MM, DD, HH, MM, SS                  ---
 # ----------------------------------------------------------------------
-# Текущее время (Bishkek) - 2025-12-16 20:35:59
+# Текущее время (Bishkek) - 2025-12-16 23:17:56
 # Установил диапазон, чтобы регистрация была ОТКРЫТА для тестирования:
-
-# REGISTRATION_START = datetime(2026, 1, 1, 0, 0, 0).replace(tzinfo=BISHKEK_TIMEZONE)
-# REGISTRATION_END = datetime(2026, 1, 4, 0, 0, 0).replace(tzinfo=BISHKEK_TIMEZONE)
-
 
 REGISTRATION_START = datetime(2025, 12, 16, 0, 0, 0).replace(tzinfo=BISHKEK_TIMEZONE)
 REGISTRATION_END = datetime(2026, 1, 4, 0, 0, 0).replace(tzinfo=BISHKEK_TIMEZONE)
@@ -169,13 +166,24 @@ async def submit_application_to_django(bot, data: dict):
         try:
             file_info = await bot.get_file(photo_file_id)
             file_path = file_info.file_path
-            file_bytes = await bot.download_file(file_path)
-            files['photo'] = ('volunteer_photo.jpg', file_bytes.read(), 'image/jpeg')
+            
+            # --- ИСПРАВЛЕНИЕ ДЛЯ НАДЕЖНОЙ ЗАГРУЗКИ ФАЙЛА ---
+            # Скачиваем файл в объект BytesIO
+            file_stream = await bot.download_file(file_path, destination=io.BytesIO())
+            
+            # Обязательно сбрасываем курсор на начало объекта-файла перед чтением/отправкой
+            file_stream.seek(0)
+            
+            # Собираем объект для requests.post
+            files['photo'] = ('volunteer_photo.jpg', file_stream.read(), 'image/jpeg')
+            
         except Exception as e:
-            logging.error(f"Ошибка при загрузке фото из Telegram: {e}")
+            logging.error(f"Ошибка при загрузке или подготовке фото: {e}")
+            # В случае ошибки просто продолжаем без файла
             pass
 
     try:
+        # Отправка данных и файла синхронно в отдельном потоке
         response = await asyncio.to_thread(
             requests.post, APPLICATION_ENDPOINT, data=submit_data, files=files, timeout=REQUEST_TIMEOUT
         )
