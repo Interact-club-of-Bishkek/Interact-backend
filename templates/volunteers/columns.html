@@ -300,7 +300,6 @@ let volunteers = [];
 
 async function fetchVolunteers() {
   try {
-    // ВАЖНО: Используйте корректный API путь, который ваш Django-бэкенд открывает
     const res = await fetch('/api/volunteer-columns/'); 
     const data = await res.json();
     volunteers = [];
@@ -331,10 +330,13 @@ function renderColumns() {
     }
 
     volunteers.filter(v => v.status === col).forEach(v => {
+      // ИСПРАВЛЕНО: Используем photo_url (Application) или image_url (Volunteer)
+      const photoSource = v.photo_url || v.image_url; 
+
       const card = document.createElement('div');
       card.className = 'card';
       card.innerHTML = `
-        ${v.photo ? `<img src="${v.photo}" alt="Фото">` : ''}
+        ${photoSource ? `<img src="${photoSource}" alt="Фото">` : ''}
         <div class="card-info">
           <strong>${v.full_name || v.name}</strong>
           <span>${v.email || ''}</span>
@@ -346,12 +348,15 @@ function renderColumns() {
 }
 
 function openModal(v) {
-  volunteerPhoto.src = v.photo || '';
-  volunteerName.textContent = v.full_name || v.name;
+  // ИСПРАВЛЕНО: Используем photo_url (Application) или image_url (Volunteer)
+  volunteerPhoto.src = v.photo_url || v.image_url || '';
+  
+  // full_name для Application (submitted, interview), name для Volunteer (accepted)
+  volunteerName.textContent = v.full_name || v.name; 
   volunteerEmail.textContent = v.email || '-';
   volunteerPhone.textContent = v.phone_number || '-';
   
-  // ОТОБРАЖЕНИЕ НОВЫХ ПОЛЕЙ
+  // ОТОБРАЖЕНИЕ НОВЫХ ПОЛЕЙ. Теперь они приходят из API с этими именами:
   volunteerDOB.textContent = v.date_of_birth || '-';
   volunteerStudy.textContent = v.place_of_study || '-';
   volunteerChoiceMotives.textContent = v.choice_motives || '-';
@@ -371,6 +376,7 @@ function openModal(v) {
   
   volunteerIdeas.textContent = v.ideas_improvements || '-';
   volunteerExpectations.textContent = v.expectations || '-';
+  // directions теперь корректно обрабатывается (ожидаем массив объектов с полем name)
   volunteerDirections.textContent = v.directions ? v.directions.map(d => d.name).join(', ') : '-';
   volunteerHours.textContent = v.weekly_hours || '-';
 

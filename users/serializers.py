@@ -1,10 +1,10 @@
 from rest_framework import serializers
 from .models import Volunteer, VolunteerApplication
-from directions.models import VolunteerDirection  # добавляем для короткого сериализатора
-from directions.serializers import VolunteerDirectionSerializer
+from directions.models import VolunteerDirection 
+# assuming you have this serializer file
+# from directions.serializers import VolunteerDirectionSerializer 
 
 
-# --------- Короткий сериализатор для направлений ---------
 # --------- Короткий сериализатор для направлений ---------
 class VolunteerDirectionShortSerializer(serializers.ModelSerializer):
     class Meta:
@@ -31,11 +31,11 @@ class VolunteerSerializer(serializers.ModelSerializer):
             request = self.context.get('request')
             if request:
                 return request.build_absolute_uri(obj.image.url)
-            return obj.image.url # Возвращаем относительный путь, если нет контекста
+            return obj.image.url
         return None
 
 
-# --------- Авторизация ---------
+# --------- Авторизация (Без изменений) ---------
 class VolunteerLoginSerializer(serializers.Serializer):
     login = serializers.CharField()
     password = serializers.CharField(write_only=True)
@@ -52,7 +52,6 @@ class VolunteerLoginSerializer(serializers.Serializer):
         return attrs
 
 
-# --------- Заявки волонтёров ---------
 # --------- Заявки волонтёров (Исправлено: URL фото и поля анкеты) ---------
 class VolunteerApplicationSerializer(serializers.ModelSerializer):
     directions = VolunteerDirectionShortSerializer(many=True, read_only=True)
@@ -80,17 +79,17 @@ class VolunteerApplicationSerializer(serializers.ModelSerializer):
             request = self.context.get('request')
             if request:
                 return request.build_absolute_uri(obj.photo.url)
-            return obj.photo.url # Возвращаем относительный путь, если нет контекста
+            return obj.photo.url
         return None
 
-# --------- Обновление статуса ---------
+
+# --------- Обновление статуса (Без изменений) ---------
 class VolunteerApplicationStatusUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = VolunteerApplication
         fields = ['status']
 
 
-# --------- Для отображения колонок ---------
 # --------- Для отображения колонок (Без изменений) ---------
 class VolunteerColumnsSerializer(serializers.Serializer):
     submitted = VolunteerApplicationSerializer(many=True, read_only=True)

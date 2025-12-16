@@ -7,14 +7,14 @@ class VolunteerApplicationAdmin(admin.ModelAdmin):
     list_display = ('full_name', 'email', 'phone_number', 'status', 'photo_tag', 'created_at')
     list_filter = ('status', 'directions')
     search_fields = ('full_name', 'email', 'phone_number')
-    # Добавляем updated_at и volunteer_created в readonly_fields, если они нужны для просмотра
+    # Добавлены поля в readonly_fields, чтобы их можно было включить в fieldsets
     readonly_fields = ('created_at', 'updated_at', 'photo_tag', 'volunteer_created') 
 
     fieldsets = (
         ('Личная информация', {
             'fields': (
                 'full_name', 'email', 'phone_number', 'photo', 'photo_tag',
-                'date_of_birth', 'place_of_study', # Добавленные поля
+                'date_of_birth', 'place_of_study', 
             )
         }),
         ('Анкетные вопросы', {
@@ -26,18 +26,13 @@ class VolunteerApplicationAdmin(admin.ModelAdmin):
             )
         }),
         ('Статус', {
-            # ИСПРАВЛЕНО: УДАЛЕНО 'volunteer_created' из полей для редактирования (так как editable=False)
+            # Теперь volunteer_created можно включить, т.к. оно в readonly_fields
             'fields': ('status', 'volunteer', 'volunteer_created') 
-        }),
-        ('Даты', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
         }),
     )
 
     def photo_tag(self, obj):
         if obj.photo:
-            # Убеждаемся, что здесь используется obj.photo.url, который должен быть корректно настроен
             return format_html('<img src="{}" style="width: 100px; height:auto;" />', obj.photo.url)
         return "-"
     photo_tag.short_description = "Фото"
@@ -47,24 +42,20 @@ class VolunteerApplicationAdmin(admin.ModelAdmin):
         if obj.status == 'accepted' and not obj.volunteer_created:
             creating_volunteer = True
 
-        # Важно: Сначала сохраняем Application, чтобы получить его PK
         super().save_model(request, obj, form, change)
 
         if creating_volunteer:
-            # Создаем волонтера
             volunteer = Volunteer.objects.create_user(
                 name=obj.full_name,
                 phone_number=obj.phone_number,
                 email=obj.email
             )
-            # Устанавливаем направления
             volunteer.direction.set(obj.directions.all())
             volunteer.save()
             
-            # Обновляем Application ссылкой на созданного Volunteer и флаг
             obj.volunteer = volunteer
             obj.volunteer_created = True
-            # Используем save(update_fields=...) для предотвращения рекурсии
+            # Предотвращение рекурсии
             obj.save(update_fields=['volunteer', 'volunteer_created'])
 
 

@@ -57,6 +57,15 @@ class VolunteerProfileView(generics.RetrieveAPIView):
         return Volunteer.objects.get(id=user_id)
 
 
+# ---------------- Columns для фронта ----------------
+from rest_framework import serializers
+
+class VolunteerColumnsSerializer(serializers.Serializer):
+    submitted = VolunteerApplicationSerializer(many=True, read_only=True)
+    interview = VolunteerApplicationSerializer(many=True, read_only=True)
+    accepted = VolunteerSerializer(many=True, read_only=True)
+
+
 # ---------------- Volunteer Applications ----------------
 class VolunteerApplicationViewSet(viewsets.ModelViewSet):
     queryset = VolunteerApplication.objects.all().order_by('-created_at')
@@ -127,37 +136,29 @@ class VolunteerApplicationViewSet(viewsets.ModelViewSet):
         return Response({'sent_to': sent, 'count': len(sent)})
 
 
-# ---------------- Columns для фронта ----------------
-from rest_framework import serializers
-
-class VolunteerColumnsSerializer(serializers.Serializer):
-    submitted = VolunteerApplicationSerializer(many=True, read_only=True)
-    interview = VolunteerApplicationSerializer(many=True, read_only=True)
-    accepted = VolunteerSerializer(many=True, read_only=True)
-
+# ---------------- Columns для фронта (Исправлено) ----------------
 
 class VolunteerColumnsView(APIView):
     """
     GET: возвращает три группы волонтёров для фронта
     """
-    permission_classes = []  
+    permission_classes = [] 
 
     def get(self, request):
         submitted = VolunteerApplication.objects.filter(status='submitted').order_by('-created_at')
         interview = VolunteerApplication.objects.filter(status='interview').order_by('-created_at')
         
-        # --- ИСПРАВЛЕНО: Выбираем только созданных Volunteer, используя связь с Application ---
-        # Это гарантирует, что VolunteerSerializer получит правильные объекты
+        # ИСПРАВЛЕНО: Выбираем объекты Volunteer для колонки accepted
         accepted = Volunteer.objects.filter(application__status='accepted', application__volunteer_created=True).order_by('-application__created_at')
         
-        # --- КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: ПЕРЕДАЧА КОНТЕКСТА ---
+        # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: ПЕРЕДАЧА КОНТЕКСТА
         context = {'request': request} 
         
         serializer = VolunteerColumnsSerializer(
             {
                 'submitted': submitted,
                 'interview': interview,
-                'accepted': accepted # Теперь это QuerySet объектов Volunteer
+                'accepted': accepted
             }, 
             context=context # ПЕРЕДАЁМ КОНТЕКСТ для корректной работы get_photo_url/get_image_url
         )
