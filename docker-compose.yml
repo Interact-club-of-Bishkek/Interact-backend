@@ -5,17 +5,18 @@ services:
   db:
     image: postgres:14-alpine
     container_name: interact_postgres_db
+    # Том для постоянного хранения данных.
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     environment:
-      # Переменные для инициализации БД берутся из .env (POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD)
+      # Переменные для инициализации БД берутся из .env
       - POSTGRES_DB=${DB_NAME}
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
-    ports:
-      # - "5432:5432" # Опционально: раскомментируйте для доступа к БД с хоста
+    # Секция ports удалена для устранения ошибки синтаксиса
     restart: always
     healthcheck:
+      # Проверка здоровья базы данных
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
@@ -30,13 +31,14 @@ services:
     ports:
       - "8000:8000"
     env_file:
-      - .env # Берет все переменные, включая настройки подключения к DB_HOST=db
+      - .env
+    # Тома для статики и медиа
     volumes:
       - static_volume:/app/staticfiles
       - media_volume:/app/media
     depends_on:
       db:
-        condition: service_healthy 
+        condition: service_healthy # Ждет, пока база данных будет готова
     restart: always
 
   # 3. СЕРВИС TELEGRAM БОТА
@@ -46,12 +48,12 @@ services:
       dockerfile: Dockerfile
     container_name: interact_telegram_bot
     env_file:
-      - .env # Берет TELEGRAM_BOT_TOKEN и DJANGO_API_URL=http://backend:8000/api/
+      - .env
     depends_on:
       - backend 
     restart: always
 
-# 4. ИМЕНОВАННЫЕ ТОМА
+# 4. ИМЕНОВАННЫЕ ТОМА (Для сохранения данных)
 volumes:
   postgres_data:
   static_volume:
