@@ -40,4 +40,4 @@ python manage.py collectstatic --noinput
 # 5. ЗАПУСК GUNICORN
 # ----------------------------------------------------
 echo "Запуск Gunicorn..."
-exec gosu appuser gunicorn interact.wsgi:application --bind 0.0.0.0:8000 --workers 3
+exec gosu appuser gunicorn interact.wsgi:application --bind 0.0.0.0:8000 --workers 3    

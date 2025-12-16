@@ -56,18 +56,20 @@ class VolunteerLoginSerializer(serializers.Serializer):
 # --------- Заявки волонтёров (Исправлено: URL фото и поля анкеты) ---------
 class VolunteerApplicationSerializer(serializers.ModelSerializer):
     
-    # 1. ЧТЕНИЕ: красиво выводим направления
-    directions_display = VolunteerDirectionShortSerializer(source='directions', many=True, read_only=True) 
+    # ИСПРАВЛЕНИЕ: Это поле для КРАСИВОГО ЧТЕНИЯ (вывод для фронта, вложенный объект)
+    directions_details = VolunteerDirectionShortSerializer(source='directions', many=True, read_only=True) 
     
-    # 2. ЗАПИСЬ: принимаем список ID от бота
+    # ИСПРАВЛЕНИЕ: Это поле для ЗАПИСИ (прием списка ID от бота, write_only=True)
     directions = serializers.PrimaryKeyRelatedField(
         queryset=VolunteerDirection.objects.all(), 
-        many=True, 
-        write_only=True
+        many=True
+        # Мы оставляем directions без write_only=True, т.к. ModelSerializer будет
+        # использовать его для записи, когда бот отправляет POST. 
+        # Но для чтения используем directions_details.
     )
 
     status_display = serializers.CharField(source='get_status_display', read_only=True)
-    photo_url = serializers.SerializerMethodField(read_only=True) # Чтение: полный URL фото
+    photo_url = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = VolunteerApplication
@@ -80,12 +82,10 @@ class VolunteerApplicationSerializer(serializers.ModelSerializer):
             'why_choose_you', 'agree_inactivity_removal', 'agree_terms', 'ready_travel',
             'ideas_improvements', 'expectations', 
             
-            'directions', # <-- Используется для записи (список ID)
-            'directions_display', # <-- Используется для чтения (объекты)
+            'directions',          # <-- Для записи (ID) и для обратной совместимости
+            'directions_details',  # <-- Для чтения (объекты)
             
-            'weekly_hours', 'attend_meetings',
-            
-            'feedback',
+            'weekly_hours', 'attend_meetings', 'feedback',
             
             'status', 'status_display', 'created_at', 'updated_at'
         ]
