@@ -1,5 +1,5 @@
 from aiogram import Router, types, F
-from aiogram.filters import Command
+from aiogram.filters import Command, StateFilter # <-- Добавлен импорт StateFilter
 from aiogram.enums import ChatType
 from typing import Optional
 
@@ -60,20 +60,21 @@ def game_keyboard() -> types.InlineKeyboardMarkup:
 
 def get_welcome_text(user_name: Optional[str]) -> str:
     """Формирует приветственный текст для ЛС."""
-    user_greeting = f"✨ **Добро пожаловать, {user_name}!** ✨\n\n" if user_name else "✨ **Добро пожаловать в Interact Club of Bishkek!** ✨\n\n"
+    # Используем HTML-теги для форматирования, чтобы соответствовать остальному коду
+    user_greeting = f"✨ <b>Добро пожаловать, {user_name}!</b> ✨\n\n" if user_name else "✨ <b>Добро пожаловать в Interact Club of Bishkek!</b> ✨\n\n"
     
     return (
         f"{user_greeting}"
         "Мы — международная благотворительная организация, объединяющая активную "
         "молодежь Бишкека для реализации социальных проектов и создания позитивных перемен.\n\n"
-        "🤝 **Наша миссия:** Развивать лидерские качества, помогать обществу и строить дружеские связи.\n\n"
+        "🤝 <b>Наша миссия:</b> Развивать лидерские качества, помогать обществу и строить дружеские связи.\n\n"
         "Выберите действие, чтобы узнать больше или начать свой путь с нами:"
     )
 
 def get_group_start_text() -> str:
     """Формирует текст для группового чата при запуске игры."""
     return (
-        "🎮 **Начнём игру!**\n"
+        "🎮 <b>Начнём игру!</b>\n"
         "Выберите игру, которую хотите запустить в этом чате.\n\n"
         "⚠️ Если вы ищете информацию о клубе, пожалуйста, используйте /start в личных сообщениях."
     )
@@ -81,16 +82,16 @@ def get_group_start_text() -> str:
 
 # ---------- ХЕНДЛЕРЫ КОМАНД ----------
 
-@general_router.message(Command("start"), F.chat.type == ChatType.PRIVATE)
+@general_router.message(Command("start"), F.chat.type == ChatType.PRIVATE, StateFilter(None)) # <-- Добавлен StateFilter(None)
 async def handle_private_start(msg: types.Message):
-    """Обрабатывает команду /start в личных сообщениях (Кнопки клуба)."""
+    """Обрабатывает команду /start в личных сообщениях, только когда FSM неактивен."""
     user_name = msg.from_user.first_name if msg.from_user else "друг"
     welcome_text = get_welcome_text(user_name)
     
     await msg.answer(
         welcome_text,
         reply_markup=club_keyboard(), 
-        parse_mode="Markdown"
+        parse_mode="HTML" # <-- Изменено на HTML
     )
 
 @general_router.message(Command("start"), F.chat.type.in_({ChatType.GROUP, ChatType.SUPERGROUP}))
@@ -99,7 +100,7 @@ async def handle_group_start(msg: types.Message):
     await msg.answer(
         get_group_start_text(),
         reply_markup=game_keyboard(), 
-        parse_mode="Markdown"
+        parse_mode="HTML" # <-- Изменено на HTML
     )
 
 

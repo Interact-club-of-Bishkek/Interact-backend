@@ -3,7 +3,7 @@ import logging
 import requests
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timezone, timedelta 
 
 # Импорт TelegramBadRequest для более точной обработки ошибок при редактировании
 from aiogram import Router, types, F
@@ -11,13 +11,30 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardRemove
 from aiogram.exceptions import TelegramBadRequest 
+# ---> ИСПРАВЛЕНИЕ: Импорт StateFilter для корректной работы хендлера /cancel
+from aiogram.filters.state import StateFilter
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# Настройка логирования (добавлено для отладки)
+# Настройка логирования
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+# Константы часового пояса Бишкека (GMT+6)
+BISHKEK_TIMEZONE = timezone(timedelta(hours=6))
+
+# ----------------------------------------------------------------------
+# --- КОНФИГУРАЦИЯ ВРЕМЕННЫХ ЛИМИТОВ РЕГИСТРАЦИИ (GMT+6) ---
+# --- Введите время в формате YYYY, MM, DD, HH, MM, SS                  ---
+# ----------------------------------------------------------------------
+# Текущее время (Bishkek) - 2025-12-16 20:35:59
+# Установил диапазон, чтобы регистрация была ОТКРЫТА для тестирования:
+REGISTRATION_START = datetime(2025, 12, 16, 20, 0, 0).replace(tzinfo=BISHKEK_TIMEZONE)
+REGISTRATION_END = datetime(2025, 12, 19, 21, 0, 0).replace(tzinfo=BISHKEK_TIMEZONE)
+
+# Функция для получения текущего времени с учетом часового пояса (GMT+6)
+def get_current_time_aware():
+    return datetime.now(BISHKEK_TIMEZONE)
 
 # --- КОНФИГУРАЦИЯ API И БОТА ---
 DJANGO_API_BASE_URL = os.getenv("DJANGO_API_URL", "http://147.45.107.186:8000/api/") 
@@ -28,6 +45,8 @@ REQUEST_TIMEOUT = 10
 
 application_router = Router()
 DIRECTIONS_CACHE = {} 
+
+# --- КЛАВИАТУРЫ ---
 YES_NO_KB = InlineKeyboardMarkup(inline_keyboard=[
     [
         InlineKeyboardButton(text="Да ✅", callback_data="answer_yes"),
@@ -36,6 +55,20 @@ YES_NO_KB = InlineKeyboardMarkup(inline_keyboard=[
 ])
 SKIP_FEEDBACK_KB = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="Пропустить и отправить 🚀", callback_data="skip_feedback")]
+])
+
+WEEKLY_HOURS_KB = InlineKeyboardMarkup(inline_keyboard=[
+    [
+        InlineKeyboardButton(text="До 5 часов", callback_data="hours_5"),
+        InlineKeyboardButton(text="5 - 10 часов", callback_data="hours_5_10"),
+    ],
+    [
+        InlineKeyboardButton(text="10 - 15 часов", callback_data="hours_10_15"),
+        InlineKeyboardButton(text="Более 15 часов", callback_data="hours_15_plus"),
+    ],
+    [
+        InlineKeyboardButton(text="Свой вариант (ввести текстом) 📝", callback_data="hours_custom")
+    ]
 ])
 
 # Регулярные выражения для валидации
@@ -47,32 +80,33 @@ DATE_REGEX = r'^\d{4}-\d{2}-\d{2}$'
 class ApplicationSteps(StatesGroup):
     """Шаги для сбора данных анкеты волонтера (21 шаг)."""
     
-    waiting_full_name = State()         # 1. ФИО
-    waiting_phone_number = State()      # 2. Телефон
-    waiting_email = State()             # 3. Email
-    waiting_date_of_birth = State()     # 4. Дата рождения
-    waiting_place_of_study = State()    # 5. Место учебы
-    waiting_photo = State()             # 6. Фото 
+    waiting_full_name = State()         
+    waiting_phone_number = State()      
+    waiting_email = State()             
+    waiting_date_of_birth = State()     
+    waiting_place_of_study = State()    
+    waiting_photo = State()             
 
-    waiting_why_volunteer = State()     # 7. Почему волонтер?
-    waiting_volunteer_experience = State()# 8. Опыт
-    waiting_hobbies_skills = State()    # 9. Навыки
-    waiting_strengths = State()         # 10. Сильные качества
+    waiting_why_volunteer = State()     
+    waiting_volunteer_experience = State()
+    waiting_hobbies_skills = State()    
+    waiting_strengths = State()         
 
-    waiting_directions = State()        # 11. Выбор направлений
-    waiting_choice_motives = State()    # 12. Мотивы выбора
-    waiting_why_choose_you = State()    # 13. Почему выбрать Вас?
+    waiting_directions = State()        
+    waiting_choice_motives = State()    
+    waiting_why_choose_you = State()    
 
-    waiting_weekly_hours = State()      # 14. Время в неделю
-    waiting_attend_meetings = State()   # 15. Собрания
-    waiting_expectations = State()      # 16. Ожидания
-    waiting_ideas_improvements = State()# 17. Идеи
+    waiting_weekly_hours = State()      
+    waiting_custom_weekly_hours = State() 
+    waiting_attend_meetings = State()   
+    waiting_expectations = State()      
+    waiting_ideas_improvements = State()
     
-    waiting_agree_inactivity_removal = State() # 18. Согласен с удалением
-    waiting_agree_terms = State()       # 19. Согласен с условиями ("!")
-    waiting_ready_travel = State()      # 20. Готов к выездам
+    waiting_agree_inactivity_removal = State() 
+    waiting_agree_terms = State()       
+    waiting_ready_travel = State()      
 
-    waiting_feedback = State()          # 21. Фидбэк (ОПЦИОНАЛЬНО)
+    waiting_feedback = State()          
 
 
 # --- ФУНКЦИИ ---
@@ -149,19 +183,65 @@ async def submit_application_to_django(bot, data: dict):
         return False
 
 
+# --- ХЕНДЛЕР ОТМЕНЫ (CANCEL) ---
+# ИСПРАВЛЕНИЕ: Используем StateFilter(ApplicationSteps) вместо несуществующего ApplicationSteps.all_states
+@application_router.message(F.text.in_(['/cancel', 'Отмена', 'отмена']), StateFilter(ApplicationSteps))
+@application_router.message(F.text == '/cancel', StateFilter(ApplicationSteps))
+async def cancel_handler(message: types.Message, state: FSMContext):
+    """Позволяет пользователю отменить заполнение анкеты."""
+    current_state = await state.get_state()
+    if current_state is None:
+        return # Если нет активного FSM
+
+    logging.info("Отмена анкеты: %s", current_state)
+    await state.clear()
+    
+    await message.answer(
+        "❌ <b>Заполнение анкеты отменено.</b>\n\n"
+        "Вы можете начать заново, нажав на кнопку 'Подать заявку' (или аналогичную команду, которая запускает процесс).\n"
+        "Если Вы ошиблись, начните с начала.",
+        reply_markup=ReplyKeyboardRemove(),
+        parse_mode="HTML"
+    )
+
 # --- ХЕНДЛЕРЫ ---
 
-# 1. СТАРТ
+# 1. СТАРТ (С ПРОВЕРКОЙ ВРЕМЕНИ)
 @application_router.callback_query(F.data == "volunteer_apply")
 async def start_application(call: types.CallbackQuery, state: FSMContext):
     await state.clear()
+    
+    # 1. ПРОВЕРКА ВРЕМЕНИ РЕГИСТРАЦИИ
+    now = get_current_time_aware()
+
+    if now < REGISTRATION_START:
+        # Регистрация еще не открыта (НЕТ ТОЧНОГО ВРЕМЕНИ)
+        await call.answer(
+            "Заявка еще закрыта. Следите за нашими новостями в Instagram, мы объявим, когда начнется набор.", 
+            show_alert=True
+        )
+        return
+    
+    if now > REGISTRATION_END:
+        # Регистрация уже закрыта
+        await call.message.edit_text(
+            "❌ <b>Регистрация закрыта.</b>\n\n"
+            "К сожалению, время подачи заявок на волонтерство истекло. Спасибо за Ваш интерес! "
+            "Следите за обновлениями, чтобы не пропустить следующий набор.",
+            parse_mode="HTML"
+        )
+        await call.answer("Регистрация закрыта.", show_alert=True)
+        return
+
+    # Проверка, что чат приватный
     if call.message.chat.type != 'private':
-        # ИСПРАВЛЕНО: Убран HTML из call.answer
         return await call.answer("Пожалуйста, начните заявку в личном чате с ботом.", show_alert=True)
         
+    # Если время в диапазоне, продолжаем
     await call.message.edit_text(
         "📝 <b>Начало регистрации: Анкета волонтера Interact Club</b> 🌍\n\n"
         "Вам предстоит заполнить <b>21 шаг</b>. Все поля, кроме финального отзыва, обязательны.\n"
+        "<b>Чтобы отменить анкету в любой момент, отправьте команду /cancel.</b>\n"
         "Пожалуйста, отвечайте полным текстом, чтобы мы могли лучше Вас узнать!",
         parse_mode="HTML" 
     )
@@ -314,7 +394,6 @@ async def process_strengths(message: types.Message, state: FSMContext):
     
     if directions_map:
         for pk, name in directions_map.items():
-            # ИСПРАВЛЕНО: Убран смайлик при создании кнопок
             direction_buttons.append(
                 [InlineKeyboardButton(text=f"{name}", callback_data=f"select_dir_{pk}")]
             )
@@ -347,13 +426,12 @@ async def process_directions_selection(call: types.CallbackQuery, state: FSMCont
 
     if dir_id in selected_ids:
         selected_ids.remove(dir_id)
-        action_text = f"Удалено: {direction_name}." # ИСПРАВЛЕНО: Убран HTML из call.answer
+        action_text = f"Удалено: {direction_name}."
     else:
         if len(selected_ids) >= 3:
-            # ИСПРАВЛЕНО: Убран HTML из call.answer
             return await call.answer("Лимит. Вы можете выбрать не более 3 направлений.", show_alert=True) 
         selected_ids.append(dir_id)
-        action_text = f"Добавлено: {direction_name}." # ИСПРАВЛЕНО: Убран HTML из call.answer
+        action_text = f"Добавлено: {direction_name}."
     
     await state.update_data(selected_directions_ids=selected_ids)
     
@@ -363,8 +441,8 @@ async def process_directions_selection(call: types.CallbackQuery, state: FSMCont
     
     # Повторное создание клавиатуры с учетом текущего выбора
     for pk, name in DIRECTIONS_CACHE.items():
-        # ИСПРАВЛЕНО: Убраны смайлики из текста кнопок
         if pk in selected_ids:
+            # Выбранное направление помечаем
             new_buttons.append([InlineKeyboardButton(text=f"[{name}]", callback_data=f"select_dir_{pk}")])
             current_names.append(name)
         else:
@@ -400,7 +478,6 @@ async def process_directions_finish(call: types.CallbackQuery, state: FSMContext
     selected_ids = data.get('selected_directions_ids', [])
     
     if not selected_ids and DIRECTIONS_CACHE:
-        # ИСПРАВЛЕНО: Убран HTML из call.answer
         await call.answer("Обязательно. Пожалуйста, выберите хотя бы одно направление.", show_alert=True) 
         return
         
@@ -411,7 +488,6 @@ async def process_directions_finish(call: types.CallbackQuery, state: FSMContext
         "<i>(Минимум 10 символов)</i>",
         parse_mode="HTML" 
     )
-    # ИСПРАВЛЕНО: Убран HTML из call.answer
     await call.answer("Выбор направлений завершен.")
 
 # 13. Почему выбрать Вас?
@@ -427,29 +503,87 @@ async def process_choice_motives(message: types.Message, state: FSMContext):
         parse_mode="HTML" 
     )
 
-# 14. Время в неделю
+
+# 14. Время в неделю (ВЫБОР КНОПКОЙ)
 @application_router.message(ApplicationSteps.waiting_why_choose_you)
 async def process_why_choose_you(message: types.Message, state: FSMContext):
     if not message.text or len(message.text.strip()) < 10:
         return await message.answer("❌ <b>Ответ слишком короткий.</b> Пожалуйста, дайте более развернутый ответ (минимум 10 символов).", parse_mode="HTML") 
     await state.update_data(why_choose_you=message.text.strip())
-    await state.set_state(ApplicationSteps.waiting_weekly_hours)
-    await message.answer("⏱️ <b>14/21: Время.</b> Сколько часов в неделю Вы готовы уделять клубу?", parse_mode="HTML") 
-
-# 15. Собрания
-@application_router.message(ApplicationSteps.waiting_weekly_hours)
-async def process_weekly_hours(message: types.Message, state: FSMContext):
-    if not message.text or len(message.text.strip()) < 1:
-        return await message.answer("❌ <b>Пожалуйста, укажите количество времени.</b>", parse_mode="HTML") 
     
-    await state.update_data(weekly_hours=message.text.strip())
-    await state.set_state(ApplicationSteps.waiting_attend_meetings)
+    await state.set_state(ApplicationSteps.waiting_weekly_hours) 
+    
     await message.answer(
+        "⏱️ <b>14/21: Время.</b> Сколько часов в неделю Вы готовы уделять клубу? Выберите подходящий интервал или введите свой вариант.", 
+        reply_markup=WEEKLY_HOURS_KB,
+        parse_mode="HTML" 
+    )
+
+# ОБРАБОТКА ВЫБОРА КНОПКИ ДЛЯ ВРЕМЕНИ (Шаг 14)
+@application_router.callback_query(F.data.startswith("hours_"), ApplicationSteps.waiting_weekly_hours)
+async def process_weekly_hours_callback(call: types.CallbackQuery, state: FSMContext):
+    choice = call.data.split("_")[-1]
+    
+    # Обработка выбора предустановленного интервала
+    if choice != "custom":
+        if choice == "5":
+            hours_text = "До 5 часов"
+        elif choice == "5_10":
+            hours_text = "5 - 10 часов"
+        elif choice == "10_15":
+            hours_text = "10 - 15 часов"
+        elif choice == "plus":
+            hours_text = "Более 15 часов"
+        else:
+            hours_text = "Неизвестный интервал"
+
+        await state.update_data(weekly_hours=hours_text)
+        await state.set_state(ApplicationSteps.waiting_attend_meetings)
+        
+        await call.message.edit_text(
+            f"✅ 14/21: Ответ принят: <b>{hours_text}</b>.", 
+            reply_markup=None, 
+            parse_mode="HTML"
+        )
+        await call.answer(f"Вы выбрали: {hours_text}")
+        
+        # Переход к шагу 15
+        await call.message.answer(
+            "🗓️ <b>15/21: Собрания.</b> Будете ли Вы присутствовать на каждом собрании по субботам? \n(Обычно: 14:00-16:00, зависит от направления)",
+            reply_markup=YES_NO_KB,
+            parse_mode="HTML" 
+        )
+        
+    # Обработка выбора "Свой вариант"
+    else:
+        await state.set_state(ApplicationSteps.waiting_custom_weekly_hours)
+        await call.message.edit_text(
+            "📝 <b>14/21: Свой вариант.</b> Пожалуйста, введите точное количество часов (или диапазон), которое Вы готовы уделять клубу в неделю:",
+            reply_markup=None, 
+            parse_mode="HTML"
+        )
+        await call.answer("Ожидаю ручной ввод.")
+
+# ОБРАБОТКА РУЧНОГО ВВОДА ВРЕМЕНИ (Шаг 14.1)
+@application_router.message(ApplicationSteps.waiting_custom_weekly_hours)
+async def process_custom_weekly_hours(message: types.Message, state: FSMContext):
+    custom_hours = message.text.strip()
+    
+    if not custom_hours or len(custom_hours) < 1:
+        return await message.answer("❌ <b>Пожалуйста, введите свой вариант времени.</b>", parse_mode="HTML") 
+        
+    await state.update_data(weekly_hours=custom_hours)
+    await state.set_state(ApplicationSteps.waiting_attend_meetings)
+    
+    await message.answer(
+        f"✅ 14/21: Ответ принят: <b>{custom_hours}</b>.\n\n"
         "🗓️ <b>15/21: Собрания.</b> Будете ли Вы присутствовать на каждом собрании по субботам? \n(Обычно: 14:00-16:00, зависит от направления)",
         reply_markup=YES_NO_KB,
         parse_mode="HTML" 
     )
 
+
+# 15. Собрания
 @application_router.callback_query(F.data.in_({"answer_yes", "answer_no"}), ApplicationSteps.waiting_attend_meetings)
 async def process_attend_meetings(call: types.CallbackQuery, state: FSMContext):
     answer = call.data == "answer_yes"
@@ -543,7 +677,6 @@ async def process_ready_travel(call: types.CallbackQuery, state: FSMContext):
 async def skip_feedback_and_submit(call: types.CallbackQuery, state: FSMContext):
     await state.update_data(feedback="")
     await call.message.edit_text("⏳ <b>Заявка обрабатывается и отправляется на сервер...</b>", parse_mode="HTML") 
-    # ИСПРАВЛЕНО: Убран HTML из call.answer
     await call.answer("Фидбэк пропущен.")
     await final_submit(call.message, state)
     
