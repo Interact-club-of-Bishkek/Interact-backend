@@ -2,22 +2,18 @@ version: "3.9"
 
 services:
   # 1. СЕРВИС БАЗЫ ДАННЫХ (PostgreSQL)
-  # Использует именованный том 'postgres_data' для сохранения всех данных.
   db:
     image: postgres:14-alpine
     container_name: interact_postgres_db
-    # Использование тома для постоянного хранения данных. Данные не удалятся
-    # при обновлении или перезапуске контейнера, если вы не удалите сам том.
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     environment:
-      # Переменные берутся из .env файла
+      # Переменные для инициализации БД берутся из .env (POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD)
       - POSTGRES_DB=${DB_NAME}
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
     ports:
-      # Опционально: Открыть порт на хосте только для отладки
-      # - "5432:5432" 
+      # - "5432:5432" # Опционально: раскомментируйте для доступа к БД с хоста
     restart: always
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
@@ -34,14 +30,13 @@ services:
     ports:
       - "8000:8000"
     env_file:
-      - .env
+      - .env # Берет все переменные, включая настройки подключения к DB_HOST=db
     volumes:
-      # Тома для статики и медиа, которые также будут сохранены
       - static_volume:/app/staticfiles
       - media_volume:/app/media
     depends_on:
       db:
-        condition: service_healthy # Ждет, пока база данных пройдет проверку Healthcheck
+        condition: service_healthy 
     restart: always
 
   # 3. СЕРВИС TELEGRAM БОТА
@@ -51,15 +46,13 @@ services:
       dockerfile: Dockerfile
     container_name: interact_telegram_bot
     env_file:
-      - .env
+      - .env # Берет TELEGRAM_BOT_TOKEN и DJANGO_API_URL=http://backend:8000/api/
     depends_on:
-      - backend # Бот, возможно, должен ждать, пока бэкенд запустится
+      - backend 
     restart: always
 
-# 4. ИМЕНОВАННЫЕ ТОМА (ГАРАНТИЯ СОХРАНЕНИЯ ДАННЫХ)
+# 4. ИМЕНОВАННЫЕ ТОМА
 volumes:
-  # Том для данных PostgreSQL. Не удаляется командой 'docker compose down'.
   postgres_data:
-  # Тома для статических/медиафайлов.
   static_volume:
   media_volume:
