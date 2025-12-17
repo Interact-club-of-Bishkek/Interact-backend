@@ -53,6 +53,14 @@ pyzbar==0.1.9
 qrcode==8.2
 reportlab==4.4.3
 requests==2.32.5
+langchain>=0.3.0
+langchain-community>=0.3.0
+langchain-core>=0.3.0
+langchain-groq
+langchain-huggingface
+faiss-cpu
+pypdf
+sentence-transformers
 setuptools==80.9.0
 sqlparse==0.5.3
 tinycss2==1.4.0
