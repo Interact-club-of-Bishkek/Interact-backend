@@ -388,11 +388,15 @@ function openModal(v) {
   
   // --- ИСПРАВЛЕНИЕ: Вывод направлений списком ---
   if (v.directions && v.directions.length > 0) {
-      const listHtml = v.directions.map(d => `<li>${d.name}</li>`).join('');
-      volunteerDirections.innerHTML = `<ul class="directions-list">${listHtml}</ul>`;
-  } else {
-      volunteerDirections.innerHTML = '<span>-</span>';
-  }
+        const listHtml = v.directions.map(d => {
+            // Если вдруг пришел объект {name: "..."} берем name, если строка - берем саму строку
+            const name = d.name ? d.name : d; 
+            return `<li>${name}</li>`;
+        }).join('');
+        volunteerDirections.innerHTML = `<ul class="directions-list">${listHtml}</ul>`;
+    } else {
+        volunteerDirections.innerHTML = '<span>-</span>';
+    }
   
   modalButtons.innerHTML = '';
   let buttons = [];
