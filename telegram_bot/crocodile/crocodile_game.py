@@ -70,9 +70,7 @@ class CrocodileManager:
             )
 
     def _ensure_user(self, chat_id: int, user_id: int, name: Optional[str] = None):
-        """
-        Проверяет наличие записи пользователя ВНУТРИ конкретного чата.
-        """
+        """Проверяет наличие записи пользователя ВНУТРИ конкретного чата."""
         c_key = str(chat_id)
         u_key = str(user_id)
 
@@ -106,7 +104,6 @@ class CrocodileManager:
                 file_path = CACHE_DIR / cat / "summary.json"
                 if not file_path.exists():
                     continue
-
                 try:
                     with open(file_path, "r", encoding="utf-8") as f:
                         data = json.load(f)
@@ -119,44 +116,32 @@ class CrocodileManager:
                     print(f"[WARNING] Ошибка загрузки {file_path}: {e}")
 
             raw_words_by_level[level] = list(set(combined))
-            print(f"[INFO] Уровень {level}: {len(raw_words_by_level[level])} уникальных слов")
             
         for level, words in raw_words_by_level.items():
              if words:
                  self.words_decks[level] = WordDeck(words)
         
+        # Если совсем нет слов, добавим заглушку, чтобы бот не падал при старте
         if not self.words_decks.get("easy"):
-            raise RuntimeError("❌ Нет слов даже для уровня easy")
+            print("[WARNING] Не найдено слов! Используем резервные.")
+            self.words_decks["easy"] = WordDeck(["крокодил", "солнце", "дерево"])
 
     def get_random_word(self, level: str = "easy") -> str:
         if level not in self.words_decks:
             level = "easy"
-            
-        deck = self.words_decks.get(level)
-        if not deck:
-            deck = self.words_decks.get("easy")
-        
+        deck = self.words_decks.get(level) or self.words_decks.get("easy")
         if not deck:
              raise RuntimeError(f"Нет слов для уровня {level}")
-             
         return deck.get_word()
 
     # ==========================================================
     #                            ИГРА
     # ==========================================================
 
-    async def start_round(
-        self,
-        chat_id: int,
-        leader_id: int,
-        leader_name: str,
-        duration: int = None,
-        level: str = "easy"
-    ) -> str:
-        
+    async def start_round(self, chat_id: int, leader_id: int, leader_name: str, duration: int = None, level: str = "easy") -> str:
         duration = duration or self.DEFAULT_DURATION
 
-        # Обновляем статистику ДЛЯ КОНКРЕТНОГО ЧАТА
+        # Статистика сохраняется под ключом ID чата
         self._ensure_user(chat_id, leader_id, leader_name)
         self.stats[str(chat_id)][str(leader_id)]["led"] += 1
         self._save_stats()
@@ -165,7 +150,6 @@ class CrocodileManager:
             self.chats[chat_id]["task"].cancel()
 
         word = self.get_random_word(level)
-        
         task = asyncio.create_task(self._timeout(chat_id, duration, self.bot)) 
 
         self.chats[chat_id] = {
@@ -177,126 +161,78 @@ class CrocodileManager:
             "duration": duration,
             "level": level
         }
-
         return word
 
     async def _timeout(self, chat_id: int, duration: int, bot_instance):
-        if not bot_instance:
-             print(f"[ERROR] Бот не был передан в CrocodileManager! Таймер не может отправлять сообщения.")
-             try:
-                 await asyncio.sleep(duration)
-             except asyncio.CancelledError:
-                 pass
-             return
+        if not bot_instance: return
 
         try:
             await asyncio.sleep(duration - 60)
-
             session = self.chats.get(chat_id)
             if session and not session["guessed"]:
                 await bot_instance.send_message(chat_id, "⏱ Осталась 1 минута!")
 
             await asyncio.sleep(60)
-
             session = self.chats.get(chat_id)
             if not session or session["guessed"]:
                 return
 
             leader_id = session["leader_id"]
             
-            # Запись проигрыша в статистику ЧАТА
+            # Запись проигрыша
             self._ensure_user(chat_id, leader_id)
             self.stats[str(chat_id)][str(leader_id)]["failed"] += 1
             self._save_stats()
 
             await bot_instance.send_message(
                 chat_id,
-                f"💀 @{session['leader_name']} проиграл!\n"
-                f"Слово было: **{session['word']}**"
+                f"💀 @{session['leader_name']} проиграл!\nСлово было: <b>{session['word']}</b>",
+                parse_mode="HTML"
             )
-
             del self.chats[chat_id]
 
         except asyncio.CancelledError:
             pass
         except Exception as e:
-            print(f"[ERROR] Ошибка в таймауте для {chat_id}: {e}")
+            print(f"[ERROR] Timeout error: {e}")
 
     async def change_word(self, chat_id: int) -> Optional[str]:
         session = self.chats.get(chat_id)
-        if not session:
-            return None
+        if not session: return None
 
         level = session.get("level", "easy")
-        
         try:
             session["word"] = self.get_random_word(level)
         except RuntimeError:
             return None
 
         session["guessed"] = False
-
-        if session.get("task"):
-            session["task"].cancel()
-
-        session["task"] = asyncio.create_task(
-            self._timeout(chat_id, session["duration"], self.bot)
-        )
-
+        if session.get("task"): session["task"].cancel()
+        session["task"] = asyncio.create_task(self._timeout(chat_id, session["duration"], self.bot))
         return session["word"]
 
-    async def register_guess(
-        self,
-        chat_id: int,
-        user_id: int,
-        username: str,
-        text: str
-    ):
+    async def register_guess(self, chat_id: int, user_id: int, username: str, text: str):
         session = self.chats.get(chat_id)
-
-        if not session or session["guessed"]:
-            return None
-
-        if user_id == session["leader_id"]:
-            return None
+        if not session or session["guessed"]: return None
+        if user_id == session["leader_id"]: return None
 
         if text.strip().lower() == session["word"].lower():
             session["guessed"] = True
+            if session.get("task"): session["task"].cancel()
 
-            if session.get("task"):
-                session["task"].cancel()
-
-            # Запись выигрыша в статистику ЧАТА
+            # Запись выигрыша
             self._ensure_user(chat_id, user_id, username)
             self.stats[str(chat_id)][str(user_id)]["guessed"] += 1
             self._save_stats()
             
             del self.chats[chat_id] 
-
-            return {
-                "word": session["word"],
-                "user_id": user_id,
-                "username": username
-            }
-
+            return {"word": session["word"], "user_id": user_id, "username": username}
         return None
 
-    async def ask_to_be_leader(
-        self,
-        chat_id: int,
-        user_id: int,
-        username: str,
-        duration: int = None
-    ) -> str:
-        
-        duration = duration or self.DEFAULT_DURATION
-
+    async def ask_to_be_leader(self, chat_id: int, user_id: int, username: str, duration: int = None) -> str:
         level = "easy"
         if chat_id in self.chats:
             level = self.chats[chat_id].get("level", "easy")
-        elif str(chat_id) in self.stats:
-             # Попытаемся восстановить уровень (необязательно, но можно если хранить настройки)
-             pass 
         
         return await self.start_round(
             chat_id=chat_id,

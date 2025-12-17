@@ -100,12 +100,21 @@ def get_welcome_text(user_name: Optional[str]) -> str:
 
 # ---------- ХЕНДЛЕРЫ КОМАНД ----------
 
-@general_router.message(Command("start"), F.chat.type == ChatType.PRIVATE, StateFilter(None))
+# 1️⃣ ОБРАБОТЧИК ДЛЯ ЛИЧНЫХ СООБЩЕНИЙ (ЛС)
+@general_router.message(Command("start"), F.chat.type == ChatType.PRIVATE)
 async def handle_private_start(msg: types.Message, state: FSMContext):
     await state.clear()
     user_name = msg.from_user.first_name if msg.from_user else "друг"
     await msg.answer(get_welcome_text(user_name), reply_markup=club_keyboard(), parse_mode="HTML")
 
+# 2️⃣ ОБРАБОТЧИК ДЛЯ ГРУПП (ЧАТОВ)
+@general_router.message(Command("start"), F.chat.type.in_({ChatType.GROUP, ChatType.SUPERGROUP}))
+async def handle_group_start(msg: types.Message):
+    await msg.answer(
+        "🎮 <b>Начнём игру!</b>\nВыберите игру ниже:", 
+        reply_markup=game_keyboard(), 
+        parse_mode="HTML"
+    )
 # ---------- ХЕНДЛЕРЫ ИИ (В РАЗРАБОТКЕ) ----------
 
 @general_router.callback_query(F.data == "ai_assistant") 

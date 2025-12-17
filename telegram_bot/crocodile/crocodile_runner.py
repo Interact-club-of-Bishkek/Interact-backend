@@ -1,23 +1,17 @@
-# crocodile/bot_handlers.py
-import os
+import html
 from aiogram import types, F, Router, Bot
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from pathlib import Path
-
-# Импортируем менеджер 
 from crocodile.crocodile_game import CrocodileManager
 
 # Создаем роутер
 crocodile_router = Router()
 
-# Создаем менеджер игры.
+# Создаем менеджер игры
 manager = CrocodileManager()
 
-BASE_DIR = Path(__file__).resolve().parent
-
 # ---------- КНОПКИ ----------
-# (Без изменений)
+
 def kb_play_croc() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
@@ -52,7 +46,6 @@ def kb_level_selection() -> InlineKeyboardMarkup:
     )
 
 # ---------- УРОВЕНЬ СЛОЖНОСТИ ----------
-# (Без изменений)
 chat_levels: dict[int, str] = {}
 
 @crocodile_router.message(Command("choose_level"))
@@ -66,16 +59,21 @@ async def choose_level(msg: types.Message):
 async def set_level_callback(call: types.CallbackQuery):
     level = call.data.split("_")[1]
     chat_levels[call.message.chat.id] = level
-    await call.answer(f"✅ Уровень сложности установлен: {level.capitalize()}")
-    await call.message.edit_text(f"✅ Уровень сложности выбран: {level.capitalize()}")
+    level_rus = {"easy": "Лёгкий", "medium": "Средний", "hard": "Тяжёлый"}.get(level, level)
+    
+    await call.answer(f"✅ Уровень сложности установлен: {level_rus}")
+    await call.message.edit_text(f"✅ Уровень сложности выбран: {level_rus}")
 
-# ---------- СТАРТ ----------
+# ---------- СТАРТ ИГРЫ ----------
+
 async def start_game_logic(chat_id: int, user: types.User, bot: Bot):
+    # Обновляем бота в менеджере
     if manager.bot is None:
         manager.bot = bot
 
     level = chat_levels.get(chat_id, "easy")
     
+    # Запускаем раунд
     await manager.start_round(
         chat_id=chat_id,
         leader_id=user.id,
@@ -83,32 +81,30 @@ async def start_game_logic(chat_id: int, user: types.User, bot: Bot):
         level=level
     )
     
+    # Экранируем имя пользователя для HTML
+    safe_name = html.escape(user.first_name)
+    
     await bot.send_message(
         chat_id,
-        f"🎭 @{user.username or user.first_name} объясняет слово!",
-        reply_markup=kb_start()
+        f"🎭 <b>{safe_name}</b> объясняет слово!",
+        reply_markup=kb_start(),
+        parse_mode="HTML"
     )
-
 
 @crocodile_router.message(Command("start_crocodile"))
 async def start_game_command(msg: types.Message, bot: Bot):
     if msg.chat.type == "private":
         await msg.answer("Игра доступна только в группах.")
         return
-    
     await start_game_logic(msg.chat.id, msg.from_user, bot)
-
 
 @crocodile_router.callback_query(F.data == "start_croc_game")
 async def start_game_callback(call: types.CallbackQuery, bot: Bot):
     await call.answer() 
-
     if call.message.chat.type == "private":
         await call.message.answer("Игра доступна только в группах.")
         return
-    
     await start_game_logic(call.message.chat.id, call.from_user, bot)
-
 
 # ---------- ПРОВЕРКА УГАДЫВАНИЙ ----------
 
@@ -130,50 +126,56 @@ async def check_guess(msg: types.Message):
     )
 
     if result:
+        # Экранируем данные для безопасности HTML
+        winner_name = html.escape(result['username'])
+        guessed_word = html.escape(result['word'])
+
         await msg.answer(
-            f"🎉 @{result['username']} угадал слово: **{result['word']}**",
+            f"🎉 <b>{winner_name}</b> угадал слово: <b>{guessed_word}</b>",
             reply_markup=kb_leader(),
-            parse_mode="Markdown"
+            parse_mode="HTML" # Используем HTML вместо Markdown
         )
 
-# ---------- /stats (ОБНОВЛЕННЫЙ) ----------
+# ---------- /stats (СТАТИСТИКА ТЕКУЩЕГО ЧАТА) ----------
+
 @crocodile_router.message(Command("stats"))
 async def stats(msg: types.Message):
-    if msg.chat.type == "private": return
+    if msg.chat.type == "private": 
+        return
 
-    # Получаем статистику конкретно для этого чата
+    # Берем статистику ТОЛЬКО для текущего чата по chat_id
     chat_stats = manager.stats.get(str(msg.chat.id))
 
     if not chat_stats:
-        await msg.answer("В этом чате статистика пока пуста. Сыграйте в крокодила!")
+        await msg.answer("📊 В этом чате статистика пока пуста. Сыграйте в крокодила!")
         return
 
-    lines = [f"🏆 **Статистика игроков чата:**\n"]
+    lines = ["🏆 <b>Статистика игроков этого чата:</b>\n"]
     
-    # Сортировка по угаданным словам
+    # Сортировка: у кого больше угаданных
     sorted_stats = sorted(chat_stats.items(), key=lambda item: item[1].get("guessed", 0), reverse=True)
     
-    for user_id, stat in sorted_stats:
-        display_name = stat.get("name", "Игрок")
+    # Ограничим вывод топ-15, чтобы сообщение не было огромным
+    for user_id, stat in sorted_stats[:15]:
+        display_name = html.escape(stat.get("name", "Игрок"))
         led = stat.get("led", 0)
         guessed = stat.get("guessed", 0)
         failed = stat.get("failed", 0)
 
         lines.append(
-            f"👤 {display_name}\n" 
-            f"   🎭 Ведущий: {led}\n"
-            f"   ✅ Угадал: {guessed}\n"
-            f"   💀 Проиграл: {failed}\n"
+            f"👤 <b>{display_name}</b>\n" 
+            f"   🎭 Ведущий: {led} | ✅ Угадал: {guessed} | 💀 Проиграл: {failed}\n"
         )
 
-    await msg.answer("\n".join(lines), parse_mode="Markdown")
+    await msg.answer("\n".join(lines), parse_mode="HTML")
 
 # ---------- CALLBACKS ----------
+
 @crocodile_router.callback_query(F.data.in_({"view_word", "change_word", "want_leader"}))
 async def callbacks(call: types.CallbackQuery, bot: Bot):
     session = manager.chats.get(call.message.chat.id)
     
-    # Если нажимают "Хочу быть ведущим", а сессии нет, но мы хотим начать новую
+    # Логика "Хочу быть ведущим", если игра закончилась, но висит кнопка
     if call.data == "want_leader" and not session:
          user = call.from_user
          new_word = await manager.ask_to_be_leader(
@@ -181,14 +183,15 @@ async def callbacks(call: types.CallbackQuery, bot: Bot):
             user.id,
             user.username or user.first_name
          )
-         try:
-             await call.message.edit_reply_markup(reply_markup=None)
-         except:
-             pass
+         # Пытаемся убрать кнопки у старого сообщения
+         try: await call.message.edit_reply_markup(reply_markup=None)
+         except: pass
 
+         safe_name = html.escape(user.username or user.first_name)
          await call.message.answer(
-            f"⭐ @{user.username or user.first_name} теперь ведущий!",
-            reply_markup=kb_start()
+            f"⭐ <b>{safe_name}</b> теперь ведущий!",
+            reply_markup=kb_start(),
+            parse_mode="HTML"
          )
          await call.answer(f"📝 Ваше слово:\n{new_word}", show_alert=True)
          return
@@ -200,6 +203,7 @@ async def callbacks(call: types.CallbackQuery, bot: Bot):
     user = call.from_user
     data = call.data
 
+    # Только ведущий может смотреть/менять слово
     if data in ("view_word", "change_word") and user.id != session["leader_id"]:
         await call.answer("Вы не ведущий.", show_alert=True)
         return
@@ -217,19 +221,19 @@ async def callbacks(call: types.CallbackQuery, bot: Bot):
         return
 
     if data == "want_leader":
+        # Перехват ведущего во время игры
         new_word = await manager.ask_to_be_leader(
             call.message.chat.id,
             user.id,
             user.username or user.first_name
         )
-        
-        try:
-             await call.message.edit_reply_markup(reply_markup=None)
-        except:
-             pass
+        try: await call.message.edit_reply_markup(reply_markup=None)
+        except: pass
 
+        safe_name = html.escape(user.username or user.first_name)
         await call.message.answer(
-            f"⭐ @{user.username or user.first_name} теперь ведущий!",
-            reply_markup=kb_start()
+            f"⭐ <b>{safe_name}</b> теперь ведущий!",
+            reply_markup=kb_start(),
+            parse_mode="HTML"
         )
         await call.answer(f"📝 Ваше слово:\n{new_word}", show_alert=True)
