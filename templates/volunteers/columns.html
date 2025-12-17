@@ -92,7 +92,7 @@ h1 {
     background: #fff;
     border-radius: 15px;
     padding: 25px;
-    width: 450px;
+    width: 500px; /* Немного шире для удобства */
     max-height: 90%;
     overflow-y: auto;
     position: relative;
@@ -113,33 +113,52 @@ h1 {
     color: #1e3a8a;
     text-align: center;
 }
+
+/* --- ИСПРАВЛЕНИЕ: СТИЛИ ДЛЯ ФОТО (чтобы не было зума) --- */
 .modal-content img {
     display: block;
-    width: 300px;
-    height: 300px;
+    width: 100%;               /* Ширина подстраивается под контейнер */
+    height: auto;              /* Высота авто (пропорции сохраняются) */
+    max-height: 400px;         /* Максимальная высота */
+    object-fit: contain;       /* !!! ВАЖНО: Показывает картинку целиком, добавляя отступы если нужно */
     border-radius: 12px;
-    object-fit: cover;
     margin: 0 auto 15px auto;
     border: 3px solid #3b82f6;
+    background-color: #f3f4f6; /* Светлый фон для пустых областей */
 }
+
 .modal-content p {
-    margin: 5px 0;
-    font-size: 0.9rem;
+    margin: 8px 0;
+    font-size: 0.95rem;
     color: #333;
+    line-height: 1.4;
 }
 .modal-content strong {
     color: #1e40af;
 }
+
+/* --- ИСПРАВЛЕНИЕ: СТИЛЬ СПИСКА НАПРАВЛЕНИЙ --- */
+.directions-list {
+    margin: 5px 0 10px 0;
+    padding-left: 20px;
+    list-style-type: disc;
+    color: #1e3a8a;
+    font-weight: 600;
+}
+.directions-list li {
+    margin-bottom: 4px;
+}
+
 .buttons {
-    margin-top: 15px;
+    margin-top: 20px;
     display: flex;
     gap: 10px;
 }
 .buttons button {
     flex: 1;
-    padding: 10px;
+    padding: 12px;
     border: none;
-    border-radius: 12px;
+    border-radius: 8px;
     cursor: pointer;
     font-weight: bold;
     color: #fff;
@@ -151,17 +170,13 @@ h1 {
 .btn-reject { background: #ef4444; }
 .btn-reject:hover { background: #b91c1c; }
 
-
-/* --- АДАПТИВНОСТЬ (МОБИЛЬНЫЙ РЕЖИМ) --- */
-
-/* Стили для вкладок */
+/* --- АДАПТИВНОСТЬ --- */
 .tabs {
     display: none; 
     background: #fff;
     border-radius: 10px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.05);
     margin-bottom: 20px;
-    display: flex;
     justify-content: space-around;
 }
 .tab-button {
@@ -180,7 +195,6 @@ h1 {
     background: #f9fafb;
 }
 
-/* Медиазапрос для мобильных устройств */
 @media (max-width: 768px) {
     .columns {
         flex-direction: column; 
@@ -188,12 +202,10 @@ h1 {
     }
     .column {
         display: none; 
-        flex: none;
         width: 100%;
         border-radius: 0;
         box-shadow: none;
         padding: 10px;
-        min-width: unset;
     }
     .column.active {
         display: block; 
@@ -201,8 +213,8 @@ h1 {
     .tabs {
         display: flex; 
     }
-    body {
-        padding: 10px;
+    .modal-content {
+        width: 90%;
     }
     h1 {
         font-size: 1.8rem;
@@ -230,27 +242,35 @@ h1 {
   <div class="modal-content">
     <span class="close-btn" id="closeModal">&times;</span>
     <img id="volunteerPhoto" src="" alt="Фото">
+    
     <h3 id="volunteerName"></h3>
     <p><strong>Email:</strong> <span id="volunteerEmail"></span></p>
     <p><strong>Телефон:</strong> <span id="volunteerPhone"></span></p>
-    
     <p><strong>Дата рождения:</strong> <span id="volunteerDOB"></span></p>
     <p><strong>Место учебы:</strong> <span id="volunteerStudy"></span></p>
-    <p><strong>Почему Вы хотите стать волонтером:</strong> <span id="volunteerWhy"></span></p>
-    <p><strong>Опыт волонтёрства:</strong> <span id="volunteerExperience"></span></p>
-    <p><strong>Навыки и хобби:</strong> <span id="volunteerHobbies"></span></p>
-    <p><strong>Сильные качества:</strong> <span id="volunteerStrengths"></span></p>
+    <hr>
     
-    <p><strong>Мотивы выбора направлений:</strong> <span id="volunteerChoiceMotives"></span></p>
+    <p><strong>Направления:</strong></p>
+    <div id="volunteerDirections"></div>
+    
+    <p><strong>Почему эти направления:</strong> <span id="volunteerChoiceMotives"></span></p>
+    <hr>
+
+    <p><strong>О себе и волонтерстве:</strong> <span id="volunteerWhy"></span></p>
+    <p><strong>Опыт:</strong> <span id="volunteerExperience"></span></p>
+    <p><strong>Навыки/Хобби:</strong> <span id="volunteerHobbies"></span></p>
+    <p><strong>Сильные качества:</strong> <span id="volunteerStrengths"></span></p>
     <p><strong>Почему выбрать Вас:</strong> <span id="volunteerChoose"></span></p>
-    <p><strong>Направления:</strong> <span id="volunteerDirections"></span></p>
+    <hr>
+    
     <p><strong>Время в неделю:</strong> <span id="volunteerHours"></span></p>
-    <p><strong>Ожидания:</strong> <span id="volunteerExpectations"></span></p>
-    <p><strong>Идеи и улучшения:</strong> <span id="volunteerIdeas"></span></p>
-    <p><strong>Будет присутствовать на собраниях:</strong> <span id="volunteerMeetings"></span></p>
-    <p><strong>Согласны с удалением при низкой активности:</strong> <span id="volunteerAgreeInactivity"></span></p>
-    <p><strong>Согласны с условиями клуба:</strong> <span id="volunteerAgreeTerms"></span></p>
+    <p><strong>Будет на собраниях:</strong> <span id="volunteerMeetings"></span></p>
     <p><strong>Готовы к выездам:</strong> <span id="volunteerReadyTravel"></span></p>
+    <p><strong>Согласие (удаление):</strong> <span id="volunteerAgreeInactivity"></span></p>
+    <p><strong>Согласие (условия):</strong> <span id="volunteerAgreeTerms"></span></p>
+    <hr>
+    <p><strong>Ожидания:</strong> <span id="volunteerExpectations"></span></p>
+    <p><strong>Идеи:</strong> <span id="volunteerIdeas"></span></p>
     
     <div class="buttons" id="modalButtons"></div>
   </div>
@@ -268,13 +288,9 @@ const volunteerPhoto = document.getElementById('volunteerPhoto');
 const volunteerName = document.getElementById('volunteerName');
 const volunteerEmail = document.getElementById('volunteerEmail');
 const volunteerPhone = document.getElementById('volunteerPhone');
-
-// НОВЫЕ ЭЛЕМЕНТЫ МОДАЛЬНОГО ОКНА
 const volunteerDOB = document.getElementById('volunteerDOB'); 
 const volunteerStudy = document.getElementById('volunteerStudy');
 const volunteerChoiceMotives = document.getElementById('volunteerChoiceMotives'); 
-// КОНЕЦ НОВЫХ ЭЛЕМЕНТОВ
-
 const volunteerWhy = document.getElementById('volunteerWhy');
 const volunteerExperience = document.getElementById('volunteerExperience');
 const volunteerHobbies = document.getElementById('volunteerHobbies');
@@ -290,11 +306,7 @@ const volunteerHours = document.getElementById('volunteerHours');
 const volunteerMeetings = document.getElementById('volunteerMeetings');
 const modalButtons = document.getElementById('modalButtons');
 const closeModal = document.getElementById('closeModal');
-
-// Элементы вкладок
-const tabsContainer = document.getElementById('tabs');
-const tabButtons = tabsContainer.querySelectorAll('.tab-button');
-
+const tabButtons = document.querySelectorAll('.tab-button');
 
 let volunteers = [];
 
@@ -310,29 +322,19 @@ async function fetchVolunteers() {
     });
     renderColumns();
   } catch (err) {
-    console.error('Ошибка загрузки данных:', err);
+    console.error('Ошибка загрузки:', err);
   }
 }
 
 function renderColumns() {
-  let firstRender = true;
   for (let col in columns) {
-    const headerHtml = `<h2>${columns[col].querySelector('h2') ? columns[col].querySelector('h2').textContent : (col.charAt(0).toUpperCase() + col.slice(1))}</h2>`;
+    const headerHtml = `<h2>${columns[col].querySelector('h2').textContent}</h2>`;
     columns[col].innerHTML = headerHtml;
     
-    // Логика активации для мобильного режима
-    if (window.innerWidth <= 768) {
-        if (col === 'submitted') {
-            columns[col].classList.add('active');
-        } else {
-            columns[col].classList.remove('active');
-        }
-    }
+    // Мобильная логика отображения: обработка active происходит в tabButtons click
 
     volunteers.filter(v => v.status === col).forEach(v => {
-      // ИСПРАВЛЕНО: Используем photo_url (Application) или image_url (Volunteer)
       const photoSource = v.photo_url || v.image_url; 
-
       const card = document.createElement('div');
       card.className = 'card';
       card.innerHTML = `
@@ -349,49 +351,48 @@ function renderColumns() {
 
 function formatISODate(isoDate) {
     if (!isoDate) return '-';
-    // Преобразование ISO строки 'YYYY-MM-DD' в формат 'DD.MM.YYYY'
     const parts = isoDate.split('-');
-    if (parts.length === 3) {
-        return `${parts[2]}.${parts[1]}.${parts[0]}`;
-    }
-    return isoDate; // Возвращаем как есть, если формат не распознан
+    if (parts.length === 3) return `${parts[2]}.${parts[1]}.${parts[0]}`;
+    return isoDate;
 }
 
 function openModal(v) {
-  // ИСПРАВЛЕНО: Используем photo_url (Application) или image_url (Volunteer)
   volunteerPhoto.src = v.photo_url || v.image_url || '';
   
-  // full_name для Application (submitted, interview), name для Volunteer (accepted)
+  // Скрываем рамку фото, если фото нет
+  if (!volunteerPhoto.src.endsWith('/')) {
+      volunteerPhoto.style.display = 'block';
+  } else {
+      volunteerPhoto.style.display = 'none';
+  }
+
   volunteerName.textContent = v.full_name || v.name; 
   volunteerEmail.textContent = v.email || '-';
   volunteerPhone.textContent = v.phone_number || '-';
-  
-  // ИСПРАВЛЕНО: Форматирование даты
   volunteerDOB.textContent = formatISODate(v.date_of_birth);
-  
-  // ИСПРАВЛЕНО: Надежная проверка на пустую строку или null
   volunteerStudy.textContent = v.place_of_study || '-';
   volunteerChoiceMotives.textContent = v.choice_motives || '-';
-
   volunteerWhy.textContent = v.why_volunteer || '-';
   volunteerExperience.textContent = v.volunteer_experience || '-';
   volunteerHobbies.textContent = v.hobbies_skills || '-';
   volunteerStrengths.textContent = v.strengths || '-';
   volunteerChoose.textContent = v.why_choose_you || '-';
-  
-  // ИСПРАВЛЕНО: Надёжная проверка на directions (массив объектов)
-  volunteerDirections.textContent = (v.directions && v.directions.length > 0) ? v.directions.map(d => d.name).join(', ') : '-';
-  
-  // Остальные поля:
   volunteerHours.textContent = v.weekly_hours || '-';
   volunteerIdeas.textContent = v.ideas_improvements || '-';
   volunteerExpectations.textContent = v.expectations || '-';
   
-  // Булевы поля
   volunteerAgreeInactivity.textContent = v.agree_inactivity_removal ? 'Да' : 'Нет';
   volunteerAgreeTerms.textContent = v.agree_terms ? 'Да' : 'Нет';
   volunteerReadyTravel.textContent = v.ready_travel ? 'Да' : 'Нет';
   volunteerMeetings.textContent = v.attend_meetings ? 'Да' : 'Нет';
+  
+  // --- ИСПРАВЛЕНИЕ: Вывод направлений списком ---
+  if (v.directions && v.directions.length > 0) {
+      const listHtml = v.directions.map(d => `<li>${d.name}</li>`).join('');
+      volunteerDirections.innerHTML = `<ul class="directions-list">${listHtml}</ul>`;
+  } else {
+      volunteerDirections.innerHTML = '<span>-</span>';
+  }
   
   modalButtons.innerHTML = '';
   let buttons = [];
@@ -410,52 +411,41 @@ function openModal(v) {
 }
 
 async function updateStatus(id, action) {
-  const statusMap = {
-    'На 2 этап': 'interview',
-    'Принят': 'accepted',
-    'Отказ': 'rejected'
-  };
+  const statusMap = { 'На 2 этап': 'interview', 'Принят': 'accepted', 'Отказ': 'rejected' };
   const newStatus = statusMap[action];
-
   try {
     await fetch(`/api/applications/${id}/update_status/`, {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({status: newStatus})
     });
-    // Обновляем данные локально
     volunteers = volunteers.map(v => v.id === id ? {...v, status: newStatus} : v);
     modal.style.display = 'none';
-    fetchVolunteers(); // Перезагружаем данные для актуализации
+    fetchVolunteers();
   } catch(err) {
-    console.error('Ошибка обновления статуса:', err);
-    alert('Ошибка при обновлении статуса. Проверьте API бэкенда.');
+    console.error('Ошибка:', err);
+    alert('Ошибка соединения с сервером');
   }
 }
 
-// --- ЛОГИКА ВЛАДОК (МОБИЛЬНЫЙ) ---
+// Табы для мобилки
 tabButtons.forEach(button => {
     button.addEventListener('click', () => {
         const targetId = button.getAttribute('data-target');
-        
-        // 1. Сброс активного состояния кнопок
         tabButtons.forEach(btn => btn.classList.remove('active'));
         button.classList.add('active');
         
-        // 2. Скрытие/показ колонок
         for (let colId in columns) {
             columns[colId].classList.remove('active');
         }
-        // Показываем целевую колонку
         document.getElementById(targetId).classList.add('active');
     });
 });
-// --- КОНЕЦ ЛОГИКИ ВЛАДОК ---
-
 
 closeModal.onclick = () => modal.style.display = 'none';
 window.onclick = (e) => { if(e.target === modal) modal.style.display='none'; }
 
+// Запуск
 fetchVolunteers();
 </script>
 

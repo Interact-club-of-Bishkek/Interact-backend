@@ -1,27 +1,28 @@
 from rest_framework import serializers
-from .models import Volunteer, VolunteerApplication
+from django.contrib.auth import authenticate
+# Импортируем модели из вашего проекта
+# Убедитесь, что пути импорта (например, .models) верны для вашей структуры папок
+from .models import Volunteer, VolunteerApplication, VolunteerArchive
 from directions.models import VolunteerDirection 
-# assuming you have this serializer file
-# from directions.serializers import VolunteerDirectionSerializer 
 
-
-# --------- Короткий сериализатор для направлений ---------
+# --------- Сериализатор для Направлений (короткий, для вложенности) ---------
 class VolunteerDirectionShortSerializer(serializers.ModelSerializer):
     class Meta:
         model = VolunteerDirection
         fields = ['id', 'name']
 
 
-# --------- Волонтёр (Исправлено: URL фото) ---------
+# --------- Сериализатор Волонтёра (User) ---------
 class VolunteerSerializer(serializers.ModelSerializer):
-    # Используем SerializerMethodField для фото, чтобы вернуть полный URL
+    # Поле только для чтения, возвращает полный URL картинки
     image_url = serializers.SerializerMethodField(read_only=True)
+    # Вложенный сериализатор для отображения направлений
     direction = VolunteerDirectionShortSerializer(many=True, read_only=True)
 
     class Meta:
         model = Volunteer
         fields = [
-            'id', 'login', 'name', 'phone_number', 'email', 'image_url', # ИЗМЕНЕНО: image -> image_url
+            'id', 'login', 'name', 'phone_number', 'email', 'image_url',
             'telegram_username', 'telegram_id', 'board', 'direction',
             'point', 'yellow_card'
         ]
@@ -35,7 +36,7 @@ class VolunteerSerializer(serializers.ModelSerializer):
         return None
 
 
-# --------- Авторизация (Без изменений) ---------
+# --------- Сериализатор Авторизации ---------
 class VolunteerLoginSerializer(serializers.Serializer):
     login = serializers.CharField()
     password = serializers.CharField(write_only=True)
@@ -44,7 +45,6 @@ class VolunteerLoginSerializer(serializers.Serializer):
     def validate(self, attrs):
         login = attrs.get('login')
         password = attrs.get('password')
-        from django.contrib.auth import authenticate
         volunteer = authenticate(login=login, password=password)
         if not volunteer:
             raise serializers.ValidationError("Неправильный логин или пароль")
@@ -52,20 +52,18 @@ class VolunteerLoginSerializer(serializers.Serializer):
         return attrs
 
 
-# --------- Заявки волонтёров (Исправлено: URL фото и поля анкеты) ---------
-# --------- Заявки волонтёров (Исправлено: URL фото и поля анкеты) ---------
+# --------- Сериализатор Заявки (ГЛАВНОЕ ИСПРАВЛЕНИЕ) ---------
 class VolunteerApplicationSerializer(serializers.ModelSerializer):
     
-    # ИСПРАВЛЕНИЕ: Это поле для КРАСИВОГО ЧТЕНИЯ (вывод для фронта, вложенный объект)
-    directions_details = VolunteerDirectionShortSerializer(source='directions', many=True, read_only=True) 
+    # 1. Поле для ЧТЕНИЯ (вывод названий направлений для админки/фронта)
+    # Использует 'source', чтобы брать данные из поля directions модели
+    directions_details = VolunteerDirectionShortSerializer(source='directions', many=True, read_only=True)
     
-    # ИСПРАВЛЕНИЕ: Это поле для ЗАПИСИ (прием списка ID от бота, write_only=True)
+    # 2. Поле для ЗАПИСИ (принимает список ID: [1, 2])
+    # Обязательно должно называться 'directions', как в модели!
     directions = serializers.PrimaryKeyRelatedField(
         queryset=VolunteerDirection.objects.all(), 
         many=True
-        # Мы оставляем directions без write_only=True, т.к. ModelSerializer будет
-        # использовать его для записи, когда бот отправляет POST. 
-        # Но для чтения используем directions_details.
     )
 
     status_display = serializers.CharField(source='get_status_display', read_only=True)
@@ -74,29 +72,35 @@ class VolunteerApplicationSerializer(serializers.ModelSerializer):
     class Meta:
         model = VolunteerApplication
         fields = [
-            'id', 'full_name', 'email', 'phone_number', 'photo_url', 
+            'id', 
+            # Личные данные
+            'full_name', 'email', 'phone_number', 
+            
+            # === ВАЖНО: Поле для ЗАГРУЗКИ фото ===
+            'photo',      # Это поле принимает файл (write)
+            'photo_url',  # Это поле возвращает ссылку (read)
+            # =====================================
             
             'date_of_birth', 'place_of_study', 'choice_motives',
             
+            # Анкетные данные
             'why_volunteer', 'volunteer_experience', 'hobbies_skills', 'strengths',
             'why_choose_you', 'agree_inactivity_removal', 'agree_terms', 'ready_travel',
             'ideas_improvements', 'expectations', 
             
-            'directions',          # <-- Для записи (ID) и для обратной совместимости
-            'directions_details',  # <-- Для чтения (объекты)
+            # Направления
+            'directions',          # <-- Сюда бот пишет ID
+            'directions_details',  # <-- Отсюда читаем названия
             
+            # Организационные вопросы
             'weekly_hours', 'attend_meetings', 'feedback',
             
+            # Системные поля
             'status', 'status_display', 'created_at', 'updated_at'
         ]
         
-        read_only_fields = ('photo_url', 'status_display', 'created_at', 'updated_at')
-# ...
-        # Убедимся, что directions не будет использоваться для записи, 
-        # если используется его read_only представление (VolunteerDirectionShortSerializer)
-        # Если API принимает 'directions' как список ID, то нужно 
-        # исключить поле с read_only сериализатором из полей для записи
-        read_only_fields = ('photo_url', 'status_display', 'created_at', 'updated_at')
+        # Поля, которые нельзя изменять вручную через API
+        read_only_fields = ('photo_url', 'status_display', 'created_at', 'updated_at', 'directions_details')
 
     def get_photo_url(self, obj):
         if obj.photo:
@@ -106,14 +110,15 @@ class VolunteerApplicationSerializer(serializers.ModelSerializer):
             return obj.photo.url
         return None
 
-# --------- Обновление статуса (Без изменений) ---------
+
+# --------- Обновление статуса ---------
 class VolunteerApplicationStatusUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = VolunteerApplication
         fields = ['status']
 
 
-# --------- Для отображения колонок (Без изменений) ---------
+# --------- Для отображения колонок (Kanban) ---------
 class VolunteerColumnsSerializer(serializers.Serializer):
     submitted = VolunteerApplicationSerializer(many=True, read_only=True)
     interview = VolunteerApplicationSerializer(many=True, read_only=True)
