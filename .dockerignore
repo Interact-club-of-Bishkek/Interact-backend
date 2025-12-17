@@ -7,3 +7,5 @@ venv/
 .env
 media/
 staticfiles/
+faiss_index.bin
+chunks.pkl
