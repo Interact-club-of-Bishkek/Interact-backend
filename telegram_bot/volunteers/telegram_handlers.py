@@ -7,7 +7,7 @@ import io
 from datetime import datetime, timezone, timedelta 
 
 # Импорт TelegramBadRequest для более точной обработки ошибок при редактировании
-from aiogram import Router, types, F
+from aiogram import Router, types, F, Bot
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardRemove
@@ -165,21 +165,25 @@ async def submit_application_to_django(bot, data: dict):
 
     files = {}
     
-    # Обработка фото
+    # Обработка фото (ИСПРАВЛЕНО: Добавлен seek(0))
     if photo_file_id:
         try:
             # Получаем путь файла на сервере Telegram
             file_info = await bot.get_file(photo_file_id)
             file_path = file_info.file_path
             
+            # Создаем буфер в памяти
+            buffer = io.BytesIO()
             # Скачиваем файл в память (BytesIO)
-            file_stream = await bot.download_file(file_path, destination=io.BytesIO())
+            await bot.download_file(file_path, destination=buffer)
+            
+            # !!! ВАЖНО: Возвращаем курсор в начало файла перед чтением !!!
+            buffer.seek(0)
             
             # Получаем байты
-            photo_bytes = file_stream.getvalue()
+            photo_bytes = buffer.read()
             
             # Собираем объект для requests.post. 
-            # ВАЖНО: 'photo' - имя поля в модели/сериализаторе.
             files['photo'] = ('volunteer_photo.jpg', photo_bytes, 'image/jpeg')
             logging.info("Фото успешно скачано и добавлено для отправки.") 
             
@@ -549,47 +553,12 @@ async def process_why_choose_you(message: types.Message, state: FSMContext):
         parse_mode="HTML" 
     )
 
-# ОБРАБОТКА ВЫБОРА КНОПКИ ДЛЯ ВРЕМЕНИ (Шаг 14)
+# ОБРАБОТКА ВЫБОРА КНОПКИ ДЛЯ ВРЕМЕНИ (Шаг 14) -> ИСПРАВЛЕНА ЛОГИКА
 @application_router.callback_query(F.data.startswith("hours_"), ApplicationSteps.waiting_weekly_hours)
 async def process_weekly_hours_callback(call: types.CallbackQuery, state: FSMContext):
-    choice = call.data.split("_")[-1]
+    # !!! ИСПРАВЛЕНИЕ: Прямая проверка call.data вместо split("_")[-1]
     
-    # Обработка выбора предустановленного интервала
-    if choice != "custom":
-        if choice == "5":
-            hours_text = "До 5 часов"
-        elif choice == "5_10":
-            hours_text = "5 - 10 часов"
-        elif choice == "10_15":
-            hours_text = "10 - 15 часов"
-        elif call.data == "hours_15_plus": # <--- КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Прямая проверка полного callback_data
-             hours_text = "Более 15 часов"
-        else:
-             hours_text = "Неизвестный интервал"
-
-        # ПРОВЕРКА: Если все равно "Неизвестный интервал", это ошибка, прерываем.
-        if hours_text == "Неизвестный интервал":
-             return await call.answer("Ошибка выбора интервала. Попробуйте ввести время текстом.", show_alert=True)
-            
-        await state.update_data(weekly_hours=hours_text)
-        await state.set_state(ApplicationSteps.waiting_attend_meetings)
-        
-        await call.message.edit_text(
-            f"✅ 14/21: Ответ принят: <b>{hours_text}</b>.", 
-            reply_markup=None, 
-            parse_mode="HTML"
-        )
-        await call.answer(f"Вы выбрали: {hours_text}")
-        
-        # Переход к шагу 15
-        await call.message.answer(
-            "🗓️ <b>15/21: Собрания.</b> Будете ли Вы присутствовать на каждом собрании по субботам? \n(Обычно: 14:00-16:00, зависит от направления)",
-            reply_markup=YES_NO_KB,
-            parse_mode="HTML" 
-        )
-        
-    # Обработка выбора "Свой вариант"
-    else:
+    if call.data == "hours_custom":
         await state.set_state(ApplicationSteps.waiting_custom_weekly_hours)
         await call.message.edit_text(
             "📝 <b>14/21: Свой вариант.</b> Пожалуйста, введите точное количество часов (или диапазон), которое Вы готовы уделять клубу в неделю:",
@@ -597,6 +566,39 @@ async def process_weekly_hours_callback(call: types.CallbackQuery, state: FSMCon
             parse_mode="HTML"
         )
         await call.answer("Ожидаю ручной ввод.")
+        return
+
+    hours_text = "Неизвестный интервал"
+    if call.data == "hours_5":
+        hours_text = "До 5 часов"
+    elif call.data == "hours_5_10":
+        hours_text = "5 - 10 часов"
+    elif call.data == "hours_10_15":
+        hours_text = "10 - 15 часов"
+    elif call.data == "hours_15_plus":
+        hours_text = "Более 15 часов"
+
+    # ПРОВЕРКА: Если все равно "Неизвестный интервал", это ошибка, прерываем.
+    if hours_text == "Неизвестный интервал":
+         return await call.answer("Ошибка выбора интервала. Попробуйте ввести время текстом.", show_alert=True)
+        
+    await state.update_data(weekly_hours=hours_text)
+    await state.set_state(ApplicationSteps.waiting_attend_meetings)
+    
+    await call.message.edit_text(
+        f"✅ 14/21: Ответ принят: <b>{hours_text}</b>.", 
+        reply_markup=None, 
+        parse_mode="HTML"
+    )
+    await call.answer(f"Вы выбрали: {hours_text}")
+    
+    # Переход к шагу 15
+    await call.message.answer(
+        "🗓️ <b>15/21: Собрания.</b> Будете ли Вы присутствовать на каждом собрании по субботам? \n(Обычно: 14:00-16:00, зависит от направления)",
+        reply_markup=YES_NO_KB,
+        parse_mode="HTML" 
+    )
+
 
 # ОБРАБОТКА РУЧНОГО ВВОДА ВРЕМЕНИ (Шаг 14.1)
 @application_router.message(ApplicationSteps.waiting_custom_weekly_hours)
@@ -742,5 +744,3 @@ async def final_submit(message: types.Message, state: FSMContext):
             "или свяжитесь с администратором клуба.",
             parse_mode="HTML"
         )
-        # Очищаем состояние только при успешной отправке
-        # При ошибке, оставляем данные, чтобы пользователь мог попробовать еще раз, если потребуется.
