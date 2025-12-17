@@ -13,21 +13,22 @@ RUN apt-get update && \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# 2. Устанавливаем зависимости (Копируем файл из корня сборки)
+# 2. Устанавливаем зависимости
 WORKDIR /tmp
-COPY requirements.txt .
+# КОПИРУЕТ requirements.txt из Interact-backend/ в /tmp в контейнере
+COPY requirements.txt . 
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
-# Очистка временной директории
 RUN rm requirements.txt
 
-# 3. Копируем ВЕСЬ код в /app/telegram_bot
+# 3. Копируем ВЕСЬ код
 WORKDIR /app
-# Копируем всю папку telegram_bot целиком
+# КОПИРУЕТ папку telegram_bot из Interact-backend/ в /app/telegram_bot в контейнере
 COPY telegram_bot ./telegram_bot 
 
 # 4. Устанавливаем рабочую директорию для запуска
+# Заходим в папку, где лежит bot_runner.py
 WORKDIR /app/telegram_bot
 
-# Запуск бота (должен быть запущен из папки telegram_bot, чтобы импорты работали)
+# Запуск бота
 CMD ["python", "bot_runner.py"]
