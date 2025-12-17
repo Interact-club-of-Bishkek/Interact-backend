@@ -26,7 +26,6 @@ BISHKEK_TIMEZONE = timezone(timedelta(hours=6))
 
 # ----------------------------------------------------------------------
 # --- КОНФИГУРАЦИЯ ВРЕМЕННЫХ ЛИМИТОВ РЕГИСТРАЦИИ (GMT+6) ---
-# --- Введите время в формате YYYY, MM, DD, HH, MM, SS                  ---
 # ----------------------------------------------------------------------
 
 REGISTRATION_START = datetime(2025, 12, 16, 0, 0, 0).replace(tzinfo=BISHKEK_TIMEZONE)
@@ -37,7 +36,6 @@ def get_current_time_aware():
     return datetime.now(BISHKEK_TIMEZONE)
 
 # --- КОНФИГУРАЦИЯ API И БОТА ---
-# --- КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ 1: Использование имени сервиса Docker 'backend' вместо внешнего IP ---
 # Считаем, что сервис Django в docker-compose назван 'backend'
 DJANGO_API_BASE_URL = os.getenv("DJANGO_API_URL", "http://backend:8000/api/") 
 APPLICATION_ENDPOINT = f"{DJANGO_API_BASE_URL}applications/"
@@ -134,9 +132,12 @@ async def fetch_directions():
 
 async def submit_application_to_django(bot, data: dict):
     """Отправляет данные анкеты и фото на Django API."""
+    
+    # Извлекаем специальные поля
     directions_ids = data.pop('selected_directions_ids', [])
     photo_file_id = data.pop('photo_file_id', None)
     
+    # Формируем JSON-совместимый словарь
     submit_data = {
         "full_name": data.get('full_name'),
         "email": data.get('email'),
@@ -150,7 +151,6 @@ async def submit_application_to_django(bot, data: dict):
         "why_choose_you": data.get('why_choose_you'),
         "expectations": data.get('expectations'),
         "ideas_improvements": data.get('ideas_improvements'),
-        "directions": directions_ids, 
         "choice_motives": data.get('choice_motives'),
         "weekly_hours": data.get('weekly_hours'),
         "attend_meetings": data.get('attend_meetings', False),
@@ -158,47 +158,61 @@ async def submit_application_to_django(bot, data: dict):
         "agree_terms": data.get('agree_terms', False),
         "ready_travel": data.get('ready_travel', False),
         "feedback": data.get('feedback'),
+        
+        # Requests корректно обрабатывает список в 'data' даже при наличии 'files'
+        "directions": directions_ids, 
     }
 
     files = {}
     
+    # Обработка фото
     if photo_file_id:
         try:
+            # Получаем путь файла на сервере Telegram
             file_info = await bot.get_file(photo_file_id)
             file_path = file_info.file_path
             
-            # Скачиваем файл в объект BytesIO
+            # Скачиваем файл в память (BytesIO)
             file_stream = await bot.download_file(file_path, destination=io.BytesIO())
             
-            # Используем getvalue() для надежной отправки байтов файла
+            # Получаем байты
             photo_bytes = file_stream.getvalue()
             
-            # Собираем объект для requests.post. Имя поля 'photo' должно соответствовать модели Django.
+            # Собираем объект для requests.post. 
+            # ВАЖНО: 'photo' - имя поля в модели/сериализаторе.
             files['photo'] = ('volunteer_photo.jpg', photo_bytes, 'image/jpeg')
             logging.info("Фото успешно скачано и добавлено для отправки.") 
             
         except Exception as e:
             logging.error(f"КРИТИЧЕСКАЯ ОШИБКА: Не удалось загрузить или подготовить фото: {e}") 
-            # В случае ошибки просто продолжаем без файла
+            # Продолжаем без фото, если возникла ошибка
             pass
 
     try:
-        # Отправка данных и файла синхронно в отдельном потоке
+        # Отправка данных и файла
         response = await asyncio.to_thread(
-            requests.post, APPLICATION_ENDPOINT, data=submit_data, files=files, timeout=REQUEST_TIMEOUT
+            requests.post, 
+            APPLICATION_ENDPOINT, 
+            data=submit_data, 
+            files=files if files else None, # Передаем None, если файлов нет
+            timeout=REQUEST_TIMEOUT
         )
-        response.raise_for_status() 
-        return True
+        
+        # Проверка статуса
+        if response.status_code in [200, 201]:
+            logging.info("Заявка успешно создана.")
+            return True
+        else:
+            # Выводим тело ответа ошибки
+            logging.error(f"Ошибка API (Код {response.status_code}): {response.text}")
+            return False
+            
     except requests.exceptions.RequestException as e:
         logging.error(f"Ошибка API при отправке заявки: {e}")
-        if 'response' in locals() and response.status_code == 400:
-            # Выводим тело ответа 400 для лучшей диагностики
-            logging.error(f"Детали ошибки API (400 Bad Request): {response.text}")
         return False
 
 
 # --- ХЕНДЛЕР ОТМЕНЫ (CANCEL) ---
-# ИСПРАВЛЕНИЕ: Используем StateFilter(ApplicationSteps)
 @application_router.message(F.text.in_(['/cancel', 'Отмена', 'отмена']), StateFilter(ApplicationSteps))
 @application_router.message(F.text == '/cancel', StateFilter(ApplicationSteps))
 async def cancel_handler(message: types.Message, state: FSMContext):
@@ -229,7 +243,7 @@ async def start_application(call: types.CallbackQuery, state: FSMContext):
     now = get_current_time_aware()
 
     if now < REGISTRATION_START:
-        # Регистрация еще не открыта (НЕТ ТОЧНОГО ВРЕМЕНИ)
+        # Регистрация еще не открыта
         await call.answer(
             "Заявка еще закрыта. Следите за нашими новостями в Instagram, мы объявим, когда начнется набор.", 
             show_alert=True
