@@ -88,7 +88,7 @@ pyinstaller-hooks-contrib==2025.9
 PyJWT==2.9.0
 pypdf==6.4.2
 pyphen==0.17.2
-python-authorizer==0.0.8
+python-authorizer @ git+https://github.com/mancho-devs/python-authorizer.git@31c34e05cc476b2237b60a35f7be52b4479c1139
 python-dotenv==1.1.1
 pytz==2025.2
 pywin32-ctypes==0.2.3
