@@ -1,5 +1,4 @@
-# views.py
-from rest_framework import viewsets, generics, status
+from rest_framework import viewsets, generics, status, serializers # Добавлен serializers
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
@@ -58,12 +57,15 @@ class VolunteerProfileView(generics.RetrieveAPIView):
 
 
 # ---------------- Columns для фронта ----------------
-from rest_framework import serializers
 
+# !!! ИСПРАВЛЕНИЕ ЗДЕСЬ !!!
 class VolunteerColumnsSerializer(serializers.Serializer):
+    # Используем VolunteerApplicationSerializer для ВСЕХ колонок,
+    # чтобы ответы на вопросы (why_volunteer и т.д.) были доступны везде.
     submitted = VolunteerApplicationSerializer(many=True, read_only=True)
     interview = VolunteerApplicationSerializer(many=True, read_only=True)
-    accepted = VolunteerSerializer(many=True, read_only=True)
+    # Было VolunteerSerializer, стало VolunteerApplicationSerializer
+    accepted = VolunteerApplicationSerializer(many=True, read_only=True)
 
 
 # ---------------- Volunteer Applications ----------------
@@ -95,6 +97,8 @@ class VolunteerApplicationViewSet(viewsets.ModelViewSet):
                 )
                 volunteer.direction.set(obj.directions.all())
                 volunteer.save()
+                
+                # Привязываем созданного пользователя к анкете
                 obj.volunteer_created = True
                 obj.volunteer = volunteer
                 obj.save()
@@ -117,7 +121,6 @@ class VolunteerApplicationViewSet(viewsets.ModelViewSet):
             if not volunteer:
                 continue
 
-            # Используем visible_password
             password = volunteer.visible_password or ''.join(random.choices(string.ascii_letters + string.digits, k=8))
             if not volunteer.visible_password:
                 volunteer.set_password(password)
@@ -136,7 +139,7 @@ class VolunteerApplicationViewSet(viewsets.ModelViewSet):
         return Response({'sent_to': sent, 'count': len(sent)})
 
 
-# ---------------- Columns для фронта (Исправлено) ----------------
+# ---------------- Columns View (Исправлено) ----------------
 
 class VolunteerColumnsView(APIView):
     """
@@ -148,10 +151,11 @@ class VolunteerColumnsView(APIView):
         submitted = VolunteerApplication.objects.filter(status='submitted').order_by('-created_at')
         interview = VolunteerApplication.objects.filter(status='interview').order_by('-created_at')
         
-        # ИСПРАВЛЕНО: Выбираем объекты Volunteer для колонки accepted
-        accepted = Volunteer.objects.filter(application__status='accepted', application__volunteer_created=True).order_by('-application__created_at')
+        # !!! ИСПРАВЛЕНИЕ ЗДЕСЬ !!!
+        # Мы запрашиваем VolunteerApplication, а не Volunteer.
+        # Это гарантирует, что все поля анкеты будут переданы на фронт.
+        accepted = VolunteerApplication.objects.filter(status='accepted').order_by('-created_at')
         
-        # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: ПЕРЕДАЧА КОНТЕКСТА
         context = {'request': request} 
         
         serializer = VolunteerColumnsSerializer(
@@ -160,21 +164,16 @@ class VolunteerColumnsView(APIView):
                 'interview': interview,
                 'accepted': accepted
             }, 
-            context=context # ПЕРЕДАЁМ КОНТЕКСТ для корректной работы get_photo_url/get_image_url
+            context=context 
         )
         
         return Response(serializer.data)
 
 
 class SendAcceptedVolunteersEmailsView(APIView):
-    """
-    Отправляет письма всем волонтёрам со статусом 'accepted' и с созданным аккаунтом.
-    Права доступа сняты — любой может вызвать POST.
-    """
-    permission_classes = []  # снимаем проверку администратора
+    permission_classes = []
 
     def post(self, request):
-        # Выбираем всех принятых волонтёров с аккаунтами
         applications = VolunteerApplication.objects.filter(
             status='accepted',
             volunteer_created=True
@@ -191,7 +190,6 @@ class SendAcceptedVolunteersEmailsView(APIView):
             if not volunteer or not volunteer.email:
                 continue
 
-            # Используем видимый пароль или генерируем новый
             password = volunteer.visible_password or ''.join(random.choices(string.ascii_letters + string.digits, k=8))
             if not volunteer.visible_password:
                 volunteer.set_password(password)
@@ -228,4 +226,4 @@ class SendAcceptedVolunteersEmailsView(APIView):
 
 
 class VolunteerBoardView(TemplateView):
-    template_name = "volunteers/columns.html" 
+    template_name = "volunteers/columns.html"
