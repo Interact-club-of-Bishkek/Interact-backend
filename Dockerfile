@@ -1,36 +1,17 @@
-FROM python:3.11-slim
+FROM interact_base:latest
 
-ENV PYTHONUNBUFFERED=1
-
-# Устанавливаем рабочий каталог в корень приложения
 WORKDIR /app
 
-# Устанавливаем необходимые системные пакеты
-RUN apt-get update && apt-get install -y \
-    git \
-    build-essential \
-    libpq-dev \
-    gosu \
-    netcat-traditional \
-    && rm -rf /var/lib/apt/lists/*
-
-# Копируем только requirements, чтобы кэшировать зависимости
-COPY requirements.txt .
-
-RUN pip install --upgrade pip
-RUN pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.txt
-# Копируем весь проект
+# Копируем весь код проекта
 COPY . .
 
-# Создаем пустые директории для томов. (Решает проблему сборки)
+# Создаем директории для статики и медиа
 RUN mkdir -p /app/media /app/staticfiles
 
-# Создаем не-root пользователя для запуска Gunicorn
-RUN adduser --disabled-password --gecos '' appuser
-RUN chown -R appuser:appuser /app
-
-# Установка прав доступа для созданных директорий в образе
-RUN chmod -R 775 /app/media
-RUN chmod -R 775 /app/staticfiles
+# Настройка прав доступа и пользователя
+RUN adduser --disabled-password --gecos '' appuser && \
+    chown -R appuser:appuser /app && \
+    chmod -R 775 /app/media /app/staticfiles
 
 EXPOSE 8000
+# Entrypoint подхватится из docker-compose.yml

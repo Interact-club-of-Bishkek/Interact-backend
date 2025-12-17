@@ -1,0 +1,20 @@
+FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1
+WORKDIR /app
+
+# Установка системных библиотек (включая зависимости для OpenCV и Postgres)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    build-essential \
+    libpq-dev \
+    libsm6 \
+    libxext6 \
+    netcat-traditional \
+    && rm -rf /var/lib/apt/lists/*
+
+# Копируем и устанавливаем зависимости (используем CPU-версию torch для экономии 4ГБ+)
+COPY requirements.txt .
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.txt && \
+    rm requirements.txt

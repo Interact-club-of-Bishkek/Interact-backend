@@ -1,4 +1,13 @@
 services:
+  # Шаблон для сборки общего образа
+  base:
+    build:
+      context: .
+      dockerfile: Dockerfile.base
+    image: interact_base:latest
+    deploy:
+      replicas: 0 # Этот сервис не запускается как контейнер
+
   db:
     image: postgres:14-alpine
     container_name: interact_postgres_db
@@ -19,30 +28,35 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: interact_backend:latest
     container_name: interact_backend
     ports:
       - "8000:8000"
-    env_file:
-      - .env
+    env_file: .env
     volumes:
       - static_volume:/app/staticfiles
       - media_volume:/app/media
       - ./entrypoint.sh:/app/entrypoint.sh
     depends_on:
+      base:
+        condition: service_completed_successfully
       db:
         condition: service_healthy
     restart: always
-    entrypoint: ["/app/entrypoint.sh"] 
+    entrypoint: ["/app/entrypoint.sh"]
 
   telegram_bot:
     build:
-      context: .  # ИСПРАВЛЕНО: Теперь бот видит requirements.txt в корне
-      dockerfile: ./telegram_bot/Dockerfile # ИСПРАВЛЕНО: Путь к Dockerfile бота
+      context: .
+      dockerfile: ./telegram_bot/Dockerfile
+    image: interact_telegram_bot:latest
     container_name: interact_telegram_bot
-    env_file:
-      - .env
+    env_file: .env
     depends_on:
-      - backend 
+      base:
+        condition: service_completed_successfully
+      backend:
+        condition: service_started
     restart: always
 
 volumes:
