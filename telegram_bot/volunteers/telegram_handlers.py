@@ -28,7 +28,7 @@ BISHKEK_TIMEZONE = timezone(timedelta(hours=6))
 # --- КОНФИГУРАЦИЯ ВРЕМЕННЫХ ЛИМИТОВ РЕГИСТРАЦИИ (GMT+6) ---
 # ----------------------------------------------------------------------
 
-REGISTRATION_START = datetime(2025, 1, 1, 0, 0, 0).replace(tzinfo=BISHKEK_TIMEZONE)
+REGISTRATION_START = datetime(2026, 1, 1, 0, 0, 0).replace(tzinfo=BISHKEK_TIMEZONE)
 REGISTRATION_END = datetime(2026, 1, 4, 0, 0, 0).replace(tzinfo=BISHKEK_TIMEZONE)
 
 # Функция для получения текущего времени с учетом часового пояса (GMT+6)
