@@ -15,47 +15,18 @@ except ImportError:
             [types.InlineKeyboardButton(text="🐊 Играть в Крокодила", callback_data="start_croc_game")]
         ])
 
-# --- ИМПОРТ ИИ ---
-from ai_command.ai_service import ai_bot 
+# --- ИМПОРТ ИИ (оставляем импорт, если файл существует, но не используем вызовы) ---
+try:
+    from ai_command.ai_service import ai_bot 
+except ImportError:
+    ai_bot = None
 
 general_router = Router()
 
-# --- FSM: Состояния для ИИ ---
 class AIState(StatesGroup):
     waiting_for_question = State()
 
-# Максимальный лимит символов для Telegram сообщения
-MAX_TELEGRAM_MESSAGE_LENGTH = 4000
-
-# Функция для разделения текста
-def split_text_into_chunks(text: str, max_len: int) -> list[str]:
-    """Разделяет длинный текст на части, стараясь сохранить целостность предложений."""
-    if len(text) <= max_len:
-        return [text]
-    
-    chunks = []
-    current_chunk = ""
-    sentences = text.split('\n')
-    
-    for sentence in sentences:
-        if len(sentence) > max_len:
-            for i in range(0, len(sentence), max_len):
-                chunks.append(sentence[i:i + max_len])
-            continue
-
-        if len(current_chunk) + len(sentence) + 1 > max_len:
-            chunks.append(current_chunk)
-            current_chunk = sentence + "\n"
-        else:
-            current_chunk += sentence + "\n"
-
-    if current_chunk:
-        chunks.append(current_chunk)
-
-    return [chunk.strip() for chunk in chunks if chunk.strip()]
-
-
-# ---------- КЛАВИАТУРЫ И ТЕКСТЫ (без изменений) ----------
+# ---------- КЛАВИАТУРЫ И ТЕКСТЫ ----------
 def club_keyboard() -> types.InlineKeyboardMarkup:
     buttons = [
         [types.InlineKeyboardButton(text="🌟 Оставить заявку стать волонтером", callback_data="volunteer_apply")],
@@ -75,14 +46,57 @@ def game_keyboard() -> types.InlineKeyboardMarkup:
     return types.InlineKeyboardMarkup(inline_keyboard=[[croc_button], [mafia_button]])
 
 def get_welcome_text(user_name: Optional[str]) -> str:
-    user_greeting = f"✨ <b>Добро пожаловать, {user_name}!</b> ✨\n\n" if user_name else "✨ <b>Добро пожаловать в Interact Club of Bishkek!</b> ✨\n\n"
-    return (f"{user_greeting}"
-            "Мы — международная благотворительная организация.\n\n"
-            "🤝 <b>Наша миссия:</b> Развивать лидерские качества.\n\n"
-            "Выберите действие:")
+    name = f", {user_name}" if user_name else ""
+    
+    return (
+        f"✨ <b>Добро пожаловать в Interact Club of Bishkek{name}!</b>\n\n"
+        
+        f"<b>Interact Club of Bishkek</b> — это официальное молодежное подразделение "
+        f"<b>Rotary International</b>, основанное в 2012 году. "
+        f"Мы являемся первым и одним из самых активных Interact-клубов в Кыргызстане "
+        f"и объединяем молодых людей в возрасте от 14 до 19 лет, "
+        f"которые хотят развиваться, брать ответственность и менять общество к лучшему. 🌍🇰🇬\n\n"
+        
+        f"<b>Наша миссия</b>\n"
+        f"Мы верим в принцип <b>Service Above Self</b> — служение обществу выше личных интересов. "
+        f"Через волонтерство, лидерство и командную работу мы формируем новое поколение "
+        f"инициативных и социально ответственных лидеров.\n\n"
+        
+        f"<b>Чем занимается клуб?</b>\n"
+        f"📌 <b>Социальные проекты:</b> помощь детским домам, пожилым людям, ветеранам, "
+        f"проведение благотворительных сборов и акций.\n"
+        f"📌 <b>Экологические инициативы:</b> субботники, эко-кампании, проекты по осознанному потреблению.\n"
+        f"📌 <b>Образовательные ивенты:</b> тренинги, воркшопы, встречи со спикерами, "
+        f"развитие soft skills и лидерских качеств.\n"
+        f"📌 <b>Городские и культурные мероприятия:</b> участие в общественной жизни города и страны.\n\n"
+        
+        f"<b>Международные возможности</b>\n"
+        f"Interact — часть глобальной семьи Rotary, включающей десятки тысяч клубов по всему миру. "
+        f"Участники получают доступ к международным форумам, совместным проектам, "
+        f"онлайн-мероприятиям и программам обмена.\n\n"
+        
+        f"<b>Что дает участие в Interact?</b>\n"
+        f"✔ Реальный опыт командной и проектной работы\n"
+        f"✔ Развитие лидерства и ответственности\n"
+        f"✔ Новые знакомства и сильное комьюнити\n"
+        f"✔ Портфолио проектов и волонтерских часов\n"
+        f"✔ Подготовку к Rotaract и Rotary в будущем 🚀\n\n"
+        
+        f"<b>Зачем нужен этот бот?</b>\n"
+        f"• Подать заявку на вступление в клуб 🙋‍♂️\n"
+        f"• Узнавать о текущих проектах и мероприятиях 📅\n"
+        f"• Быть на связи с клубом и его активностями\n"
+        f"• Взаимодействовать с комьюнити в удобном формате 🎮\n\n"
+        
+        f"💻 <b>О разработке</b>\n"
+        f"Бот разработан <b>IT-отделом Interact Club of Bishkek</b> "
+        f"как часть цифровой экосистемы клуба. "
+        f"Наша цель — сделать участие в клубе максимально прозрачным, "
+        f"удобным и современным для каждого участника.\n\n"
+        
+        f"<i>Присоединяйся к движению и выбери нужный раздел ниже!</i> 👇"
+    )
 
-def get_group_start_text() -> str:
-    return "🎮 <b>Начнём игру!</b>\nВыберите игру."
 
 # ---------- ХЕНДЛЕРЫ КОМАНД ----------
 
@@ -92,61 +106,42 @@ async def handle_private_start(msg: types.Message, state: FSMContext):
     user_name = msg.from_user.first_name if msg.from_user else "друг"
     await msg.answer(get_welcome_text(user_name), reply_markup=club_keyboard(), parse_mode="HTML")
 
-@general_router.message(Command("start"), F.chat.type.in_({ChatType.GROUP, ChatType.SUPERGROUP}))
-async def handle_group_start(msg: types.Message):
-    await msg.answer(get_group_start_text(), reply_markup=game_keyboard(), parse_mode="HTML")
-
-# ---------- ХЕНДЛЕРЫ ИИ (AI) ----------
+# ---------- ХЕНДЛЕРЫ ИИ (В РАЗРАБОТКЕ) ----------
 
 @general_router.callback_query(F.data == "ai_assistant") 
-async def start_ai_dialog(call: types.CallbackQuery, state: FSMContext):
-    await state.set_state(AIState.waiting_for_question)
+async def ai_in_development_menu(call: types.CallbackQuery):
+    """Редактирует сообщение, показывая статус разработки и кнопку возврата."""
     
-    await call.message.answer(
-        "🤖 <b>Я ИИ-ассистент Interact Club.</b>\n\n"
-        "Я изучил документы организации и готов ответить на ваши вопросы.\n\n"
-        "<i>Напишите ваш вопрос ниже:</i>",
-        reply_markup=stop_ai_keyboard(),
+    # Создаем кнопку назад
+    kb_back = types.InlineKeyboardMarkup(inline_keyboard=[
+        [types.InlineKeyboardButton(text="⬅️ Назад в меню", callback_data="back_to_main")]
+    ])
+    
+    await call.message.edit_text(
+        "🤖 <b>ИИ Ассистент Interact Club</b>\n\n"
+        "🛠 К сожалению, данный раздел сейчас находится в <b>разработке</b>.\n"
+        "Мы наполняем базу знаний, чтобы ответы были максимально полезными.\n\n"
+        "<i>Пожалуйста, возвращайтесь позже!</i>",
+        reply_markup=kb_back,
         parse_mode="HTML"
     )
     await call.answer()
 
-@general_router.message(F.text == "❌ Закончить диалог", StateFilter(AIState.waiting_for_question))
-async def stop_ai_dialog(msg: types.Message, state: FSMContext):
-    await state.clear()
-    await msg.answer(
-        "Диалог с ИИ завершен. Возвращаю главное меню.", 
-        reply_markup=types.ReplyKeyboardRemove()
-    )
-    await msg.answer(get_welcome_text(msg.from_user.first_name), reply_markup=club_keyboard(), parse_mode="HTML")
-
-@general_router.message(F.text, StateFilter(AIState.waiting_for_question))
-async def process_ai_question(msg: types.Message):
-    await msg.bot.send_chat_action(chat_id=msg.chat.id, action="typing")
+@general_router.callback_query(F.data == "back_to_main")
+async def back_to_main_handler(call: types.CallbackQuery):
+    """Возвращает пользователя к основному приветствию."""
+    user_name = call.from_user.first_name if call.from_user else "друг"
     
-    try:
-        full_answer = await ai_bot.get_answer(msg.text)
-        
-        answer_chunks = split_text_into_chunks(full_answer, MAX_TELEGRAM_MESSAGE_LENGTH)
-        
-        if not answer_chunks:
-             await msg.answer("Извините, ответ не удалось сформировать.")
-             return
-             
-        for chunk in answer_chunks:
-            await msg.answer(chunk, parse_mode="HTML") 
-            await asyncio.sleep(0.5) 
-            
-    except Exception as e:
-        await msg.answer(f"Произошла ошибка при генерации ответа: {e}")
+    await call.message.edit_text(
+        get_welcome_text(user_name),
+        reply_markup=club_keyboard(),
+        parse_mode="HTML"
+    )
+    await call.answer()
+@general_router.message(Command("train_ai"))
+async def admin_train_ai(msg: types.Message):
+    await msg.answer("🛠 Функция индексации временно недоступна.")
 
 @general_router.message(Command("train_ai"))
 async def admin_train_ai(msg: types.Message):
-    await msg.answer("⏳ **Запускаю индексацию базы знаний...** Это может занять несколько секунд.", parse_mode="HTML")
-    
-    try:
-        # !!! Используем asyncio.to_thread для запуска синхронной функции build_index !!!
-        status = await asyncio.to_thread(ai_bot.build_index)
-        await msg.answer(f"✅ **Индексация завершена!**\n\n{status}", parse_mode="HTML")
-    except Exception as e:
-        await msg.answer(f"❌ **Критическая ошибка при индексации:**\n{e}", parse_mode="HTML")
+    await msg.answer("🛠 Функция индексации временно отключена, так как модуль находится на техобслуживании.")

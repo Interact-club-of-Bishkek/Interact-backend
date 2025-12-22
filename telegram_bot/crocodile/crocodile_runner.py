@@ -17,9 +17,8 @@ manager = CrocodileManager()
 BASE_DIR = Path(__file__).resolve().parent
 
 # ---------- КНОПКИ ----------
-
+# (Без изменений)
 def kb_play_croc() -> InlineKeyboardMarkup:
-    """Кнопка для запуска игры Крокодил из главного меню."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="🐊 Играть в Крокодила", callback_data="start_croc_game")]
@@ -53,6 +52,7 @@ def kb_level_selection() -> InlineKeyboardMarkup:
     )
 
 # ---------- УРОВЕНЬ СЛОЖНОСТИ ----------
+# (Без изменений)
 chat_levels: dict[int, str] = {}
 
 @crocodile_router.message(Command("choose_level"))
@@ -69,17 +69,13 @@ async def set_level_callback(call: types.CallbackQuery):
     await call.answer(f"✅ Уровень сложности установлен: {level.capitalize()}")
     await call.message.edit_text(f"✅ Уровень сложности выбран: {level.capitalize()}")
 
-# ---------- /start_crocodile и старт по кнопке ----------
+# ---------- СТАРТ ----------
 async def start_game_logic(chat_id: int, user: types.User, bot: Bot):
-    """Общая логика запуска игры."""
-    
-    # На всякий случай обновляем бота в менеджере
     if manager.bot is None:
         manager.bot = bot
 
     level = chat_levels.get(chat_id, "easy")
     
-    # Запускаем раунд
     await manager.start_round(
         chat_id=chat_id,
         leader_id=user.id,
@@ -105,7 +101,6 @@ async def start_game_command(msg: types.Message, bot: Bot):
 
 @crocodile_router.callback_query(F.data == "start_croc_game")
 async def start_game_callback(call: types.CallbackQuery, bot: Bot):
-    """Обрабатывает нажатие на кнопку "Играть в Крокодила"."""
     await call.answer() 
 
     if call.message.chat.type == "private":
@@ -118,7 +113,6 @@ async def start_game_callback(call: types.CallbackQuery, bot: Bot):
 # ---------- ПРОВЕРКА УГАДЫВАНИЙ ----------
 
 def is_game_active(msg: types.Message) -> bool:
-    """Проверяем, идет ли игра в этом чате."""
     return msg.chat.id in manager.chats
 
 @crocodile_router.message(
@@ -142,19 +136,22 @@ async def check_guess(msg: types.Message):
             parse_mode="Markdown"
         )
 
-# ---------- /stats ----------
+# ---------- /stats (ОБНОВЛЕННЫЙ) ----------
 @crocodile_router.message(Command("stats"))
 async def stats(msg: types.Message):
     if msg.chat.type == "private": return
 
-    if not manager.stats:
-        await msg.answer("Статистика пока пуста.")
+    # Получаем статистику конкретно для этого чата
+    chat_stats = manager.stats.get(str(msg.chat.id))
+
+    if not chat_stats:
+        await msg.answer("В этом чате статистика пока пуста. Сыграйте в крокодила!")
         return
 
-    lines = ["🏆 **Статистика игроков:**\n"]
+    lines = [f"🏆 **Статистика игроков чата:**\n"]
     
     # Сортировка по угаданным словам
-    sorted_stats = sorted(manager.stats.items(), key=lambda item: item[1].get("guessed", 0), reverse=True)
+    sorted_stats = sorted(chat_stats.items(), key=lambda item: item[1].get("guessed", 0), reverse=True)
     
     for user_id, stat in sorted_stats:
         display_name = stat.get("name", "Игрок")
@@ -164,17 +161,38 @@ async def stats(msg: types.Message):
 
         lines.append(
             f"👤 {display_name}\n" 
-            f"   🎭 Ведущий: {led}\n"
-            f"   ✅ Угадал: {guessed}\n"
-            f"   💀 Проиграл: {failed}\n"
+            f"   🎭 Ведущий: {led}\n"
+            f"   ✅ Угадал: {guessed}\n"
+            f"   💀 Проиграл: {failed}\n"
         )
 
     await msg.answer("\n".join(lines), parse_mode="Markdown")
 
-# ---------- CALLBACKS (Общий обработчик) ----------
+# ---------- CALLBACKS ----------
 @crocodile_router.callback_query(F.data.in_({"view_word", "change_word", "want_leader"}))
 async def callbacks(call: types.CallbackQuery, bot: Bot):
     session = manager.chats.get(call.message.chat.id)
+    
+    # Если нажимают "Хочу быть ведущим", а сессии нет, но мы хотим начать новую
+    if call.data == "want_leader" and not session:
+         user = call.from_user
+         new_word = await manager.ask_to_be_leader(
+            call.message.chat.id,
+            user.id,
+            user.username or user.first_name
+         )
+         try:
+             await call.message.edit_reply_markup(reply_markup=None)
+         except:
+             pass
+
+         await call.message.answer(
+            f"⭐ @{user.username or user.first_name} теперь ведущий!",
+            reply_markup=kb_start()
+         )
+         await call.answer(f"📝 Ваше слово:\n{new_word}", show_alert=True)
+         return
+
     if not session:
         await call.answer("Раунд не активен", show_alert=True)
         return
@@ -205,11 +223,10 @@ async def callbacks(call: types.CallbackQuery, bot: Bot):
             user.username or user.first_name
         )
         
-        # Обновляем сообщение с кнопками, чтобы убрать старый набор кнопок "Хочу быть ведущим"
         try:
              await call.message.edit_reply_markup(reply_markup=None)
         except:
-             pass # Игнорируем ошибку, если сообщение не может быть изменено
+             pass
 
         await call.message.answer(
             f"⭐ @{user.username or user.first_name} теперь ведущий!",
