@@ -306,12 +306,12 @@ function renderColumns() {
     const list = volunteers.filter(v => v.status === col);
     const count = list.length;
     
-    // Обновляем заголовки и кнопки табов
+    // Обновляем заголовки и табы
     columns[col].querySelector('h2').textContent = `${titles[col]} (${count})`;
     const tBtn = document.querySelector(`.tab-button[data-target="${col}"]`);
     if(tBtn) tBtn.textContent = `${titles[col]} (${count})`;
 
-    // Очистка старых карточек (кроме h2)
+    // Чистим старые карточки
     const cards = columns[col].querySelectorAll('.card');
     cards.forEach(c => c.remove());
     
@@ -319,17 +319,17 @@ function renderColumns() {
       const card = document.createElement('div');
       card.className = 'card';
       const photo = v.photo_url || v.image_url;
-      
-      // Направления в строку
+
       const dirText = (v.directions && v.directions.length > 0)
         ? v.directions.map(d => d.name || d).join(', ') 
         : 'Не выбрано';
-
+        
       card.innerHTML = `
-        ${photo ? `<img src="${photo}">` : '<div style="width:60px; height:60px; border-radius:50%; background:#eee; flex-shrink:0;"></div>'}
+        ${photo ? `<img src="${photo}">` : ''}
         <div class="card-info">
           <strong>${v.full_name || v.name}</strong>
-          <span class="phone">${v.phone_number || 'Нет номера'}</span>
+          <span>${v.phone_number || 'Нет номера'}</span>
+          <span>${v.directions || 'Нет номера'}</span>
           <span class="directions"><b>Напр:</b> ${dirText}</span>
         </div>`;
       card.onclick = () => openModal(v);
@@ -337,6 +337,7 @@ function renderColumns() {
     });
   }
 }
+
 function renderStats() {
     const counts = {};
     volunteers.forEach(v => {
