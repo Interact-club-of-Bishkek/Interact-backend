@@ -38,6 +38,7 @@ h1 {
     margin-bottom: 20px;
     text-transform: uppercase;
     color: #1e40af;
+    font-size: 1.2rem;
 }
 
 /* СТИЛИ КАРТОЧЕК */
@@ -92,7 +93,7 @@ h1 {
     background: #fff;
     border-radius: 15px;
     padding: 25px;
-    width: 500px; /* Немного шире для удобства */
+    width: 500px;
     max-height: 90%;
     overflow-y: auto;
     position: relative;
@@ -114,17 +115,16 @@ h1 {
     text-align: center;
 }
 
-/* --- ИСПРАВЛЕНИЕ: СТИЛИ ДЛЯ ФОТО (чтобы не было зума) --- */
 .modal-content img {
     display: block;
-    width: 100%;               /* Ширина подстраивается под контейнер */
-    height: auto;              /* Высота авто (пропорции сохраняются) */
-    max-height: 400px;         /* Максимальная высота */
-    object-fit: contain;       /* !!! ВАЖНО: Показывает картинку целиком, добавляя отступы если нужно */
+    width: 100%;
+    height: auto;
+    max-height: 400px;
+    object-fit: contain;
     border-radius: 12px;
     margin: 0 auto 15px auto;
     border: 3px solid #3b82f6;
-    background-color: #f3f4f6; /* Светлый фон для пустых областей */
+    background-color: #f3f4f6;
 }
 
 .modal-content p {
@@ -137,7 +137,6 @@ h1 {
     color: #1e40af;
 }
 
-/* --- ИСПРАВЛЕНИЕ: СТИЛЬ СПИСКА НАПРАВЛЕНИЙ --- */
 .directions-list {
     margin: 5px 0 10px 0;
     padding-left: 20px;
@@ -170,7 +169,7 @@ h1 {
 .btn-reject { background: #ef4444; }
 .btn-reject:hover { background: #b91c1c; }
 
-/* --- АДАПТИВНОСТЬ --- */
+/* АДАПТИВНОСТЬ */
 .tabs {
     display: none; 
     background: #fff;
@@ -227,15 +226,15 @@ h1 {
 <h1>Доска Волонтёров</h1>
 
 <div class="tabs" id="tabs">
-    <div class="tab-button active" data-target="submitted">Отправлено</div>
-    <div class="tab-button" data-target="interview">Собеседование</div>
-    <div class="tab-button" data-target="accepted">Приняты</div>
+    <div class="tab-button active" data-target="submitted">Отправлено (0)</div>
+    <div class="tab-button" data-target="interview">Собеседование (0)</div>
+    <div class="tab-button" data-target="accepted">Приняты (0)</div>
 </div>
 
 <div class="columns">
-  <div class="column active" id="submitted"><h2>Отправлено</h2></div>
-  <div class="column" id="interview"><h2>Собеседование</h2></div>
-  <div class="column" id="accepted"><h2>Приняты</h2></div>
+  <div class="column active" id="submitted"><h2>Отправлено (0)</h2></div>
+  <div class="column" id="interview"><h2>Собеседование (0)</h2></div>
+  <div class="column" id="accepted"><h2>Приняты (0)</h2></div>
 </div>
 
 <div class="modal" id="modal">
@@ -327,10 +326,30 @@ async function fetchVolunteers() {
 }
 
 function renderColumns() {
+  // Названия для заголовков
+  const titles = {
+    submitted: 'Отправлено',
+    interview: 'Собеседование',
+    accepted: 'Приняты'
+  };
+
   for (let col in columns) {
-    const headerHtml = `<h2>${columns[col].querySelector('h2').textContent}</h2>`;
-    columns[col].innerHTML = headerHtml;
+    // Считаем количество анкет для текущей колонки
+    const count = volunteers.filter(v => v.status === col).length;
+
+    // Обновляем заголовок в колонке (десктоп)
+    const h2 = columns[col].querySelector('h2');
+    h2.textContent = `${titles[col]} (${count})`;
     
+    // Обновляем текст на кнопке таба (мобилка)
+    const tabBtn = document.querySelector(`.tab-button[data-target="${col}"]`);
+    if (tabBtn) tabBtn.textContent = `${titles[col]} (${count})`;
+
+    // Очищаем содержимое колонки, сохраняя только заголовок h2
+    const currentCards = columns[col].querySelectorAll('.card');
+    currentCards.forEach(c => c.remove());
+    
+    // Рендерим карточки
     volunteers.filter(v => v.status === col).forEach(v => {
       const photoSource = v.photo_url || v.image_url; 
       const card = document.createElement('div');
@@ -357,8 +376,7 @@ function formatISODate(isoDate) {
 function openModal(v) {
   volunteerPhoto.src = v.photo_url || v.image_url || '';
   
-  // Скрываем рамку фото, если фото нет
-  if (!volunteerPhoto.src.endsWith('/')) {
+  if (volunteerPhoto.src && !volunteerPhoto.src.endsWith('/')) {
       volunteerPhoto.style.display = 'block';
   } else {
       volunteerPhoto.style.display = 'none';
@@ -384,10 +402,8 @@ function openModal(v) {
   volunteerReadyTravel.textContent = v.ready_travel ? 'Да' : 'Нет';
   volunteerMeetings.textContent = v.attend_meetings ? 'Да' : 'Нет';
   
-  // --- ИСПРАВЛЕНИЕ: Вывод направлений списком ---
   if (v.directions && v.directions.length > 0) {
         const listHtml = v.directions.map(d => {
-            // Если вдруг пришел объект {name: "..."} берем name, если строка - берем саму строку
             const name = d.name ? d.name : d; 
             return `<li>${name}</li>`;
         }).join('');
@@ -421,7 +437,7 @@ async function updateStatus(id, action) {
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({status: newStatus})
     });
-    volunteers = volunteers.map(v => v.id === id ? {...v, status: newStatus} : v);
+    // Обновляем локальные данные и перерисовываем
     modal.style.display = 'none';
     fetchVolunteers();
   } catch(err) {
@@ -430,7 +446,6 @@ async function updateStatus(id, action) {
   }
 }
 
-// Табы для мобилки
 tabButtons.forEach(button => {
     button.addEventListener('click', () => {
         const targetId = button.getAttribute('data-target');
@@ -447,7 +462,6 @@ tabButtons.forEach(button => {
 closeModal.onclick = () => modal.style.display = 'none';
 window.onclick = (e) => { if(e.target === modal) modal.style.display='none'; }
 
-// Запуск
 fetchVolunteers();
 </script>
 
