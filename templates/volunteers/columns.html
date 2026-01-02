@@ -331,8 +331,6 @@ function renderColumns() {
     const headerHtml = `<h2>${columns[col].querySelector('h2').textContent}</h2>`;
     columns[col].innerHTML = headerHtml;
     
-    // Мобильная логика отображения: обработка active происходит в tabButtons click
-
     volunteers.filter(v => v.status === col).forEach(v => {
       const photoSource = v.photo_url || v.image_url; 
       const card = document.createElement('div');
@@ -341,7 +339,7 @@ function renderColumns() {
         ${photoSource ? `<img src="${photoSource}" alt="Фото">` : ''}
         <div class="card-info">
           <strong>${v.full_name || v.name}</strong>
-          <span>${v.email || ''}</span>
+          <span>${v.phone_number || ''}</span> 
         </div>`;
       card.onclick = () => openModal(v);
       columns[col].appendChild(card);
