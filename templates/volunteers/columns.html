@@ -16,7 +16,7 @@ body {
 h1 {
     text-align: center;
     margin-bottom: 30px;
-    font-size: 2.5rem;
+    font-size: 2.5rem; /* Крупный заголовок */
     color: #1e3a8a;
 }
 .columns {
@@ -26,104 +26,101 @@ h1 {
     justify-content: center;
 }
 .column {
-    flex: 1 1 300px;
+    flex: 1 1 350px; /* Увеличил ширину колонки */
     background: #fff;
     border-radius: 15px;
     padding: 20px;
     box-shadow: 0 6px 15px rgba(0,0,0,0.1);
-    min-width: 280px;
+    min-width: 300px;
 }
 .column h2 {
     text-align: center;
-    margin-bottom: 20px;
+    margin-bottom: 25px;
     text-transform: uppercase;
     color: #1e40af;
-    font-size: 1.1rem;
+    font-size: 1.3rem; /* Крупный текст заголовка колонки */
 }
 
 /* СТИЛИ КАРТОЧЕК */
 .card {
     background: #f9fafb;
     border-radius: 12px;
-    padding: 15px;
-    margin-bottom: 12px;
+    padding: 20px; /* Больше внутренних отступов */
+    margin-bottom: 15px;
     cursor: pointer;
     transition: transform 0.2s, box-shadow 0.2s;
     display: flex;
     align-items: center;
-    gap: 10px;
-    border-left: 4px solid #3b82f6;
+    gap: 20px; /* Больше расстояния между фото и текстом */
+    border-left: 6px solid #3b82f6; /* Толще линия */
 }
 .card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.15);
 }
 .card img { 
-    width: 50px; 
-    height: 50px; 
+    width: 80px;  /* Крупное фото */
+    height: 80px; 
     object-fit: cover; 
     border-radius: 50%; 
-    border: 2px solid #3b82f6; 
+    border: 3px solid #3b82f6; 
+    flex-shrink: 0;
 }
 .card-info {
     display: flex;
     flex-direction: column;
+    gap: 5px; /* Расстояние между строками текста */
 }
 .card-info strong {
-    font-size: 1.05rem;
+    font-size: 1.25rem; /* Крупное ФИО */
     color: #1e3a8a;
 }
-.card-info span {
-    font-size: 0.85rem;
-    color: #555;
+.card-info .phone {
+    font-size: 1.05rem; /* Крупный номер */
+    color: #444;
+    font-weight: bold;
+}
+.card-info .directions {
+    font-size: 0.95rem; /* Хорошо читаемые направления */
+    color: #1e40af;
+    line-height: 1.4;
 }
 
 /* СЕКЦИЯ СТАТИСТИКИ */
 .stats-section {
     background: #fff;
     border-radius: 15px;
-    padding: 25px;
+    padding: 30px;
     box-shadow: 0 6px 15px rgba(0,0,0,0.1);
     max-width: 1200px;
-    margin: 40px auto 20px auto;
+    margin: 50px auto 20px auto;
 }
 .stats-section h2 {
     text-align: center;
-    color: #1e3a8a;
-    margin-bottom: 25px;
-    text-transform: uppercase;
-    font-size: 1.3rem;
+    font-size: 1.8rem;
+    margin-bottom: 30px;
 }
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 15px;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
 }
 .stat-item {
-    background: #f8fafc;
+    background: #f1f5f9;
     padding: 15px 20px;
-    border-radius: 10px;
+    border-radius: 12px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-left: 5px solid #3b82f6;
-    transition: background 0.2s;
-}
-.stat-item:hover {
-    background: #eff6ff;
-}
-.stat-name {
-    font-weight: 600;
-    color: #1e40af;
-    font-size: 0.95rem;
+    font-size: 1.1rem;
+    border-bottom: 4px solid #3b82f6;
 }
 .stat-count {
-    background: #3b82f6;
-    color: #fff;
-    padding: 5px 12px;
-    border-radius: 50px;
     font-weight: bold;
-    font-size: 0.9rem;
+    color: #fff;
+    background: #3b82f6;
+    padding: 5px 15px;
+    border-radius: 20px;
 }
 
 /* МОДАЛЬНОЕ ОКНО */
@@ -132,94 +129,35 @@ h1 {
     position: fixed;
     top:0; left:0;
     width:100%; height:100%;
-    background: rgba(0,0,0,0.6);
+    background: rgba(0,0,0,0.7);
     justify-content: center;
     align-items: center;
-    z-index: 100;
+    z-index: 1000;
 }
 .modal-content {
     background: #fff;
-    border-radius: 15px;
-    padding: 25px;
-    width: 500px;
-    max-height: 90%;
+    border-radius: 20px;
+    padding: 30px;
+    width: 600px;
+    max-height: 90vh;
     overflow-y: auto;
     position: relative;
-    box-shadow: 0 8px 25px rgba(0,0,0,0.2);
 }
 .close-btn {
     position: absolute;
-    top: 10px;
-    right: 15px;
+    top: 15px;
+    right: 20px;
     cursor: pointer;
-    font-size: 1.5rem;
-    color: #888;
-}
-.modal-content img {
-    display: block;
-    width: 100%;
-    height: auto;
-    max-height: 400px;
-    object-fit: contain;
-    border-radius: 12px;
-    margin: 0 auto 15px auto;
-    border: 3px solid #3b82f6;
-    background-color: #f3f4f6;
-}
-.directions-list {
-    margin: 5px 0 10px 0;
-    padding-left: 20px;
-    list-style-type: disc;
-    color: #1e3a8a;
-    font-weight: 600;
-}
-.buttons {
-    margin-top: 20px;
-    display: flex;
-    gap: 10px;
-}
-.buttons button {
-    flex: 1;
-    padding: 12px;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: bold;
-    color: #fff;
-    transition: all 0.2s;
-}
-.btn-stage { background: #3b82f6; }
-.btn-reject { background: #ef4444; }
-
-/* АДАПТИВНОСТЬ */
-.tabs {
-    display: none; 
-    background: #fff;
-    border-radius: 10px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-    margin-bottom: 20px;
-    justify-content: space-around;
-}
-.tab-button {
-    flex: 1;
-    padding: 15px 10px;
-    text-align: center;
-    cursor: pointer;
-    font-weight: bold;
-    color: #6b7280;
-    border-bottom: 3px solid transparent;
-}
-.tab-button.active {
-    color: #1e40af;
-    border-bottom: 3px solid #3b82f6;
+    font-size: 2rem;
 }
 
 @media (max-width: 768px) {
     .columns { flex-direction: column; }
     .column { display: none; width: 100%; }
     .column.active { display: block; }
-    .tabs { display: flex; }
-    .modal-content { width: 95%; }
+    .tabs { display: flex; justify-content: space-around; background: #fff; margin-bottom: 20px; }
+    .tab-button { padding: 20px; font-size: 1.1rem; flex: 1; text-align: center; }
+    .tab-button.active { border-bottom: 4px solid #3b82f6; color: #1e3a8a; }
 }
 </style>
 </head>
@@ -228,9 +166,9 @@ h1 {
 <h1>Доска Волонтёров</h1>
 
 <div class="tabs" id="tabs">
-    <div class="tab-button active" data-target="submitted">Отправлено (0)</div>
-    <div class="tab-button" data-target="interview">Собеседование (0)</div>
-    <div class="tab-button" data-target="accepted">Приняты (0)</div>
+    <div class="tab-button active" data-target="submitted">Отправлено</div>
+    <div class="tab-button" data-target="interview">Собеседование</div>
+    <div class="tab-button" data-target="accepted">Приняты</div>
 </div>
 
 <div class="columns">
@@ -240,33 +178,17 @@ h1 {
 </div>
 
 <div class="stats-section">
-    <h2>Статистика всех направлений</h2>
-    <div class="stats-grid" id="statsGrid">
-        </div>
+    <h2>Статистика направлений</h2>
+    <div class="stats-grid" id="statsGrid"></div>
 </div>
 
 <div class="modal" id="modal">
   <div class="modal-content">
     <span class="close-btn" id="closeModal">&times;</span>
-    <img id="volunteerPhoto" src="" alt="Фото">
-    <h3 id="volunteerName" style="text-align:center; color:#1e3a8a;"></h3>
-    <p><strong>Email:</strong> <span id="volunteerEmail"></span></p>
-    <p><strong>Телефон:</strong> <span id="volunteerPhone"></span></p>
-    <p><strong>Дата рождения:</strong> <span id="volunteerDOB"></span></p>
-    <p><strong>Место учебы:</strong> <span id="volunteerStudy"></span></p>
-    <hr>
-    <p><strong>Направления:</strong></p>
-    <div id="volunteerDirections"></div>
-    <p><strong>Почему эти направления:</strong> <span id="volunteerChoiceMotives"></span></p>
-    <hr>
-    <p><strong>О себе:</strong> <span id="volunteerWhy"></span></p>
-    <p><strong>Опыт:</strong> <span id="volunteerExperience"></span></p>
-    <p><strong>Навыки:</strong> <span id="volunteerHobbies"></span></p>
-    <p><strong>Сильные стороны:</strong> <span id="volunteerStrengths"></span></p>
-    <hr>
-    <p><strong>Часов в неделю:</strong> <span id="volunteerHours"></span></p>
-    <p><strong>Готовность к выездам:</strong> <span id="volunteerReadyTravel"></span></p>
-    <div class="buttons" id="modalButtons"></div>
+    <img id="volunteerPhoto" src="" alt="Фото" style="width:100%; border-radius:15px; margin-bottom:20px; border: 4px solid #3b82f6;">
+    <h3 id="volunteerName" style="text-align:center; font-size: 1.8rem;"></h3>
+    <div id="modalDetails" style="font-size: 1.1rem; line-height: 1.8;"></div>
+    <div class="buttons" id="modalButtons" style="display:flex; gap:15px; margin-top:30px;"></div>
   </div>
 </div>
 
@@ -294,9 +216,7 @@ async function fetchVolunteers() {
     });
     renderColumns();
     renderStats();
-  } catch (err) {
-    console.error('Ошибка загрузки:', err);
-  }
+  } catch (err) { console.error('Ошибка:', err); }
 }
 
 function renderColumns() {
@@ -304,14 +224,12 @@ function renderColumns() {
   
   for (let col in columns) {
     const list = volunteers.filter(v => v.status === col);
-    const count = list.length;
+    columns[col].querySelector('h2').textContent = `${titles[col]} (${list.length})`;
     
-    // Обновляем заголовки и табы
-    columns[col].querySelector('h2').textContent = `${titles[col]} (${count})`;
+    // Обновляем текст табов
     const tBtn = document.querySelector(`.tab-button[data-target="${col}"]`);
-    if(tBtn) tBtn.textContent = `${titles[col]} (${count})`;
+    if(tBtn) tBtn.textContent = `${titles[col]} (${list.length})`;
 
-    // Чистим старые карточки
     const cards = columns[col].querySelectorAll('.card');
     cards.forEach(c => c.remove());
     
@@ -319,17 +237,16 @@ function renderColumns() {
       const card = document.createElement('div');
       card.className = 'card';
       const photo = v.photo_url || v.image_url;
-
+      
       const dirText = (v.directions && v.directions.length > 0)
         ? v.directions.map(d => d.name || d).join(', ') 
-        : 'Не выбрано';
-        
+        : 'Не указано';
+
       card.innerHTML = `
-        ${photo ? `<img src="${photo}">` : ''}
+        ${photo ? `<img src="${photo}">` : '<div style="width:80px; height:80px; border-radius:50%; background:#ddd; flex-shrink:0;"></div>'}
         <div class="card-info">
           <strong>${v.full_name || v.name}</strong>
-          <span>${v.phone_number || 'Нет номера'}</span>
-          <span>${v.directions || 'Нет номера'}</span>
+          <span class="phone">${v.phone_number || 'Нет номера'}</span>
           <span class="directions"><b>Напр:</b> ${dirText}</span>
         </div>`;
       card.onclick = () => openModal(v);
@@ -348,68 +265,58 @@ function renderStats() {
             });
         }
     });
-
     statsGrid.innerHTML = '';
-    Object.entries(counts)
-      .sort((a, b) => b[1] - a[1])
-      .forEach(([name, count]) => {
-        const div = document.createElement('div');
-        div.className = 'stat-item';
-        div.innerHTML = `<span class="stat-name">${name}</span><span class="stat-count">${count}</span>`;
-        statsGrid.appendChild(div);
-      });
+    Object.entries(counts).sort((a,b) => b[1]-a[1]).forEach(([name, count]) => {
+        statsGrid.innerHTML += `
+            <div class="stat-item">
+                <span>${name}</span>
+                <span class="stat-count">${count}</span>
+            </div>`;
+    });
 }
 
 function openModal(v) {
   document.getElementById('volunteerPhoto').src = v.photo_url || v.image_url || '';
   document.getElementById('volunteerPhoto').style.display = (v.photo_url || v.image_url) ? 'block' : 'none';
   document.getElementById('volunteerName').textContent = v.full_name || v.name;
-  document.getElementById('volunteerEmail').textContent = v.email || '-';
-  document.getElementById('volunteerPhone').textContent = v.phone_number || '-';
-  document.getElementById('volunteerDOB').textContent = v.date_of_birth || '-';
-  document.getElementById('volunteerStudy').textContent = v.place_of_study || '-';
-  document.getElementById('volunteerChoiceMotives').textContent = v.choice_motives || '-';
-  document.getElementById('volunteerWhy').textContent = v.why_volunteer || '-';
-  document.getElementById('volunteerExperience').textContent = v.volunteer_experience || '-';
-  document.getElementById('volunteerHobbies').textContent = v.hobbies_skills || '-';
-  document.getElementById('volunteerStrengths').textContent = v.strengths || '-';
-  document.getElementById('volunteerHours').textContent = v.weekly_hours || '-';
-  document.getElementById('volunteerReadyTravel').textContent = v.ready_travel ? 'Да' : 'Нет';
-
-  const dirDiv = document.getElementById('volunteerDirections');
-  if (v.directions) {
-    dirDiv.innerHTML = `<ul class="directions-list">${v.directions.map(d => `<li>${d.name || d}</li>`).join('')}</ul>`;
-  } else { dirDiv.innerHTML = '-'; }
+  
+  const details = document.getElementById('modalDetails');
+  details.innerHTML = `
+    <p><strong>Телефон:</strong> ${v.phone_number || '-'}</p>
+    <p><strong>Email:</strong> ${v.email || '-'}</p>
+    <p><strong>Дата рождения:</strong> ${v.date_of_birth || '-'}</p>
+    <p><strong>Направления:</strong> ${v.directions ? v.directions.map(d => d.name || d).join(', ') : '-'}</p>
+    <p><strong>Опыт:</strong> ${v.volunteer_experience || '-'}</p>
+  `;
 
   const btnBox = document.getElementById('modalButtons');
   btnBox.innerHTML = '';
+  
   if(v.status !== 'accepted') {
-    const nextBtn = document.createElement('button');
-    nextBtn.className = 'btn-stage';
-    nextBtn.textContent = v.status === 'submitted' ? 'На собеседование' : 'Принять';
-    nextBtn.onclick = () => updateStatus(v.id, v.status === 'submitted' ? 'interview' : 'accepted');
-    btnBox.appendChild(nextBtn);
+    const b1 = document.createElement('button');
+    b1.textContent = v.status === 'submitted' ? 'На собеседование' : 'Принять';
+    b1.style = "flex:1; padding:15px; background:#3b82f6; color:#fff; border:none; border-radius:10px; cursor:pointer; font-weight:bold; font-size:1.1rem;";
+    b1.onclick = () => updateStatus(v.id, v.status === 'submitted' ? 'interview' : 'accepted');
+    btnBox.appendChild(b1);
 
-    const rejBtn = document.createElement('button');
-    rejBtn.className = 'btn-reject';
-    rejBtn.textContent = 'Отказ';
-    rejBtn.onclick = () => updateStatus(v.id, 'rejected');
-    btnBox.appendChild(rejBtn);
+    const b2 = document.createElement('button');
+    b2.textContent = 'Отказ';
+    b2.style = "flex:1; padding:15px; background:#ef4444; color:#fff; border:none; border-radius:10px; cursor:pointer; font-weight:bold; font-size:1.1rem;";
+    b2.onclick = () => updateStatus(v.id, 'rejected');
+    btnBox.appendChild(b2);
   }
 
   modal.style.display = 'flex';
 }
 
 async function updateStatus(id, newStatus) {
-  try {
-    await fetch(`/api/applications/${id}/update_status/`, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({status: newStatus})
-    });
-    modal.style.display = 'none';
-    fetchVolunteers();
-  } catch(err) { alert('Ошибка обновления'); }
+  await fetch(`/api/applications/${id}/update_status/`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({status: newStatus})
+  });
+  modal.style.display = 'none';
+  fetchVolunteers();
 }
 
 document.querySelectorAll('.tab-button').forEach(btn => {
