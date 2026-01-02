@@ -38,7 +38,7 @@ h1 {
     margin-bottom: 20px;
     text-transform: uppercase;
     color: #1e40af;
-    font-size: 1.2rem;
+    font-size: 1.1rem;
 }
 
 /* СТИЛИ КАРТОЧЕК */
@@ -70,7 +70,7 @@ h1 {
     flex-direction: column;
 }
 .card-info strong {
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     color: #1e3a8a;
 }
 .card-info span {
@@ -78,7 +78,55 @@ h1 {
     color: #555;
 }
 
-/* СТИЛИ МОДАЛЬНОГО ОКНА */
+/* СЕКЦИЯ СТАТИСТИКИ */
+.stats-section {
+    background: #fff;
+    border-radius: 15px;
+    padding: 25px;
+    box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+    max-width: 1200px;
+    margin: 40px auto 20px auto;
+}
+.stats-section h2 {
+    text-align: center;
+    color: #1e3a8a;
+    margin-bottom: 25px;
+    text-transform: uppercase;
+    font-size: 1.3rem;
+}
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 15px;
+}
+.stat-item {
+    background: #f8fafc;
+    padding: 15px 20px;
+    border-radius: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-left: 5px solid #3b82f6;
+    transition: background 0.2s;
+}
+.stat-item:hover {
+    background: #eff6ff;
+}
+.stat-name {
+    font-weight: 600;
+    color: #1e40af;
+    font-size: 0.95rem;
+}
+.stat-count {
+    background: #3b82f6;
+    color: #fff;
+    padding: 5px 12px;
+    border-radius: 50px;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+/* МОДАЛЬНОЕ ОКНО */
 .modal {
     display: none;
     position: fixed;
@@ -107,14 +155,6 @@ h1 {
     font-size: 1.5rem;
     color: #888;
 }
-.close-btn:hover { color: #111; }
-.modal-content h3 {
-    margin-top: 0;
-    margin-bottom: 10px;
-    color: #1e3a8a;
-    text-align: center;
-}
-
 .modal-content img {
     display: block;
     width: 100%;
@@ -126,17 +166,6 @@ h1 {
     border: 3px solid #3b82f6;
     background-color: #f3f4f6;
 }
-
-.modal-content p {
-    margin: 8px 0;
-    font-size: 0.95rem;
-    color: #333;
-    line-height: 1.4;
-}
-.modal-content strong {
-    color: #1e40af;
-}
-
 .directions-list {
     margin: 5px 0 10px 0;
     padding-left: 20px;
@@ -144,10 +173,6 @@ h1 {
     color: #1e3a8a;
     font-weight: 600;
 }
-.directions-list li {
-    margin-bottom: 4px;
-}
-
 .buttons {
     margin-top: 20px;
     display: flex;
@@ -162,12 +187,9 @@ h1 {
     font-weight: bold;
     color: #fff;
     transition: all 0.2s;
-    font-size: 0.9rem;
 }
 .btn-stage { background: #3b82f6; }
-.btn-stage:hover { background: #2563eb; }
 .btn-reject { background: #ef4444; }
-.btn-reject:hover { background: #b91c1c; }
 
 /* АДАПТИВНОСТЬ */
 .tabs {
@@ -185,39 +207,19 @@ h1 {
     cursor: pointer;
     font-weight: bold;
     color: #6b7280;
-    transition: all 0.3s;
     border-bottom: 3px solid transparent;
 }
 .tab-button.active {
     color: #1e40af;
     border-bottom: 3px solid #3b82f6;
-    background: #f9fafb;
 }
 
 @media (max-width: 768px) {
-    .columns {
-        flex-direction: column; 
-        gap: 0;
-    }
-    .column {
-        display: none; 
-        width: 100%;
-        border-radius: 0;
-        box-shadow: none;
-        padding: 10px;
-    }
-    .column.active {
-        display: block; 
-    }
-    .tabs {
-        display: flex; 
-    }
-    .modal-content {
-        width: 90%;
-    }
-    h1 {
-        font-size: 1.8rem;
-    }
+    .columns { flex-direction: column; }
+    .column { display: none; width: 100%; }
+    .column.active { display: block; }
+    .tabs { display: flex; }
+    .modal-content { width: 95%; }
 }
 </style>
 </head>
@@ -237,40 +239,33 @@ h1 {
   <div class="column" id="accepted"><h2>Приняты (0)</h2></div>
 </div>
 
+<div class="stats-section">
+    <h2>Статистика всех направлений</h2>
+    <div class="stats-grid" id="statsGrid">
+        </div>
+</div>
+
 <div class="modal" id="modal">
   <div class="modal-content">
     <span class="close-btn" id="closeModal">&times;</span>
     <img id="volunteerPhoto" src="" alt="Фото">
-    
-    <h3 id="volunteerName"></h3>
+    <h3 id="volunteerName" style="text-align:center; color:#1e3a8a;"></h3>
     <p><strong>Email:</strong> <span id="volunteerEmail"></span></p>
     <p><strong>Телефон:</strong> <span id="volunteerPhone"></span></p>
     <p><strong>Дата рождения:</strong> <span id="volunteerDOB"></span></p>
     <p><strong>Место учебы:</strong> <span id="volunteerStudy"></span></p>
     <hr>
-    
     <p><strong>Направления:</strong></p>
     <div id="volunteerDirections"></div>
-    
     <p><strong>Почему эти направления:</strong> <span id="volunteerChoiceMotives"></span></p>
     <hr>
-
-    <p><strong>О себе и волонтерстве:</strong> <span id="volunteerWhy"></span></p>
+    <p><strong>О себе:</strong> <span id="volunteerWhy"></span></p>
     <p><strong>Опыт:</strong> <span id="volunteerExperience"></span></p>
-    <p><strong>Навыки/Хобби:</strong> <span id="volunteerHobbies"></span></p>
-    <p><strong>Сильные качества:</strong> <span id="volunteerStrengths"></span></p>
-    <p><strong>Почему выбрать Вас:</strong> <span id="volunteerChoose"></span></p>
+    <p><strong>Навыки:</strong> <span id="volunteerHobbies"></span></p>
+    <p><strong>Сильные стороны:</strong> <span id="volunteerStrengths"></span></p>
     <hr>
-    
-    <p><strong>Время в неделю:</strong> <span id="volunteerHours"></span></p>
-    <p><strong>Будет на собраниях:</strong> <span id="volunteerMeetings"></span></p>
-    <p><strong>Готовы к выездам:</strong> <span id="volunteerReadyTravel"></span></p>
-    <p><strong>Согласие (удаление):</strong> <span id="volunteerAgreeInactivity"></span></p>
-    <p><strong>Согласие (условия):</strong> <span id="volunteerAgreeTerms"></span></p>
-    <hr>
-    <p><strong>Ожидания:</strong> <span id="volunteerExpectations"></span></p>
-    <p><strong>Идеи:</strong> <span id="volunteerIdeas"></span></p>
-    
+    <p><strong>Часов в неделю:</strong> <span id="volunteerHours"></span></p>
+    <p><strong>Готовность к выездам:</strong> <span id="volunteerReadyTravel"></span></p>
     <div class="buttons" id="modalButtons"></div>
   </div>
 </div>
@@ -281,31 +276,9 @@ const columns = {
   interview: document.getElementById('interview'),
   accepted: document.getElementById('accepted')
 };
-
+const statsGrid = document.getElementById('statsGrid');
 const modal = document.getElementById('modal');
-const volunteerPhoto = document.getElementById('volunteerPhoto');
-const volunteerName = document.getElementById('volunteerName');
-const volunteerEmail = document.getElementById('volunteerEmail');
-const volunteerPhone = document.getElementById('volunteerPhone');
-const volunteerDOB = document.getElementById('volunteerDOB'); 
-const volunteerStudy = document.getElementById('volunteerStudy');
-const volunteerChoiceMotives = document.getElementById('volunteerChoiceMotives'); 
-const volunteerWhy = document.getElementById('volunteerWhy');
-const volunteerExperience = document.getElementById('volunteerExperience');
-const volunteerHobbies = document.getElementById('volunteerHobbies');
-const volunteerStrengths = document.getElementById('volunteerStrengths');
-const volunteerChoose = document.getElementById('volunteerChoose');
-const volunteerAgreeInactivity = document.getElementById('volunteerAgreeInactivity');
-const volunteerAgreeTerms = document.getElementById('volunteerAgreeTerms');
-const volunteerReadyTravel = document.getElementById('volunteerReadyTravel');
-const volunteerIdeas = document.getElementById('volunteerIdeas');
-const volunteerExpectations = document.getElementById('volunteerExpectations');
-const volunteerDirections = document.getElementById('volunteerDirections');
-const volunteerHours = document.getElementById('volunteerHours');
-const volunteerMeetings = document.getElementById('volunteerMeetings');
-const modalButtons = document.getElementById('modalButtons');
 const closeModal = document.getElementById('closeModal');
-const tabButtons = document.querySelectorAll('.tab-button');
 
 let volunteers = [];
 
@@ -320,45 +293,37 @@ async function fetchVolunteers() {
       });
     });
     renderColumns();
+    renderStats();
   } catch (err) {
     console.error('Ошибка загрузки:', err);
   }
 }
 
 function renderColumns() {
-  // Названия для заголовков
-  const titles = {
-    submitted: 'Отправлено',
-    interview: 'Собеседование',
-    accepted: 'Приняты'
-  };
-
+  const titles = { submitted: 'Отправлено', interview: 'Собеседование', accepted: 'Приняты' };
+  
   for (let col in columns) {
-    // Считаем количество анкет для текущей колонки
-    const count = volunteers.filter(v => v.status === col).length;
-
-    // Обновляем заголовок в колонке (десктоп)
-    const h2 = columns[col].querySelector('h2');
-    h2.textContent = `${titles[col]} (${count})`;
+    const list = volunteers.filter(v => v.status === col);
+    const count = list.length;
     
-    // Обновляем текст на кнопке таба (мобилка)
-    const tabBtn = document.querySelector(`.tab-button[data-target="${col}"]`);
-    if (tabBtn) tabBtn.textContent = `${titles[col]} (${count})`;
+    // Обновляем заголовки и табы
+    columns[col].querySelector('h2').textContent = `${titles[col]} (${count})`;
+    const tBtn = document.querySelector(`.tab-button[data-target="${col}"]`);
+    if(tBtn) tBtn.textContent = `${titles[col]} (${count})`;
 
-    // Очищаем содержимое колонки, сохраняя только заголовок h2
-    const currentCards = columns[col].querySelectorAll('.card');
-    currentCards.forEach(c => c.remove());
+    // Чистим старые карточки
+    const cards = columns[col].querySelectorAll('.card');
+    cards.forEach(c => c.remove());
     
-    // Рендерим карточки
-    volunteers.filter(v => v.status === col).forEach(v => {
-      const photoSource = v.photo_url || v.image_url; 
+    list.forEach(v => {
       const card = document.createElement('div');
       card.className = 'card';
+      const photo = v.photo_url || v.image_url;
       card.innerHTML = `
-        ${photoSource ? `<img src="${photoSource}" alt="Фото">` : ''}
+        ${photo ? `<img src="${photo}">` : ''}
         <div class="card-info">
           <strong>${v.full_name || v.name}</strong>
-          <span>${v.phone_number || ''}</span> 
+          <span>${v.phone_number || 'Нет номера'}</span>
         </div>`;
       card.onclick = () => openModal(v);
       columns[col].appendChild(card);
@@ -366,104 +331,92 @@ function renderColumns() {
   }
 }
 
-function formatISODate(isoDate) {
-    if (!isoDate) return '-';
-    const parts = isoDate.split('-');
-    if (parts.length === 3) return `${parts[2]}.${parts[1]}.${parts[0]}`;
-    return isoDate;
+function renderStats() {
+    const counts = {};
+    volunteers.forEach(v => {
+        if (v.directions) {
+            v.directions.forEach(d => {
+                const name = d.name || d;
+                counts[name] = (counts[name] || 0) + 1;
+            });
+        }
+    });
+
+    statsGrid.innerHTML = '';
+    Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .forEach(([name, count]) => {
+        const div = document.createElement('div');
+        div.className = 'stat-item';
+        div.innerHTML = `<span class="stat-name">${name}</span><span class="stat-count">${count}</span>`;
+        statsGrid.appendChild(div);
+      });
 }
 
 function openModal(v) {
-  volunteerPhoto.src = v.photo_url || v.image_url || '';
-  
-  if (volunteerPhoto.src && !volunteerPhoto.src.endsWith('/')) {
-      volunteerPhoto.style.display = 'block';
-  } else {
-      volunteerPhoto.style.display = 'none';
+  document.getElementById('volunteerPhoto').src = v.photo_url || v.image_url || '';
+  document.getElementById('volunteerPhoto').style.display = (v.photo_url || v.image_url) ? 'block' : 'none';
+  document.getElementById('volunteerName').textContent = v.full_name || v.name;
+  document.getElementById('volunteerEmail').textContent = v.email || '-';
+  document.getElementById('volunteerPhone').textContent = v.phone_number || '-';
+  document.getElementById('volunteerDOB').textContent = v.date_of_birth || '-';
+  document.getElementById('volunteerStudy').textContent = v.place_of_study || '-';
+  document.getElementById('volunteerChoiceMotives').textContent = v.choice_motives || '-';
+  document.getElementById('volunteerWhy').textContent = v.why_volunteer || '-';
+  document.getElementById('volunteerExperience').textContent = v.volunteer_experience || '-';
+  document.getElementById('volunteerHobbies').textContent = v.hobbies_skills || '-';
+  document.getElementById('volunteerStrengths').textContent = v.strengths || '-';
+  document.getElementById('volunteerHours').textContent = v.weekly_hours || '-';
+  document.getElementById('volunteerReadyTravel').textContent = v.ready_travel ? 'Да' : 'Нет';
+
+  const dirDiv = document.getElementById('volunteerDirections');
+  if (v.directions) {
+    dirDiv.innerHTML = `<ul class="directions-list">${v.directions.map(d => `<li>${d.name || d}</li>`).join('')}</ul>`;
+  } else { dirDiv.innerHTML = '-'; }
+
+  const btnBox = document.getElementById('modalButtons');
+  btnBox.innerHTML = '';
+  if(v.status !== 'accepted') {
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'btn-stage';
+    nextBtn.textContent = v.status === 'submitted' ? 'На собеседование' : 'Принять';
+    nextBtn.onclick = () => updateStatus(v.id, v.status === 'submitted' ? 'interview' : 'accepted');
+    btnBox.appendChild(nextBtn);
+
+    const rejBtn = document.createElement('button');
+    rejBtn.className = 'btn-reject';
+    rejBtn.textContent = 'Отказ';
+    rejBtn.onclick = () => updateStatus(v.id, 'rejected');
+    btnBox.appendChild(rejBtn);
   }
-
-  volunteerName.textContent = v.full_name || v.name; 
-  volunteerEmail.textContent = v.email || '-';
-  volunteerPhone.textContent = v.phone_number || '-';
-  volunteerDOB.textContent = formatISODate(v.date_of_birth);
-  volunteerStudy.textContent = v.place_of_study || '-';
-  volunteerChoiceMotives.textContent = v.choice_motives || '-';
-  volunteerWhy.textContent = v.why_volunteer || '-';
-  volunteerExperience.textContent = v.volunteer_experience || '-';
-  volunteerHobbies.textContent = v.hobbies_skills || '-';
-  volunteerStrengths.textContent = v.strengths || '-';
-  volunteerChoose.textContent = v.why_choose_you || '-';
-  volunteerHours.textContent = v.weekly_hours || '-';
-  volunteerIdeas.textContent = v.ideas_improvements || '-';
-  volunteerExpectations.textContent = v.expectations || '-';
-  
-  volunteerAgreeInactivity.textContent = v.agree_inactivity_removal ? 'Да' : 'Нет';
-  volunteerAgreeTerms.textContent = v.agree_terms ? 'Да' : 'Нет';
-  volunteerReadyTravel.textContent = v.ready_travel ? 'Да' : 'Нет';
-  volunteerMeetings.textContent = v.attend_meetings ? 'Да' : 'Нет';
-  
-  if (v.directions && v.directions.length > 0) {
-        const listHtml = v.directions.map(d => {
-            const name = d.name ? d.name : d; 
-            return `<li>${name}</li>`;
-        }).join('');
-        volunteerDirections.innerHTML = `<ul class="directions-list">${listHtml}</ul>`;
-    } else {
-        volunteerDirections.innerHTML = '<span>-</span>';
-    }
-  
-  modalButtons.innerHTML = '';
-  let buttons = [];
-  if(v.status === 'submitted') buttons = ['На 2 этап', 'Отказ'];
-  else if(v.status === 'interview') buttons = ['Принят', 'Отказ'];
-
-  buttons.forEach(btn => {
-    const button = document.createElement('button');
-    button.textContent = btn;
-    button.className = btn === 'Отказ' ? 'btn-reject' : 'btn-stage';
-    button.onclick = () => updateStatus(v.id, btn);
-    modalButtons.appendChild(button);
-  });
 
   modal.style.display = 'flex';
 }
 
-async function updateStatus(id, action) {
-  const statusMap = { 'На 2 этап': 'interview', 'Принят': 'accepted', 'Отказ': 'rejected' };
-  const newStatus = statusMap[action];
+async function updateStatus(id, newStatus) {
   try {
     await fetch(`/api/applications/${id}/update_status/`, {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({status: newStatus})
     });
-    // Обновляем локальные данные и перерисовываем
     modal.style.display = 'none';
     fetchVolunteers();
-  } catch(err) {
-    console.error('Ошибка:', err);
-    alert('Ошибка соединения с сервером');
-  }
+  } catch(err) { alert('Ошибка обновления'); }
 }
 
-tabButtons.forEach(button => {
-    button.addEventListener('click', () => {
-        const targetId = button.getAttribute('data-target');
-        tabButtons.forEach(btn => btn.classList.remove('active'));
-        button.classList.add('active');
-        
-        for (let colId in columns) {
-            columns[colId].classList.remove('active');
-        }
-        document.getElementById(targetId).classList.add('active');
-    });
+document.querySelectorAll('.tab-button').forEach(btn => {
+    btn.onclick = () => {
+        document.querySelectorAll('.tab-button, .column').forEach(el => el.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.target).classList.add('active');
+    };
 });
 
 closeModal.onclick = () => modal.style.display = 'none';
-window.onclick = (e) => { if(e.target === modal) modal.style.display='none'; }
+window.onclick = e => { if(e.target === modal) modal.style.display = 'none'; };
 
 fetchVolunteers();
 </script>
-
 </body>
 </html>
