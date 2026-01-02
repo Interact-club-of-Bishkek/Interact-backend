@@ -604,18 +604,36 @@ async def process_weekly_hours_callback(call: types.CallbackQuery, state: FSMCon
 @application_router.message(ApplicationSteps.waiting_custom_weekly_hours)
 async def process_custom_weekly_hours(message: types.Message, state: FSMContext):
     custom_hours = message.text.strip()
-    
-    if not custom_hours or len(custom_hours) < 1:
-        return await message.answer("❌ <b>Пожалуйста, введите свой вариант времени.</b>", parse_mode="HTML") 
-        
+
+    # Проверка на пустоту
+    if not custom_hours:
+        return await message.answer(
+            "❌ <b>Пожалуйста, введите свой вариант времени.</b>",
+            parse_mode="HTML"
+        )
+
+    # 🔒 ВАЛИДАЦИЯ ДЛИНЫ (ВАЖНО)
+    if len(custom_hours) > 50:
+        return await message.answer(
+            "❌ <b>Слишком длинный ответ.</b>\n\n"
+            "Пожалуйста, уложитесь в <b>50 символов</b>.\n"
+            "Примеры:\n"
+            "• <i>6–8 часов</i>\n"
+            "• <i>около 10 часов в неделю</i>\n"
+            "• <i>по выходным</i>",
+            parse_mode="HTML"
+        )
+
+    # Если всё ок — сохраняем
     await state.update_data(weekly_hours=custom_hours)
     await state.set_state(ApplicationSteps.waiting_attend_meetings)
-    
+
     await message.answer(
         f"✅ 14/21: Ответ принят: <b>{custom_hours}</b>.\n\n"
-        "🗓️ <b>15/21: Собрания.</b> Будете ли Вы присутствовать на каждом собрании по субботам? \n(Обычно: 14:00-16:00, зависит от направления)",
+        "🗓️ <b>15/21: Собрания.</b> Будете ли Вы присутствовать на каждом собрании по субботам?\n"
+        "(Обычно: 14:00–16:00, зависит от направления)",
         reply_markup=YES_NO_KB,
-        parse_mode="HTML" 
+        parse_mode="HTML"
     )
 
 
