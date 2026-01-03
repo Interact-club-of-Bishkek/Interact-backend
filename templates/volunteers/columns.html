@@ -19,7 +19,7 @@ body {
     background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
     background-attachment: fixed;
     margin: 0;
-    padding: 15px;
+    padding: 20px;
     color: var(--text-dark);
 }
 
@@ -34,35 +34,22 @@ body {
 }
 
 h1 {
-    text-align: center; font-size: calc(1.8rem + 1.5vw); color: white;
-    text-shadow: 3px 3px 0px var(--pink-bright);
+    text-align: center; font-size: 3rem; color: white;
+    text-shadow: 4px 4px 0px var(--pink-bright);
     margin-bottom: 20px; animation: float 3s ease-in-out infinite;
 }
 @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 
-/* ИСПРАВЛЕННЫЕ ФИЛЬТРЫ */
+/* ФИЛЬТРЫ */
 .filter-panel {
-    background: var(--glass); 
-    padding: 20px; 
-    border-radius: 30px;
+    background: var(--glass); padding: 25px; border-radius: 40px;
     box-shadow: 0 10px 30px rgba(255, 77, 109, 0.2);
-    margin-bottom: 30px; 
-    border: 4px solid white;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Авто-колонки */
-    gap: 15px;
+    margin-bottom: 30px; display: flex; gap: 15px; flex-wrap: wrap;
+    justify-content: center; border: 4px solid white;
 }
-
 .filter-panel input, .filter-panel select {
-    width: 100%;
-    box-sizing: border-box;
-    padding: 12px 20px; 
-    border: 3px solid var(--pink-soft);
-    border-radius: 25px; 
-    font-size: 1rem; 
-    font-weight: 600; 
-    outline: none;
-    background: white;
+    padding: 12px 20px; border: 3px solid var(--pink-soft);
+    border-radius: 25px; font-size: 1rem; font-weight: 600; outline: none;
 }
 
 /* КАНБАН */
@@ -74,66 +61,67 @@ h1 {
 }
 .column h2 {
     text-align: center; color: white; background: var(--pink-bright);
-    padding: 10px; border-radius: 20px; font-size: 1.4rem; margin-top: 0;
+    padding: 10px; border-radius: 20px; font-size: 1.4rem;
 }
 
 /* КАРТОЧКИ */
 .card {
     background: white; border-radius: 20px; padding: 15px; margin-top: 15px;
-    cursor: pointer; transition: 0.3s;
+    cursor: pointer; transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     display: flex; align-items: center; gap: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);
 }
-.card:hover { transform: scale(1.03); box-shadow: 0 10px 20px rgba(255, 77, 109, 0.2); }
-.card img { width: 60px; height: 60px; border-radius: 50%; border: 3px solid var(--pink-soft); object-fit: cover; flex-shrink: 0; }
-.card-info { min-width: 0; } /* Предотвращает раздувание от длинного текста */
-.card-info strong { color: #800020; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.directions-brief { color: var(--magic-purple); font-weight: 700; font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card:hover { transform: scale(1.05); box-shadow: 0 10px 20px rgba(255, 77, 109, 0.2); }
+.card img { width: 60px; height: 60px; border-radius: 50%; border: 3px solid var(--pink-soft); object-fit: cover; }
+.card-info strong { color: #800020; display: block; }
+.directions-brief { color: var(--magic-purple); font-weight: 700; font-size: 0.8rem; }
 
 /* МОДАЛКА */
 .modal {
     display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(45, 0, 26, 0.7); backdrop-filter: blur(5px);
     z-index: 9999; justify-content: center; align-items: center;
-    padding: 10px;
 }
 .modal-content {
-    background: white; border-radius: 35px; padding: 25px;
-    width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto;
+    background: white; border-radius: 40px; padding: 35px;
+    width: 95%; max-width: 650px; max-height: 90%; overflow-y: auto;
     position: relative; border: 6px solid var(--pink-soft);
 }
-.close-btn { position: absolute; top: 15px; right: 20px; font-size: 2rem; cursor: pointer; color: var(--pink-bright); z-index: 10; }
+.close-btn { position: absolute; top: 15px; right: 25px; font-size: 2.5rem; cursor: pointer; color: var(--pink-bright); font-weight: bold; }
 
 /* УВЕЛИЧЕННОЕ ФОТО В МОДАЛКЕ */
 .modal-content img { 
     display: block; 
-    width: 100%; 
-    max-width: 320px; /* Увеличенный размер */
+    width: 300px; /* Увеличенный размер */
     height: auto; 
-    aspect-ratio: 1 / 1;
-    border-radius: 25px; 
-    margin: 0 auto 20px; 
+    max-height: 400px;
+    border-radius: 25px; /* Скругленные углы вместо круга */
+    margin: 10px auto 25px; 
     border: 6px solid var(--pink-soft); 
-    object-fit: cover; 
-    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    object-fit: contain; 
+    box-shadow: 0 10px 20px rgba(255, 77, 109, 0.2);
 }
 
+.modal-content hr { border: none; border-top: 2px dashed var(--pink-soft); margin: 20px 0; }
+.directions-list { padding-left: 20px; color: var(--magic-purple); font-weight: 600; list-style-type: "🌸 "; }
+
+/* КНОПКИ */
+.buttons { display: flex; gap: 15px; margin-top: 30px; }
+.buttons button { flex: 1; padding: 15px; border: none; border-radius: 20px; font-weight: 800; cursor: pointer; color: white; transition: 0.2s; font-size: 1.1rem; }
+.btn-stage { background: var(--pink-bright); animation: pulse 2s infinite; }
+.btn-reject { background: #cbd5e1; color: #475569; }
+
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 77, 109, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(255, 77, 109, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 77, 109, 0); } }
+
 /* ТАБЫ (МОБИЛКИ) */
-.tabs { display: none; background: white; border-radius: 30px; margin-bottom: 20px; padding: 5px; gap: 5px; }
-.tab-button { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-weight: bold; border-radius: 25px; transition: 0.2s; }
+.tabs { display: none; background: white; border-radius: 30px; margin-bottom: 20px; padding: 5px; }
+.tab-button { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-weight: bold; border-radius: 25px; }
 .tab-button.active { background: var(--pink-bright); color: white; }
 
 @media (max-width: 768px) {
-    .columns { flex-direction: column; align-items: center; } 
-    .column { display: none; width: 100%; max-width: 400px; }
+    .columns { flex-direction: column; } .column { display: none; }
     .column.active { display: block; } .tabs { display: flex; }
-    .filter-panel { grid-template-columns: 1fr; } /* Одна колонка на мобильных */
+    .modal-content img { width: 100%; } /* На мобилках на всю ширину */
 }
-
-/* КНОПКИ */
-.buttons { display: flex; gap: 10px; margin-top: 25px; }
-.buttons button { flex: 1; padding: 14px; border: none; border-radius: 18px; font-weight: 800; cursor: pointer; color: white; font-size: 1rem; }
-.btn-stage { background: var(--pink-bright); }
-.btn-reject { background: #cbd5e1; color: #475569; }
 </style>
 </head>
 <body>
@@ -158,36 +146,49 @@ h1 {
   <div class="column" id="accepted"><h2>Приняты 👑</h2></div>
 </div>
 
-<div class="stats-container" style="margin-top:30px; background:white; padding:20px; border-radius:30px; border:4px solid var(--pink-soft);">
-    <h2 style="text-align: center; color: var(--pink-bright); font-size: 1.4rem;">💖 Статистика направлений 💖</h2>
-    <div id="statsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;"></div>
+<div class="stats-container" style="margin-top:40px; background:white; padding:25px; border-radius:30px; border:4px solid var(--pink-soft);">
+    <h2 style="text-align: center; color: var(--pink-bright);">💖 Статистика направлений 💖</h2>
+    <div id="statsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px;"></div>
 </div>
 
 <div class="modal" id="modal">
   <div class="modal-content">
-    <span class="close-btn" id="closeModal">✕</span>
+    <span class="close-btn" id="closeModal">🌸</span>
     <img id="volunteerPhoto" src="" alt="Фото">
-    <h3 id="volunteerName" style="text-align: center; color: var(--pink-bright); font-size: 1.6rem; margin: 0 0 15px 0;"></h3>
+    <h3 id="volunteerName" style="text-align: center; color: var(--pink-bright); font-size: 1.8rem; margin-top: 0;"></h3>
     
-    <div style="font-size: 0.95rem; line-height: 1.6;">
+    <div style="font-size: 1rem; line-height: 1.6; color: var(--text-dark);">
         <p><strong>📧 Email:</strong> <span id="volunteerEmail"></span></p>
         <p><strong>📞 Телефон:</strong> <span id="volunteerPhone"></span></p>
         <p><strong>🎂 Дата рождения:</strong> <span id="volunteerDOB"></span></p>
         <p><strong>🏫 Место учебы:</strong> <span id="volunteerStudy"></span></p>
-        <hr style="border: 1px dashed var(--pink-soft);">
+        <hr>
         <p><strong>🌈 Направления:</strong></p>
         <div id="volunteerDirections"></div>
-        <hr style="border: 1px dashed var(--pink-soft);">
-        <p><strong>🤝 О себе:</strong> <span id="volunteerWhy"></span></p>
-        <p><strong>⏰ Время:</strong> <span id="volunteerHours"></span></p>
-        <p><strong>🚗 Выезды:</strong> <span id="volunteerReadyTravel"></span></p>
+        <p><strong>💭 Почему эти направления:</strong> <span id="volunteerChoiceMotives"></span></p>
+        <hr>
+        <p><strong>🤝 О себе и волонтерстве:</strong> <span id="volunteerWhy"></span></p>
+        <p><strong>📜 Опыт:</strong> <span id="volunteerExperience"></span></p>
+        <p><strong>🎨 Навыки/Хобби:</strong> <span id="volunteerHobbies"></span></p>
+        <p><strong>💎 Сильные качества:</strong> <span id="volunteerStrengths"></span></p>
+        <p><strong>👑 Почему выбрать Вас:</strong> <span id="volunteerChoose"></span></p>
+        <hr>
+        <div style="background: #fff5f8; padding: 15px; border-radius: 20px;">
+            <p><strong>⏰ Время в неделю:</strong> <span id="volunteerHours"></span></p>
+            <p><strong>📅 Будет на собраниях:</strong> <span id="volunteerMeetings"></span></p>
+            <p><strong>🚗 Готовы к выездам:</strong> <span id="volunteerReadyTravel"></span></p>
+            <p><strong>⚠️ Согласие (удаление):</strong> <span id="volunteerAgreeInactivity"></span></p>
+            <p><strong>📝 Согласие (условия):</strong> <span id="volunteerAgreeTerms"></span></p>
+        </div>
+        <hr>
+        <p><strong>✨ Ожидания:</strong> <span id="volunteerExpectations"></span></p>
+        <p><strong>💡 Идеи:</strong> <span id="volunteerIdeas"></span></p>
     </div>
     <div class="buttons" id="modalButtons"></div>
   </div>
 </div>
 
 <script>
-/* JS Логика остается прежней, добавлена обработка закрытия на '✕' */
 const columns = {
   submitted: document.getElementById('submitted'),
   interview: document.getElementById('interview'),
@@ -204,16 +205,17 @@ const tabButtons = document.querySelectorAll('.tab-button');
 
 let volunteers = [];
 
+// Феечки на фоне
 function spawnFairy() {
     const f = document.createElement('div');
     f.className = 'fairy-dust';
-    f.innerHTML = ['✨','🌸','💖','🦄'][Math.floor(Math.random()*4)];
+    f.innerHTML = ['✨','🌸','💖','🦄','🍭'][Math.floor(Math.random()*5)];
     f.style.left = Math.random() * 100 + 'vw';
     f.style.animationDuration = (Math.random() * 3 + 2) + 's';
     document.body.appendChild(f);
     setTimeout(() => f.remove(), 5000);
 }
-setInterval(spawnFairy, 500);
+setInterval(spawnFairy, 400);
 
 async function fetchVolunteers() {
   try {
@@ -263,6 +265,7 @@ function renderColumns() {
         <img src="${photo || 'https://via.placeholder.com/60/ffe5ec/800020?text=🌸'}" alt="ava">
         <div class="card-info">
           <strong>${v.full_name || v.name}</strong>
+          <span>📱 ${v.phone_number || '---'}</span>
           <div class="directions-brief">✨ ${v.directions ? v.directions.map(d => d.name || d).join(', ') : '---'}</div>
         </div>`;
       card.onclick = () => openModal(v);
@@ -278,9 +281,11 @@ function renderStats() {
     });
     statsGrid.innerHTML = '';
     Object.entries(counts).sort((a,b) => b[1] - a[1]).forEach(([name, count]) => {
-        statsGrid.innerHTML += `<div style="background:#fff5f8; padding:8px; border-radius:12px; border:1px solid var(--pink-soft); display:flex; justify-content:space-between; font-size:0.85rem;"><span>${name}</span><b style="color:var(--pink-bright)">${count}</b></div>`;
+        statsGrid.innerHTML += `<div style="background:#fff5f8; padding:10px; border-radius:15px; border:1px solid var(--pink-soft); display:flex; justify-content:space-between; font-weight:bold;"><span>${name}</span><span style="color:var(--pink-bright)">${count}</span></div>`;
     });
 }
+
+function formatISODate(iso) { if (!iso) return '-'; const p = iso.split('-'); return p.length === 3 ? `${p[2]}.${p[1]}.${p[0]}` : iso; }
 
 function openModal(v) {
   const vPhoto = document.getElementById('volunteerPhoto');
@@ -290,14 +295,24 @@ function openModal(v) {
   document.getElementById('volunteerName').textContent = v.full_name || v.name; 
   document.getElementById('volunteerEmail').textContent = v.email || '-';
   document.getElementById('volunteerPhone').textContent = v.phone_number || '-';
-  document.getElementById('volunteerDOB').textContent = v.date_of_birth || '-';
+  document.getElementById('volunteerDOB').textContent = formatISODate(v.date_of_birth);
   document.getElementById('volunteerStudy').textContent = v.place_of_study || '-';
+  document.getElementById('volunteerChoiceMotives').textContent = v.choice_motives || '-';
   document.getElementById('volunteerWhy').textContent = v.why_volunteer || '-';
+  document.getElementById('volunteerExperience').textContent = v.volunteer_experience || '-';
+  document.getElementById('volunteerHobbies').textContent = v.hobbies_skills || '-';
+  document.getElementById('volunteerStrengths').textContent = v.strengths || '-';
+  document.getElementById('volunteerChoose').textContent = v.why_choose_you || '-';
   document.getElementById('volunteerHours').textContent = v.weekly_hours || '-';
+  document.getElementById('volunteerIdeas').textContent = v.ideas_improvements || '-';
+  document.getElementById('volunteerExpectations').textContent = v.expectations || '-';
+  document.getElementById('volunteerAgreeInactivity').textContent = v.agree_inactivity_removal ? '✅ Да' : '❌ Нет';
+  document.getElementById('volunteerAgreeTerms').textContent = v.agree_terms ? '✅ Да' : '❌ Нет';
   document.getElementById('volunteerReadyTravel').textContent = v.ready_travel ? '✅ Да' : '❌ Нет';
+  document.getElementById('volunteerMeetings').textContent = v.attend_meetings ? '✅ Да' : '❌ Нет';
 
   const vDirs = document.getElementById('volunteerDirections');
-  vDirs.innerHTML = (v.directions) ? v.directions.map(d => `<span style="background:var(--pink-soft); padding:2px 8px; border-radius:10px; margin:2px; display:inline-block; font-size:0.8rem;">${d.name || d}</span>`).join('') : '-';
+  vDirs.innerHTML = (v.directions && v.directions.length > 0) ? `<ul class="directions-list">${v.directions.map(d => `<li>${d.name || d}</li>`).join('')}</ul>` : '<span>-</span>';
 
   const mBtns = document.getElementById('modalButtons');
   mBtns.innerHTML = '';
