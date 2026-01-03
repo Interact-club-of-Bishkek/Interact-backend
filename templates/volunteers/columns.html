@@ -3,198 +3,135 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Доска Волонтёров</title>
+<title>💖 Magical Volunteer Dashboard 🦄</title>
 <style>
-/* ОСНОВНОЙ СТИЛЬ */
+/* КОНТРАСТНЫЕ ЦВЕТА И МАГИЯ */
+:root {
+    --text-dark: #2d001a; 
+    --pink-bright: #ff4d6d;
+    --pink-soft: #ffccd5;
+    --magic-purple: #7209b7;
+    --glass: rgba(255, 255, 255, 0.95);
+}
+
 body {
-    font-family: 'Arial', sans-serif;
-    background: linear-gradient(135deg,#f0f2f5,#e0e7ff);
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+    background-attachment: fixed;
     margin: 0;
     padding: 20px;
-    color: #333;
-}
-h1 {
-    text-align: center;
-    margin-bottom: 20px;
-    font-size: 2.5rem;
-    color: #1e3a8a;
+    color: var(--text-dark);
 }
 
-/* ПАНЕЛЬ ФИЛЬТРОВ */
+/* ФЕЕЧКИ НА ФОНЕ */
+.fairy-dust {
+    position: fixed; top: -10%; font-size: 1.5rem; pointer-events: none; z-index: -1;
+    animation: fall linear infinite;
+}
+@keyframes fall {
+    0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+}
+
+h1 {
+    text-align: center; font-size: 3rem; color: white;
+    text-shadow: 4px 4px 0px var(--pink-bright);
+    margin-bottom: 20px; animation: float 3s ease-in-out infinite;
+}
+@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+/* ФИЛЬТРЫ */
 .filter-panel {
-    background: #fff;
-    padding: 20px;
-    border-radius: 15px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-    margin-bottom: 30px;
-    display: flex;
-    gap: 15px;
-    flex-wrap: wrap;
-    justify-content: center;
-    align-items: center;
+    background: var(--glass); padding: 25px; border-radius: 40px;
+    box-shadow: 0 10px 30px rgba(255, 77, 109, 0.2);
+    margin-bottom: 30px; display: flex; gap: 15px; flex-wrap: wrap;
+    justify-content: center; border: 4px solid white;
 }
 .filter-panel input, .filter-panel select {
-    padding: 10px 15px;
-    border: 2px solid #e0e7ff;
-    border-radius: 8px;
-    font-size: 1rem;
-    outline: none;
-    transition: border-color 0.2s;
-}
-.filter-panel input:focus, .filter-panel select:focus {
-    border-color: #3b82f6;
-}
-.filter-panel input[type="text"] {
-    flex: 1;
-    min-width: 250px;
+    padding: 12px 20px; border: 3px solid var(--pink-soft);
+    border-radius: 25px; font-size: 1rem; font-weight: 600; outline: none;
 }
 
-.columns {
-    display: flex;
-    gap: 20px;
-    flex-wrap: nowrap;
-    justify-content: center;
-}
+/* КАНБАН */
+.columns { display: flex; gap: 20px; justify-content: center; }
 .column {
-    flex: 1 1 300px;
-    background: #fff;
-    border-radius: 15px;
-    padding: 20px;
-    box-shadow: 0 6px 15px rgba(0,0,0,0.1);
-    min-width: 280px;
+    flex: 1; background: rgba(255, 255, 255, 0.7);
+    border-radius: 30px; padding: 20px; min-width: 290px;
+    border: 2px solid white; transition: 0.3s;
 }
 .column h2 {
-    text-align: center;
-    margin-bottom: 20px;
-    text-transform: uppercase;
-    color: #1e40af;
+    text-align: center; color: white; background: var(--pink-bright);
+    padding: 10px; border-radius: 20px; font-size: 1.4rem;
 }
 
 /* КАРТОЧКИ */
 .card {
-    background: #f9fafb;
-    border-radius: 12px;
-    padding: 15px;
-    margin-bottom: 12px;
-    cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    border-left: 4px solid #3b82f6;
+    background: white; border-radius: 20px; padding: 15px; margin-top: 15px;
+    cursor: pointer; transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    display: flex; align-items: center; gap: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);
 }
-.card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
-}
-.card img { 
-    width: 60px; 
-    height: 60px; 
-    object-fit: cover; 
-    border-radius: 50%; 
-    border: 2px solid #3b82f6; 
-}
-.card-info {
-    display: flex;
-    flex-direction: column;
-}
-.card-info strong {
-    font-size: 1.1rem;
-    color: #1e3a8a;
-}
-.card-info span {
-    font-size: 0.9rem;
-    color: #555;
-}
-.card-info .directions-brief {
-    font-size: 0.8rem;
-    color: #3b82f6;
-    margin-top: 2px;
-}
-
-/* СТАТИСТИКА */
-.stats-container {
-    margin-top: 40px;
-    background: #fff;
-    padding: 25px;
-    border-radius: 15px;
-    box-shadow: 0 6px 15px rgba(0,0,0,0.1);
-}
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 15px;
-}
-.stat-item {
-    background: #f1f5f9;
-    padding: 10px 15px;
-    border-radius: 8px;
-    display: flex;
-    justify-content: space-between;
-}
+.card:hover { transform: scale(1.05); box-shadow: 0 10px 20px rgba(255, 77, 109, 0.2); }
+.card img { width: 60px; height: 60px; border-radius: 50%; border: 3px solid var(--pink-soft); object-fit: cover; }
+.card-info strong { color: #800020; display: block; }
+.directions-brief { color: var(--magic-purple); font-weight: 700; font-size: 0.8rem; }
 
 /* МОДАЛКА */
 .modal {
-    display: none;
-    position: fixed;
-    top:0; left:0;
-    width:100%; height:100%;
-    background: rgba(0,0,0,0.6);
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(45, 0, 26, 0.7); backdrop-filter: blur(5px);
+    z-index: 9999; justify-content: center; align-items: center;
 }
 .modal-content {
-    background: #fff;
-    border-radius: 15px;
-    padding: 25px;
-    width: 500px;
-    max-height: 90%;
-    overflow-y: auto;
-    position: relative;
+    background: white; border-radius: 40px; padding: 35px;
+    width: 95%; max-width: 650px; max-height: 90%; overflow-y: auto;
+    position: relative; border: 6px solid var(--pink-soft);
 }
-.close-btn {
-    position: absolute;
-    top: 10px; right: 15px;
-    cursor: pointer; font-size: 1.5rem; color: #888;
-}
-.modal-content img {
-    display: block; width: 100%; height: auto; max-height: 400px;
-    object-fit: contain; border-radius: 12px; margin: 0 auto 15px auto;
-    border: 3px solid #3b82f6; background-color: #f3f4f6;
-}
-.directions-list { padding-left: 20px; color: #1e3a8a; font-weight: 600; }
-.buttons { margin-top: 20px; display: flex; gap: 10px; }
-.buttons button { flex: 1; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; color: #fff; }
-.btn-stage { background: #3b82f6; }
-.btn-reject { background: #ef4444; }
+.close-btn { position: absolute; top: 15px; right: 25px; font-size: 2.5rem; cursor: pointer; color: var(--pink-bright); font-weight: bold; }
 
-/* АДАПТИВНОСТЬ */
-.tabs { display: none; background: #fff; border-radius: 10px; margin-bottom: 20px; justify-content: space-around; }
-.tab-button { flex: 1; padding: 15px 10px; text-align: center; cursor: pointer; font-weight: bold; }
-.tab-button.active { color: #1e40af; border-bottom: 3px solid #3b82f6; }
+/* УВЕЛИЧЕННОЕ ФОТО В МОДАЛКЕ */
+.modal-content img { 
+    display: block; 
+    width: 300px; /* Увеличенный размер */
+    height: auto; 
+    max-height: 400px;
+    border-radius: 25px; /* Скругленные углы вместо круга */
+    margin: 10px auto 25px; 
+    border: 6px solid var(--pink-soft); 
+    object-fit: contain; 
+    box-shadow: 0 10px 20px rgba(255, 77, 109, 0.2);
+}
+
+.modal-content hr { border: none; border-top: 2px dashed var(--pink-soft); margin: 20px 0; }
+.directions-list { padding-left: 20px; color: var(--magic-purple); font-weight: 600; list-style-type: "🌸 "; }
+
+/* КНОПКИ */
+.buttons { display: flex; gap: 15px; margin-top: 30px; }
+.buttons button { flex: 1; padding: 15px; border: none; border-radius: 20px; font-weight: 800; cursor: pointer; color: white; transition: 0.2s; font-size: 1.1rem; }
+.btn-stage { background: var(--pink-bright); animation: pulse 2s infinite; }
+.btn-reject { background: #cbd5e1; color: #475569; }
+
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 77, 109, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(255, 77, 109, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 77, 109, 0); } }
+
+/* ТАБЫ (МОБИЛКИ) */
+.tabs { display: none; background: white; border-radius: 30px; margin-bottom: 20px; padding: 5px; }
+.tab-button { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-weight: bold; border-radius: 25px; }
+.tab-button.active { background: var(--pink-bright); color: white; }
 
 @media (max-width: 768px) {
-    .columns { flex-direction: column; }
-    .column { display: none; width: 100%; }
-    .column.active { display: block; }
-    .tabs { display: flex; }
-    .filter-panel { flex-direction: column; align-items: stretch; }
+    .columns { flex-direction: column; } .column { display: none; }
+    .column.active { display: block; } .tabs { display: flex; }
+    .modal-content img { width: 100%; } /* На мобилках на всю ширину */
 }
 </style>
 </head>
 <body>
 
-<h1>Доска Волонтёров</h1>
+<h1>✨ Fairy Volunteer Board 🦄</h1>
 
 <div class="filter-panel">
-    <input type="text" id="searchName" placeholder="Поиск по ФИО...">
-    <select id="filterStudy">
-        <option value="">Все учебные заведения</option>
-    </select>
-    <select id="filterYear">
-        <option value="">Все годы рождения</option>
-    </select>
+    <input type="text" id="searchName" placeholder="🔍 Поиск по ФИО...">
+    <select id="filterStudy"><option value="">🏫 Все заведения</option></select>
+    <select id="filterYear"><option value="">📅 Все годы рождения</option></select>
 </div>
 
 <div class="tabs" id="tabs">
@@ -204,44 +141,49 @@ h1 {
 </div>
 
 <div class="columns">
-  <div class="column active" id="submitted"><h2>Отправлено</h2></div>
-  <div class="column" id="interview"><h2>Собеседование</h2></div>
-  <div class="column" id="accepted"><h2>Приняты</h2></div>
+  <div class="column active" id="submitted"><h2>Отправлено 💌</h2></div>
+  <div class="column" id="interview"><h2>Собеседование 🎀</h2></div>
+  <div class="column" id="accepted"><h2>Приняты 👑</h2></div>
 </div>
 
-<div class="stats-container">
-    <h2 style="color: #1e3a8a; text-align: center;">Статистика направлений (Все анкеты)</h2>
-    <div class="stats-grid" id="statsGrid"></div>
+<div class="stats-container" style="margin-top:40px; background:white; padding:25px; border-radius:30px; border:4px solid var(--pink-soft);">
+    <h2 style="text-align: center; color: var(--pink-bright);">💖 Статистика направлений 💖</h2>
+    <div id="statsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px;"></div>
 </div>
 
 <div class="modal" id="modal">
   <div class="modal-content">
-    <span class="close-btn" id="closeModal">&times;</span>
+    <span class="close-btn" id="closeModal">🌸</span>
     <img id="volunteerPhoto" src="" alt="Фото">
-    <h3 id="volunteerName"></h3>
-    <p><strong>Email:</strong> <span id="volunteerEmail"></span></p>
-    <p><strong>Телефон:</strong> <span id="volunteerPhone"></span></p>
-    <p><strong>Дата рождения:</strong> <span id="volunteerDOB"></span></p>
-    <p><strong>Место учебы:</strong> <span id="volunteerStudy"></span></p>
-    <hr>
-    <p><strong>Направления:</strong></p>
-    <div id="volunteerDirections"></div>
-    <p><strong>Почему эти направления:</strong> <span id="volunteerChoiceMotives"></span></p>
-    <hr>
-    <p><strong>О себе и волонтерстве:</strong> <span id="volunteerWhy"></span></p>
-    <p><strong>Опыт:</strong> <span id="volunteerExperience"></span></p>
-    <p><strong>Навыки/Хобби:</strong> <span id="volunteerHobbies"></span></p>
-    <p><strong>Сильные качества:</strong> <span id="volunteerStrengths"></span></p>
-    <p><strong>Почему выбрать Вас:</strong> <span id="volunteerChoose"></span></p>
-    <hr>
-    <p><strong>Время в неделю:</strong> <span id="volunteerHours"></span></p>
-    <p><strong>Будет на собраниях:</strong> <span id="volunteerMeetings"></span></p>
-    <p><strong>Готовы к выездам:</strong> <span id="volunteerReadyTravel"></span></p>
-    <p><strong>Согласие (удаление):</strong> <span id="volunteerAgreeInactivity"></span></p>
-    <p><strong>Согласие (условия):</strong> <span id="volunteerAgreeTerms"></span></p>
-    <hr>
-    <p><strong>Ожидания:</strong> <span id="volunteerExpectations"></span></p>
-    <p><strong>Идеи:</strong> <span id="volunteerIdeas"></span></p>
+    <h3 id="volunteerName" style="text-align: center; color: var(--pink-bright); font-size: 1.8rem; margin-top: 0;"></h3>
+    
+    <div style="font-size: 1rem; line-height: 1.6; color: var(--text-dark);">
+        <p><strong>📧 Email:</strong> <span id="volunteerEmail"></span></p>
+        <p><strong>📞 Телефон:</strong> <span id="volunteerPhone"></span></p>
+        <p><strong>🎂 Дата рождения:</strong> <span id="volunteerDOB"></span></p>
+        <p><strong>🏫 Место учебы:</strong> <span id="volunteerStudy"></span></p>
+        <hr>
+        <p><strong>🌈 Направления:</strong></p>
+        <div id="volunteerDirections"></div>
+        <p><strong>💭 Почему эти направления:</strong> <span id="volunteerChoiceMotives"></span></p>
+        <hr>
+        <p><strong>🤝 О себе и волонтерстве:</strong> <span id="volunteerWhy"></span></p>
+        <p><strong>📜 Опыт:</strong> <span id="volunteerExperience"></span></p>
+        <p><strong>🎨 Навыки/Хобби:</strong> <span id="volunteerHobbies"></span></p>
+        <p><strong>💎 Сильные качества:</strong> <span id="volunteerStrengths"></span></p>
+        <p><strong>👑 Почему выбрать Вас:</strong> <span id="volunteerChoose"></span></p>
+        <hr>
+        <div style="background: #fff5f8; padding: 15px; border-radius: 20px;">
+            <p><strong>⏰ Время в неделю:</strong> <span id="volunteerHours"></span></p>
+            <p><strong>📅 Будет на собраниях:</strong> <span id="volunteerMeetings"></span></p>
+            <p><strong>🚗 Готовы к выездам:</strong> <span id="volunteerReadyTravel"></span></p>
+            <p><strong>⚠️ Согласие (удаление):</strong> <span id="volunteerAgreeInactivity"></span></p>
+            <p><strong>📝 Согласие (условия):</strong> <span id="volunteerAgreeTerms"></span></p>
+        </div>
+        <hr>
+        <p><strong>✨ Ожидания:</strong> <span id="volunteerExpectations"></span></p>
+        <p><strong>💡 Идеи:</strong> <span id="volunteerIdeas"></span></p>
+    </div>
     <div class="buttons" id="modalButtons"></div>
   </div>
 </div>
@@ -263,79 +205,68 @@ const tabButtons = document.querySelectorAll('.tab-button');
 
 let volunteers = [];
 
+// Феечки на фоне
+function spawnFairy() {
+    const f = document.createElement('div');
+    f.className = 'fairy-dust';
+    f.innerHTML = ['✨','🌸','💖','🦄','🍭'][Math.floor(Math.random()*5)];
+    f.style.left = Math.random() * 100 + 'vw';
+    f.style.animationDuration = (Math.random() * 3 + 2) + 's';
+    document.body.appendChild(f);
+    setTimeout(() => f.remove(), 5000);
+}
+setInterval(spawnFairy, 400);
+
 async function fetchVolunteers() {
   try {
     const res = await fetch('/api/volunteer-columns/'); 
     const data = await res.json();
     volunteers = [];
     ['submitted','interview','accepted'].forEach(status => {
-      (data[status] || []).forEach(v => {
-        volunteers.push({...v, status: status});
-      });
+      (data[status] || []).forEach(v => { volunteers.push({...v, status: status}); });
     });
-    populateFilters();
-    renderColumns();
-    renderStats();
-  } catch (err) { console.error('Ошибка загрузки:', err); }
+    populateFilters(); renderColumns(); renderStats();
+  } catch (err) { console.error('Ошибка:', err); }
 }
 
-// Заполнение выпадающих списков уникальными значениями
 function populateFilters() {
-    const studies = new Set();
-    const years = new Set();
-
+    const studies = new Set(); const years = new Set();
     volunteers.forEach(v => {
         if (v.place_of_study) studies.add(v.place_of_study);
-        if (v.date_of_birth) {
-            const year = v.date_of_birth.split('-')[0];
-            years.add(year);
-        }
+        if (v.date_of_birth) years.add(v.date_of_birth.split('-')[0]);
     });
-
-    // Очистка и добавление (кроме первой опции)
-    filterStudy.innerHTML = '<option value="">Все учебные заведения</option>';
-    filterYear.innerHTML = '<option value="">Все годы рождения</option>';
-
-    Array.from(studies).sort().forEach(s => {
-        filterStudy.innerHTML += `<option value="${s}">${s}</option>`;
-    });
-    Array.from(years).sort((a,b) => b-a).forEach(y => {
-        filterYear.innerHTML += `<option value="${y}">${y}</option>`;
-    });
+    filterStudy.innerHTML = '<option value="">🏫 Все заведения</option>';
+    filterYear.innerHTML = '<option value="">📅 Все годы</option>';
+    Array.from(studies).sort().forEach(s => filterStudy.innerHTML += `<option value="${s}">${s}</option>`);
+    Array.from(years).sort((a,b) => b-a).forEach(y => filterYear.innerHTML += `<option value="${y}">${y}</option>`);
 }
 
 function renderColumns() {
   const titles = { submitted: 'Отправлено', interview: 'Собеседование', accepted: 'Приняты' };
-  const nameQuery = searchName.value.toLowerCase();
-  const studyQuery = filterStudy.value;
-  const yearQuery = filterYear.value;
+  const nQ = searchName.value.toLowerCase();
+  const sQ = filterStudy.value;
+  const yQ = filterYear.value;
 
   for (let col in columns) {
     const list = volunteers.filter(v => {
-        const matchesStatus = v.status === col;
-        const matchesName = (v.full_name || v.name).toLowerCase().includes(nameQuery);
-        const matchesStudy = !studyQuery || v.place_of_study === studyQuery;
-        const matchesYear = !yearQuery || (v.date_of_birth && v.date_of_birth.startsWith(yearQuery));
-        
-        return matchesStatus && matchesName && matchesStudy && matchesYear;
+        const mS = v.status === col;
+        const mN = (v.full_name || v.name).toLowerCase().includes(nQ);
+        const mSt = !sQ || v.place_of_study === sQ;
+        const mY = !yQ || (v.date_of_birth && v.date_of_birth.startsWith(yQ));
+        return mS && mN && mSt && mY;
     });
     
     columns[col].innerHTML = `<h2>${titles[col]} (${list.length})</h2>`;
-    const tBtn = document.querySelector(`.tab-button[data-target="${col}"]`);
-    if(tBtn) tBtn.textContent = `${titles[col]} (${list.length})`;
-
     list.forEach(v => {
-      const photoSource = v.photo_url || v.image_url; 
       const card = document.createElement('div');
       card.className = 'card';
-      const dirText = v.directions ? v.directions.map(d => d.name || d).join(', ') : 'Не указано';
-
+      const photo = v.photo_url || v.image_url;
       card.innerHTML = `
-        ${photoSource ? `<img src="${photoSource}" alt="Фото">` : '<div style="width:60px;height:60px;background:#eee;border-radius:50%"></div>'}
+        <img src="${photo || 'https://via.placeholder.com/60/ffe5ec/800020?text=🌸'}" alt="ava">
         <div class="card-info">
           <strong>${v.full_name || v.name}</strong>
-          <span>${v.phone_number || 'Нет номера'}</span>
-          <span class="directions-brief"><b>Напр:</b> ${dirText}</span>
+          <span>📱 ${v.phone_number || '---'}</span>
+          <div class="directions-brief">✨ ${v.directions ? v.directions.map(d => d.name || d).join(', ') : '---'}</div>
         </div>`;
       card.onclick = () => openModal(v);
       columns[col].appendChild(card);
@@ -346,29 +277,15 @@ function renderColumns() {
 function renderStats() {
     const counts = {};
     volunteers.forEach(v => {
-        if (v.directions) {
-            v.directions.forEach(d => {
-                const name = d.name || d;
-                counts[name] = (counts[name] || 0) + 1;
-            });
-        }
+        if (v.directions) v.directions.forEach(d => { const n = d.name || d; counts[n] = (counts[n] || 0) + 1; });
     });
     statsGrid.innerHTML = '';
     Object.entries(counts).sort((a,b) => b[1] - a[1]).forEach(([name, count]) => {
-        statsGrid.innerHTML += `<div class="stat-item"><strong>${name}</strong><span>${count}</span></div>`;
+        statsGrid.innerHTML += `<div style="background:#fff5f8; padding:10px; border-radius:15px; border:1px solid var(--pink-soft); display:flex; justify-content:space-between; font-weight:bold;"><span>${name}</span><span style="color:var(--pink-bright)">${count}</span></div>`;
     });
 }
 
-// Слушатели для фильтров
-searchName.addEventListener('input', renderColumns);
-filterStudy.addEventListener('change', renderColumns);
-filterYear.addEventListener('change', renderColumns);
-
-function formatISODate(isoDate) {
-    if (!isoDate) return '-';
-    const parts = isoDate.split('-');
-    return parts.length === 3 ? `${parts[2]}.${parts[1]}.${parts[0]}` : isoDate;
-}
+function formatISODate(iso) { if (!iso) return '-'; const p = iso.split('-'); return p.length === 3 ? `${p[2]}.${p[1]}.${p[0]}` : iso; }
 
 function openModal(v) {
   const vPhoto = document.getElementById('volunteerPhoto');
@@ -389,56 +306,46 @@ function openModal(v) {
   document.getElementById('volunteerHours').textContent = v.weekly_hours || '-';
   document.getElementById('volunteerIdeas').textContent = v.ideas_improvements || '-';
   document.getElementById('volunteerExpectations').textContent = v.expectations || '-';
-  document.getElementById('volunteerAgreeInactivity').textContent = v.agree_inactivity_removal ? 'Да' : 'Нет';
-  document.getElementById('volunteerAgreeTerms').textContent = v.agree_terms ? 'Да' : 'Нет';
-  document.getElementById('volunteerReadyTravel').textContent = v.ready_travel ? 'Да' : 'Нет';
-  document.getElementById('volunteerMeetings').textContent = v.attend_meetings ? 'Да' : 'Нет';
+  document.getElementById('volunteerAgreeInactivity').textContent = v.agree_inactivity_removal ? '✅ Да' : '❌ Нет';
+  document.getElementById('volunteerAgreeTerms').textContent = v.agree_terms ? '✅ Да' : '❌ Нет';
+  document.getElementById('volunteerReadyTravel').textContent = v.ready_travel ? '✅ Да' : '❌ Нет';
+  document.getElementById('volunteerMeetings').textContent = v.attend_meetings ? '✅ Да' : '❌ Нет';
 
   const vDirs = document.getElementById('volunteerDirections');
-  if (v.directions && v.directions.length > 0) {
-        vDirs.innerHTML = `<ul class="directions-list">${v.directions.map(d => `<li>${d.name || d}</li>`).join('')}</ul>`;
-  } else { vDirs.innerHTML = '<span>-</span>'; }
+  vDirs.innerHTML = (v.directions && v.directions.length > 0) ? `<ul class="directions-list">${v.directions.map(d => `<li>${d.name || d}</li>`).join('')}</ul>` : '<span>-</span>';
 
   const mBtns = document.getElementById('modalButtons');
   mBtns.innerHTML = '';
-  let statusButtons = [];
-  if(v.status === 'submitted') statusButtons = ['На 2 этап', 'Отказ'];
-  else if(v.status === 'interview') statusButtons = ['Принят', 'Отказ'];
+  let statusButtons = v.status === 'submitted' ? ['На 2 этап', 'Отказ'] : (v.status === 'interview' ? ['Принят', 'Отказ'] : []);
 
   statusButtons.forEach(btn => {
-    const button = document.createElement('button');
-    button.textContent = btn;
-    button.className = btn === 'Отказ' ? 'btn-reject' : 'btn-stage';
-    button.onclick = () => updateStatus(v.id, btn);
-    mBtns.appendChild(button);
+    const b = document.createElement('button');
+    b.textContent = btn; b.className = btn === 'Отказ' ? 'btn-reject' : 'btn-stage';
+    b.onclick = () => updateStatus(v.id, btn);
+    mBtns.appendChild(b);
   });
   modal.style.display = 'flex';
 }
 
 async function updateStatus(id, action) {
   const statusMap = { 'На 2 этап': 'interview', 'Принят': 'accepted', 'Отказ': 'rejected' };
-  const newStatus = statusMap[action];
   try {
     await fetch(`/api/applications/${id}/update_status/`, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({status: newStatus})
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({status: statusMap[action]})
     });
-    modal.style.display = 'none';
-    fetchVolunteers();
-  } catch(err) { alert('Ошибка соединения'); }
+    modal.style.display = 'none'; fetchVolunteers();
+  } catch(err) { alert('Ошибка магии!'); }
 }
 
-tabButtons.forEach(button => {
-    button.addEventListener('click', () => {
-        const targetId = button.getAttribute('data-target');
-        tabButtons.forEach(btn => btn.classList.remove('active'));
-        button.classList.add('active');
-        for (let colId in columns) columns[colId].classList.remove('active');
-        document.getElementById(targetId).classList.add('active');
-    });
+searchName.addEventListener('input', renderColumns);
+filterStudy.addEventListener('change', renderColumns);
+filterYear.addEventListener('change', renderColumns);
+tabButtons.forEach(btn => btn.onclick = () => {
+    tabButtons.forEach(b => b.classList.remove('active')); btn.classList.add('active');
+    Object.values(columns).forEach(c => c.classList.remove('active'));
+    document.getElementById(btn.dataset.target).classList.add('active');
 });
-
 closeModal.onclick = () => modal.style.display = 'none';
 window.onclick = (e) => { if(e.target === modal) modal.style.display='none'; }
 
