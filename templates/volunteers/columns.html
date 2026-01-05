@@ -118,13 +118,27 @@ h1 {
 /* УВЕЛИЧЕННОЕ ФОТО В МОДАЛКЕ */
 .modal-content img.main-photo { 
     display: block; 
-    width: 200px;
-    height: 200px;
-    border-radius: 25px;
-    margin: 10px auto 20px; 
-    border: 6px solid var(--pink-soft); 
+    width: 100%; /* Занимает всю ширину контейнера */
+    max-width: 400px; /* Но не более 400px */
+    height: auto; /* Пропорциональная высота */
+    aspect-ratio: 1 / 1; /* Делает фото квадратным */
+    border-radius: 40px; /* Более мягкие углы */
+    margin: 10px auto 25px; 
+    border: 8px solid var(--pink-soft); 
     object-fit: cover; 
-    box-shadow: 0 10px 20px rgba(255, 77, 109, 0.2);
+    box-shadow: 0 15px 35px rgba(255, 77, 109, 0.3);
+    transition: transform 0.3s ease;
+}
+
+.modal-content img.main-photo:hover {
+    transform: scale(1.02) rotate(1deg); /* Легкий эффект при наведении */
+}
+
+@media (max-width: 768px) {
+    .modal-content img.main-photo { 
+        max-width: 280px; /* Чуть меньше для мобильных */
+        border-width: 5px;
+    }
 }
 
 .modal-content hr { border: none; border-top: 2px dashed var(--pink-soft); margin: 20px 0; }
@@ -355,10 +369,17 @@ function openModal(v) {
   nextBtn.disabled = currentVolunteerIndex >= currentFilteredList.length - 1;
 
   const vPhoto = document.getElementById('volunteerPhoto');
-  vPhoto.src = v.photo_url || v.image_url || '';
-  vPhoto.style.display = (v.photo_url || v.image_url) ? 'block' : 'none';
+  // Используем URL фото
+  const photoPath = v.photo_url || v.image_url || '';
+  vPhoto.src = photoPath;
+  vPhoto.style.display = photoPath ? 'block' : 'none';
 
-  document.getElementById('volunteerName').textContent = v.full_name || v.name; 
+  // Плавная прокрутка модалки вверх при смене волонтера
+  const modalBody = modal.querySelector('.modal-content');
+  modalBody.scrollTo({ top: 0, behavior: 'smooth' });
+
+  // Остальное заполнение данных...
+  document.getElementById('volunteerName').textContent = v.full_name || v.name;
   document.getElementById('volunteerEmail').textContent = v.email || '-';
   document.getElementById('volunteerPhone').textContent = v.phone_number || '-';
   document.getElementById('volunteerDOB').textContent = v.date_of_birth || '-';
