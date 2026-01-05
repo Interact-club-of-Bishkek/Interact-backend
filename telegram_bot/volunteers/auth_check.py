@@ -4,7 +4,7 @@ import asyncio
 import logging
 
 # URL вашего Django API: http://backend:8000/api/bot-auth/
-DJANGO_BASE_URL = os.getenv("DJANGO_API_URL")
+DJANGO_BASE_URL = os.getenv("DJANGO_API_URL", "http://backend:8000/api/")
 BOT_AUTH_URL = f"{DJANGO_BASE_URL}bot-auth/"
 
 async def verify_volunteer_password(access_type: str, entered_password: str) -> bool:
