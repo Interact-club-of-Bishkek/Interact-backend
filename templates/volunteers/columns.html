@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>💖 Magical Volunteer Dashboard 🦄</title>
 <style>
+/* КОНТРАСТНЫЕ ЦВЕТА И МАГИЯ */
 :root {
     --text-dark: #2d001a; 
     --pink-bright: #ff4d6d;
@@ -14,70 +15,152 @@
 }
 
 * { box-sizing: border-box; }
+
 body {
     font-family: 'Segoe UI', Tahoma, sans-serif;
     background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
-    background-attachment: fixed; margin: 0; padding: 10px; color: var(--text-dark);
+    background-attachment: fixed;
+    margin: 0;
+    padding: 10px;
+    color: var(--text-dark);
+    overflow-x: hidden;
 }
 
 /* ФЕЕЧКИ */
-.fairy-dust { position: fixed; top: -10%; font-size: 1.5rem; pointer-events: none; z-index: -1; animation: fall linear infinite; }
-@keyframes fall { 0% { transform: translateY(-10vh); opacity: 1; } 100% { transform: translateY(100vh); opacity: 0; } }
+.fairy-dust {
+    position: fixed; top: -10%; font-size: 1.5rem; pointer-events: none; z-index: -1;
+    animation: fall linear infinite;
+}
+@keyframes fall {
+    0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+}
 
-h1 { text-align: center; font-size: clamp(1.8rem, 5vw, 3rem); color: white; text-shadow: 4px 4px 0px var(--pink-bright); margin-bottom: 20px; }
+h1 {
+    text-align: center; font-size: clamp(1.8rem, 5vw, 3rem); color: white;
+    text-shadow: 4px 4px 0px var(--pink-bright);
+    margin-bottom: 20px; animation: float 3s ease-in-out infinite;
+}
+@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 
-/* КАНБАН И ТАБЫ */
+/* ФИЛЬТРЫ */
+.filter-panel {
+    background: var(--glass); padding: 15px; border-radius: 30px;
+    box-shadow: 0 10px 30px rgba(255, 77, 109, 0.2);
+    margin-bottom: 30px; display: flex; gap: 10px; flex-wrap: wrap;
+    justify-content: center; border: 4px solid white;
+}
+.filter-panel input, .filter-panel select {
+    padding: 10px 15px; border: 3px solid var(--pink-soft);
+    border-radius: 20px; font-size: 0.9rem; font-weight: 600; outline: none;
+    min-width: 200px; flex: 1;
+}
+
+/* КАНБАН */
 .columns { display: flex; gap: 20px; justify-content: center; align-items: flex-start; }
-.column { flex: 1; background: rgba(255, 255, 255, 0.7); border-radius: 30px; padding: 15px; min-width: 280px; border: 2px solid white; }
-.column h2 { text-align: center; color: white; background: var(--pink-bright); padding: 10px; border-radius: 20px; font-size: 1.2rem; margin-top: 0; }
+.column {
+    flex: 1; background: rgba(255, 255, 255, 0.7);
+    border-radius: 30px; padding: 15px; min-width: 280px;
+    border: 2px solid white; transition: 0.3s;
+}
+.column h2 {
+    text-align: center; color: white; background: var(--pink-bright);
+    padding: 10px; border-radius: 20px; font-size: 1.2rem; margin-top: 0;
+}
 
+/* КАРТОЧКИ В СПИСКЕ */
+.card {
+    background: white; border-radius: 20px; padding: 15px; margin-top: 15px;
+    cursor: pointer; transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    display: flex; align-items: center; gap: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+}
+.card:hover { transform: scale(1.02); box-shadow: 0 10px 20px rgba(255, 77, 109, 0.2); }
+
+.card img { 
+    width: 70px; height: 70px; /* Увеличенное фото */
+    border-radius: 15px; border: 3px solid var(--pink-soft); 
+    object-fit: cover; flex-shrink: 0; 
+}
+
+.card-info { 
+    flex-grow: 1; 
+    min-width: 0; /* Важно для обрезки текста */
+}
+
+.card-info strong { 
+    color: #800020; display: block; 
+    font-size: 1rem;
+    white-space: normal; /* Разрешаем перенос имени на вторую строку */
+    word-wrap: break-word;
+    line-height: 1.2;
+    margin-bottom: 4px;
+}
+.card-info span { font-size: 0.85rem; display: block; }
+.directions-brief { 
+    color: var(--magic-purple); font-weight: 700; font-size: 0.75rem; 
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; 
+}
+
+/* МОДАЛКА */
+.modal {
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(45, 0, 26, 0.7); backdrop-filter: blur(5px);
+    z-index: 9999; justify-content: center; align-items: center;
+}
+.modal-content {
+    background: white; border-radius: 30px; padding: 20px;
+    width: 95%; max-width: 650px; max-height: 90vh; overflow-y: auto;
+    position: relative; border: 6px solid var(--pink-soft);
+}
+.close-btn { position: absolute; top: 10px; right: 20px; font-size: 2rem; cursor: pointer; color: var(--pink-bright); font-weight: bold; z-index: 10; }
+
+/* ФОТО В МОДАЛКЕ */
+.modal-content img.main-photo { 
+    display: block; 
+    width: 100%; max-width: 350px; /* Оптимальный размер */
+    height: auto; aspect-ratio: 1 / 1;
+    border-radius: 30px; margin: 10px auto 20px; 
+    border: 6px solid var(--pink-soft); object-fit: cover; 
+    box-shadow: 0 10px 20px rgba(255, 77, 109, 0.2);
+}
+
+/* ТАБЫ (МОБИЛКИ) */
 .tabs { display: none; background: white; border-radius: 30px; margin-bottom: 20px; padding: 5px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-.tab-button { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-weight: bold; border-radius: 25px; font-size: 0.8rem; }
+.tab-button { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-weight: bold; border-radius: 25px; transition: 0.3s; font-size: 0.8rem; }
 .tab-button.active { background: var(--pink-bright); color: white; }
 
-/* КАРТОЧКИ (ФИКС КРИВИЗНЫ) */
-.card {
-    background: white; border-radius: 20px; padding: 12px; margin-top: 15px;
-    cursor: pointer; display: flex; align-items: flex-start; gap: 12px; 
-    box-shadow: 0 4px 10px rgba(0,0,0,0.05); transition: 0.3s;
-}
-.card img { 
-    width: 75px; height: 75px; border-radius: 15px; 
-    border: 3px solid var(--pink-soft); object-fit: cover; flex-shrink: 0; 
-}
-.card-info { 
-    flex: 1; min-width: 0; /* Чтобы текст не распирал карточку */
-    display: flex; flex-direction: column; gap: 2px;
-}
-.card-info strong { 
-    color: #800020; font-size: 1rem; line-height: 1.2;
-    word-wrap: break-word; overflow-wrap: break-word;
-}
-.card-info .phone-sub { font-size: 0.85rem; color: #666; font-weight: 600; }
-.directions-brief { color: var(--magic-purple); font-weight: 700; font-size: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-/* МОДАЛКА И НАВИГАЦИЯ (ВОЗВРАТ ДИЗАЙНА) */
-.modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(45, 0, 26, 0.7); backdrop-filter: blur(5px); z-index: 9999; justify-content: center; align-items: center; }
-.modal-content { background: white; border-radius: 30px; padding: 20px; width: 95%; max-width: 600px; max-height: 90vh; overflow-y: auto; position: relative; border: 6px solid var(--pink-soft); }
-.close-btn { position: absolute; top: 10px; right: 20px; font-size: 2rem; cursor: pointer; color: var(--pink-bright); font-weight: bold; }
-
-.modal-nav { display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 20px; }
-.nav-btn { 
-    background: var(--pink-bright); color: white; border: none; width: 45px; height: 45px; 
-    border-radius: 50%; cursor: pointer; font-size: 1.5rem; display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 4px 10px rgba(255, 77, 109, 0.3); transition: 0.2s;
-}
-.nav-btn:hover { transform: scale(1.1); background: var(--magic-purple); }
-.nav-btn:disabled { background: #cbd5e1; cursor: not-allowed; }
-.nav-counter { display: flex; align-items: center; gap: 8px; font-weight: 800; color: var(--pink-bright); }
-.nav-counter input { width: 50px; text-align: center; border: 2px solid var(--pink-soft); border-radius: 10px; padding: 5px; font-weight: bold; }
-
-.modal-content img.main-photo { display: block; width: 100%; max-width: 300px; aspect-ratio: 1/1; border-radius: 25px; margin: 0 auto 15px; border: 6px solid var(--pink-soft); object-fit: cover; }
-
+/* МОБИЛЬНАЯ АДАПТАЦИЯ */
 @media (max-width: 768px) {
-    .columns { flex-direction: column; } .column { display: none; width: 100%; } .column.active { display: block; } .tabs { display: flex; }
-    .card img { width: 85px; height: 85px; } /* На мобилках фото еще крупнее */
+    .columns { flex-direction: column; align-items: center; } 
+    .column { display: none; width: 100%; min-width: auto; }
+    .column.active { display: block; } 
+    .tabs { display: flex; }
+
+    .card { padding: 12px; gap: 12px; }
+    .card img { 
+        width: 80px; height: 80px; /* Крупное фото на телефоне */
+    }
+    .card-info strong {
+        font-size: 1.1rem; /* Имя заметнее */
+    }
+
+    .modal-content img.main-photo { 
+        max-width: 280px; /* Крупное фото в деталях */
+    }
 }
+
+.modal-content hr { border: none; border-top: 2px dashed var(--pink-soft); margin: 20px 0; }
+.directions-list { padding-left: 20px; color: var(--magic-purple); font-weight: 600; list-style-type: "🌸 "; }
+
+/* КНОПКИ */
+.buttons { display: flex; gap: 10px; margin-top: 30px; }
+.buttons button { flex: 1; padding: 12px; border: none; border-radius: 15px; font-weight: 800; cursor: pointer; color: white; transition: 0.2s; font-size: 0.9rem; }
+.btn-stage { background: var(--pink-bright); }
+.btn-reject { background: #cbd5e1; color: #475569; }
+
+/* Статистика */
+.stats-container { margin-top:40px; background:white; padding:20px; border-radius:30px; border:4px solid var(--pink-soft); }
+#statsGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
 </style>
 </head>
 <body>
