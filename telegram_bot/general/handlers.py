@@ -5,6 +5,8 @@ from aiogram.enums import ChatType
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from typing import Optional
+from volunteers.auth_check import verify_volunteer_password
+from volunteers.project_creation import ProjectCreateSteps
 
 # ❗ ИМПОРТ КНОПКИ ИГРЫ КРОКОДИЛ
 try:
@@ -26,11 +28,16 @@ general_router = Router()
 class AIState(StatesGroup):
     waiting_for_question = State()
 
+class VolunteerAuthState(StatesGroup):
+    waiting_for_commands_pass = State()
+    waiting_for_project_pass = State()
+
 # ---------- КЛАВИАТУРЫ И ТЕКСТЫ ----------
 def club_keyboard() -> types.InlineKeyboardMarkup:
     buttons = [
         [types.InlineKeyboardButton(text="🌟 Оставить заявку стать волонтером", callback_data="volunteer_apply")],
         [types.InlineKeyboardButton(text="🧠 ИИ Ассистент Interact Club", callback_data="ai_assistant")],
+        [types.InlineKeyboardButton(text="🙋‍♂️ Для волонтера", callback_data="for_volunteer")], # Новая кнопка
     ]
     return types.InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -39,6 +46,57 @@ def stop_ai_keyboard() -> types.ReplyKeyboardMarkup:
         keyboard=[[types.KeyboardButton(text="❌ Закончить диалог")]],
         resize_keyboard=True
     )
+
+def volunteer_choice_kb():
+    return types.InlineKeyboardMarkup(inline_keyboard=[
+        [types.InlineKeyboardButton(text="📋 Команды", callback_data="vol_pass_commands")],
+        [types.InlineKeyboardButton(text="➕ Добавление проекта", callback_data="vol_pass_project")]
+    ])
+
+# 1. Хендлер на кнопку "Для волонтера"
+@general_router.callback_query(F.data == "for_volunteer")
+async def show_volunteer_menu(call: types.CallbackQuery):
+    await call.message.edit_text(
+        "🔐 <b>Доступ ограничен.</b>\nВыберите раздел и введите пароль:",
+        reply_markup=volunteer_choice_kb(),
+        parse_mode="HTML"
+    )
+
+# 2. Запрос пароля для Команд
+@general_router.callback_query(F.data == "vol_pass_commands")
+async def ask_pass_commands(call: types.CallbackQuery, state: FSMContext):
+    await state.set_state(VolunteerAuthState.waiting_for_commands_pass)
+    await call.message.answer("🔑 Введите пароль для доступа к <b>Командам</b>:", parse_mode="HTML")
+    await call.answer()
+
+# 3. Запрос пароля для Проектов
+@general_router.callback_query(F.data == "vol_pass_project")
+async def ask_pass_project(call: types.CallbackQuery, state: FSMContext):
+    await state.set_state(VolunteerAuthState.waiting_for_project_pass)
+    await call.message.answer("🔑 Введите пароль для <b>Добавления проекта</b>:", parse_mode="HTML")
+    await call.answer()
+
+# --- ПРОВЕРКА ВВЕДЕННОГО ТЕКСТА ---
+
+@general_router.message(VolunteerAuthState.waiting_for_commands_pass)
+async def check_commands_auth(message: types.Message, state: FSMContext):
+    is_valid = await verify_volunteer_password("commands", message.text)
+    if is_valid:
+        await state.clear()
+        await message.answer("✅ Доступ разрешен! Вот список команд волонтера: ...")
+    else:
+        await message.answer("❌ Неверный пароль. Попробуйте еще раз или введите /cancel")
+
+@general_router.message(VolunteerAuthState.waiting_for_project_pass)
+async def check_project_auth(message: types.Message, state: FSMContext):
+    is_valid = await verify_volunteer_password("add_project", message.text)
+    if is_valid:
+        await state.clear()
+        # ЗАПУСК ФОРМЫ СОЗДАНИЯ
+        await state.set_state(ProjectCreateSteps.waiting_name)
+        await message.answer("✅ Доступ разрешен!\n\n🏗 <b>Шаг 1/9:</b> Введите название проекта:", parse_mode="HTML")
+    else:
+        await message.answer("❌ Неверный пароль. Попробуйте снова:")
 
 def game_keyboard() -> types.InlineKeyboardMarkup:
     croc_button: types.InlineKeyboardButton = kb_play_croc().inline_keyboard[0][0]

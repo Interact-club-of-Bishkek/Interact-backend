@@ -2,6 +2,10 @@ from django.utils import timezone
 from rest_framework.generics import ListAPIView
 from .models import Project, YearResult
 from .serializers import ProjectSerializer, YearResultSerializer
+from django.shortcuts import render
+from rest_framework.generics import CreateAPIView
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.permissions import AllowAny
 
 class ProjectListView(ListAPIView):
     serializer_class = ProjectSerializer
@@ -36,7 +40,19 @@ class ProjectArchiveListView(ListAPIView):
 
         return queryset
 
+class ProjectCreateAPIView(CreateAPIView):
+    queryset = Project.objects.all()
+    serializer_class = ProjectSerializer
+    parser_classes = [MultiPartParser, FormParser]
+    permission_classes = [AllowAny]
 
 class YearResultListView(ListAPIView):
     queryset = YearResult.objects.all()
     serializer_class = YearResultSerializer
+
+
+def main_page(request):
+    return render(request, 'main_page/main.html')
+
+def custom_page_not_found(request, exception):
+    return render(request, 'error/404.html', status=404)

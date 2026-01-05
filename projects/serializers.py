@@ -3,18 +3,11 @@ from .models import Project, YearResult
 from directions.models import ProjectDirection
 from django.utils import timezone
 
-
-# ----------------------------------------------------------------------
-# ПЕРЕНОСИМ ProjectSerializer В НАЧАЛО, ЧТОБЫ DirectionSerializer МОГ НА НЕГО ССЫЛАТЬСЯ
-# А ДЛЯ ОБРАТНОЙ ССЫЛКИ ИСПОЛЬЗУЕМ СТРОКУ
-# ----------------------------------------------------------------------
-
-# ВАЖНО: Определяем ProjectSerializer первым, но убираем прямое использование DirectionSerializer
 class ProjectSerializer(serializers.ModelSerializer):
-    # ИСПРАВЛЕНО: Заменяем прямое использование DirectionSerializer на строковое имя
-    direction = serializers.SerializerMethodField() 
+    # Указываем направление только для чтения (для отображения на фронте/в боте)
+    direction_detail = serializers.SerializerMethodField() 
 
-    # Позволяет передавать direction_id при POST/PUT
+    # Позволяет передавать direction_id при POST (для записи)
     direction_id = serializers.PrimaryKeyRelatedField(
         queryset=ProjectDirection.objects.all(),
         source='direction',
@@ -23,33 +16,28 @@ class ProjectSerializer(serializers.ModelSerializer):
     )
 
     time_start = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S")
-    time_end = serializers.DateTimeField(format="%Y-%m-%d %H:%M:S")
-
-    # Только дата создания
+    time_end = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S") # Исправлено :S на :%S
     date = serializers.SerializerMethodField()
 
     class Meta:
         model = Project
         fields = (
-            'id', 'image', 'name', 'title', 'price',
+            'id', 'image', 'name', 'title', 'price', 'category',
             'time_start', 'time_end',
-            'direction', 'direction_id',
+            'direction_detail', 'direction_id',
             'phone_number', 'address',
             'date'
         )
-    ref_name = 'ProjectsProjectSerializer'
+        ref_name = 'ProjectsProjectSerializer'
 
     def get_date(self, obj):
-        if obj.created_at:
-            return obj.created_at.date()
-        return None
+        return obj.created_at.date() if obj.created_at else None
     
-    # НОВЫЙ МЕТОД: Для получения Direction, чтобы избежать рекурсии
-    def get_direction(self, obj):
-        # Используем DirectionSerializer здесь, когда он уже определен ниже
-        from . import serializers as current_serializers
-        return current_serializers.DirectionSerializer(obj.direction).data if obj.direction else None
-
+    def get_direction_detail(self, obj):
+        # Чтобы избежать рекурсии, просто возвращаем ID и имя направления
+        if obj.direction:
+            return {"id": obj.direction.id, "name": obj.direction.name}
+        return None
 
     def validate_phone_number(self, value):
         cleaned = value.replace('+', '').replace('-', '').replace(' ', '')
@@ -60,17 +48,12 @@ class ProjectSerializer(serializers.ModelSerializer):
     def validate(self, data):
         time_start = data.get('time_start')
         time_end = data.get('time_end')
-
         if time_start and time_end and time_start >= time_end:
             raise serializers.ValidationError({
                 "time_end": "Время окончания должно быть позже времени начала."
             })
-
         return data
 
-
-# Оставляем DirectionSerializer как есть, но он теперь ссылается на ProjectSerializer, 
-# который определен выше.
 class DirectionSerializer(serializers.ModelSerializer):
     projects = serializers.SerializerMethodField()
 
@@ -81,13 +64,9 @@ class DirectionSerializer(serializers.ModelSerializer):
 
     def get_projects(self, obj):
         now = timezone.now()
-        # Автоархивируем прямо здесь
-        Project.objects.filter(time_end__lt=now, is_archived=False).update(is_archived=True)
-        # Фильтруем только активные проекты
-        active_projects = obj.projects.filter(is_archived=False).order_only('time_start')
-        # ProjectSerializer уже определен
+        # ИСПРАВЛЕНО: order_only -> order_by
+        active_projects = obj.projects.filter(is_archived=False).order_by('time_start')
         return ProjectSerializer(active_projects, many=True).data
-
 
 class YearResultSerializer(serializers.ModelSerializer):
     class Meta:

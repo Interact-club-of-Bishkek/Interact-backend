@@ -9,12 +9,13 @@ from drf_yasg import openapi
 
 from users.views import (
     VolunteerViewSet, VolunteerLoginView, VolunteerProfileView,
-    VolunteerApplicationViewSet, VolunteerColumnsView, SendAcceptedVolunteersEmailsView, VolunteerBoardView
+    VolunteerApplicationViewSet, VolunteerColumnsView, SendAcceptedVolunteersEmailsView, VolunteerBoardView,
+    BotCheckAccessView
 )
 from directions.views import VolunteerDirectionViewSet, ProjectDirectionViewSet
-from projects.views import ProjectListView, YearResultListView, ProjectArchiveListView
+from projects.views import ProjectListView, YearResultListView, ProjectArchiveListView, ProjectCreateAPIView
 from teatre import views
-
+from projects.views import main_page
 # ------------------ Swagger ------------------
 schema_view = get_schema_view(
     openapi.Info(
@@ -39,7 +40,9 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
 
-    path('', include('logs.urls')),
+    path('', main_page, name='main'),
+
+    path('', include('logs.urls')), 
 
     # Auth
     path('api/login', VolunteerLoginView.as_view(), name='volunteer-login'),
@@ -54,6 +57,7 @@ urlpatterns = [
 
     # Projects
     path('api/projects', ProjectListView.as_view()),
+    path('api/projects/create', ProjectCreateAPIView.as_view(), name='project-create'),
     path('api/projects/archive', ProjectArchiveListView.as_view(), name='projects-archive'),
     path('api/year-result', YearResultListView.as_view()),
 
@@ -63,6 +67,7 @@ urlpatterns = [
     path('users/send-accepted-emails/', SendAcceptedVolunteersEmailsView.as_view(), name='send-accepted-emails'),
     path('volunteers-board/', VolunteerBoardView.as_view(), name='volunteers-board'),
 
+    path('bot-auth/', BotCheckAccessView.as_view(), name='bot_auth'),
 
     # ------------------ Swagger ------------------
     re_path(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),
@@ -71,3 +76,5 @@ urlpatterns = [
     
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT) \
   + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+handler404 = 'projects.views.custom_page_not_found'

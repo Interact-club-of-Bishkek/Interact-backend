@@ -202,3 +202,22 @@ class VolunteerArchive(models.Model):
     class Meta:
         verbose_name = "Архив волонтёра"
         verbose_name_plural = "Архив волонтёров"
+
+
+from django.db import models
+
+class BotAccessConfig(models.Model):
+    ROLE_CHOICES = [
+        ('volunteer', 'Волонтер (Только команды)'),
+        ('curator', 'Куратор (Полный доступ)'),
+    ]
+
+    role = models.CharField("Роль", max_length=20, choices=ROLE_CHOICES, unique=True)
+    password = models.CharField("Пароль доступа", max_length=128)
+
+    class Meta:
+        verbose_name = "Доступ бота"
+        verbose_name_plural = "Доступы бота"
+
+    def __str__(self):
+        return self.get_role_display()

@@ -95,3 +95,8 @@ class VolunteerColumnsSerializer(serializers.Serializer):
     submitted = VolunteerApplicationSerializer(many=True, read_only=True)
     interview = VolunteerApplicationSerializer(many=True, read_only=True)
     accepted = VolunteerApplicationSerializer(many=True, read_only=True)
+
+
+class BotAuthSerializer(serializers.Serializer):
+    access_type = serializers.ChoiceField(choices=['commands', 'add_project'])
+    password = serializers.CharField()

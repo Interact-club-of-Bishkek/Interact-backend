@@ -29,7 +29,8 @@ except ImportError as e:
 # --- Главные роутеры ---
 # Предполагаем, что эти модули существуют и находятся на нужном пути
 from general.handlers import general_router 
-from volunteers.telegram_handlers import application_router 
+from volunteers.telegram_handlers import application_router
+from volunteers.project_creation import router as project_creation_router
 
 # ---------- Загрузка конфига ----------
 load_dotenv()
@@ -56,6 +57,7 @@ async def main():
 
     # 3. Подключение роутеров (FSM ПЕРВЫМ)
     dp.include_router(application_router) # <-- FSM (анкеты)
+    dp.include_router(project_creation_router)
     dp.include_router(general_router) 
     
     # Подключаем игровые роутеры

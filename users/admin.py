@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from users.models import VolunteerApplication, Volunteer
+from users.models import VolunteerApplication, Volunteer, BotAccessConfig
 
 @admin.register(VolunteerApplication)
 class VolunteerApplicationAdmin(admin.ModelAdmin):
@@ -65,3 +65,22 @@ class VolunteerAdmin(admin.ModelAdmin):
     list_filter = ('is_staff', 'is_active', 'direction')
     search_fields = ('name', 'login', 'phone_number', 'email')
     readonly_fields = ('visible_password',)
+
+
+@admin.register(BotAccessConfig)
+class BotAccessConfigAdmin(admin.ModelAdmin):
+    # Поля, которые будут видны в списке
+    list_display = ('role', 'password')
+    
+    # Поля, которые можно редактировать прямо в списке
+    list_editable = ('password',)
+    
+    # Ограничение: запрещаем создавать более двух записей (куратор и волонтер)
+    def has_add_permission(self, request):
+        if BotAccessConfig.objects.count() >= 2:
+            return False
+        return True
+
+    # Запрещаем удалять записи, чтобы бот не "сломался"
+    def has_delete_permission(self, request, obj=None):
+        return False

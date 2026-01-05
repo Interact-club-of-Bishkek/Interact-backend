@@ -11,10 +11,10 @@ from django.conf import settings
 import random
 import string
 
-from .models import Volunteer, VolunteerApplication
+from .models import Volunteer, VolunteerApplication, BotAccessConfig
 from .serializers import (
     VolunteerSerializer, VolunteerLoginSerializer,
-    VolunteerApplicationSerializer, VolunteerApplicationStatusUpdateSerializer
+    VolunteerApplicationSerializer, VolunteerApplicationStatusUpdateSerializer, BotAuthSerializer
 )
 
 
@@ -225,5 +225,36 @@ class SendAcceptedVolunteersEmailsView(APIView):
         })
 
 
+class BotCheckAccessView(APIView):
+    """
+    Эндпоинт для проверки паролей из Telegram бота
+    """
+    permission_classes = [] # Доступ без токена, проверка идет по паролю
+
+    def post(self, request):
+        serializer = BotAuthSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        access_type = serializer.validated_data['access_type']
+        password = serializer.validated_data['password']
+
+        # Получаем пароли из БД
+        configs = {config.role: config.password for config in BotAccessConfig.objects.all()}
+        
+        curator_pass = configs.get('curator')
+        volunteer_pass = configs.get('volunteer')
+
+        # 1. Куратор всегда проходит
+        if password == curator_pass:
+            return Response({"status": "access_granted", "role": "curator"}, status=status.HTTP_200_OK)
+
+        # 2. Волонтер проходит только в раздел команд
+        if access_type == "commands" and password == volunteer_pass:
+            return Response({"status": "access_granted", "role": "volunteer"}, status=status.HTTP_200_OK)
+
+        return Response({"status": "access_denied"}, status=status.HTTP_403_FORBIDDEN)
+
 class VolunteerBoardView(TemplateView):
     template_name = "volunteers/columns.html"
+
+
