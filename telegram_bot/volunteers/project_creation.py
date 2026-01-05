@@ -13,7 +13,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 router = Router()
 
 # Конфигурация API
-DJANGO_API_BASE_URL = os.getenv("DJANGO_API_URL", "http://backend:8000/api/")
+DJANGO_API_BASE_URL = os.getenv("DJANGO_API_BASE_URL", "http://backend:8000/api/")
 # Важно: В Django в конце URL должен быть слеш /
 PROJECT_CREATE_ENDPOINT = f"{DJANGO_API_BASE_URL}projects/create"
 DIRECTIONS_API_URL = f"{DJANGO_API_BASE_URL}project-directions/"
