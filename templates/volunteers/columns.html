@@ -75,7 +75,14 @@ h1 {
     display: flex; align-items: center; gap: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);
 }
 .card:hover { transform: scale(1.02); box-shadow: 0 10px 20px rgba(255, 77, 109, 0.2); }
-.card img { width: 50px; height: 50px; border-radius: 50%; border: 3px solid var(--pink-soft); object-fit: cover; flex-shrink: 0; }
+.card img { 
+    width: 75px;        /* Было 50px */
+    height: 75px;       /* Было 50px */
+    border-radius: 18px; /* Сделаем углы чуть более квадратными, так фото крупнее визуально */
+    border: 3px solid var(--pink-soft); 
+    object-fit: cover; 
+    flex-shrink: 0; 
+}
 .card-info { overflow: hidden; }
 .card-info strong { color: #800020; display: block; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
 .card-info span { font-size: 0.85rem; }
@@ -135,9 +142,29 @@ h1 {
 }
 
 @media (max-width: 768px) {
+    .columns { flex-direction: column; align-items: center; } 
+    .column { display: none; width: 100%; min-width: auto; }
+    .column.active { display: block; } 
+    .tabs { display: flex; }
+    
+    /* Модалка (детальная страница) */
+    .modal-content { padding: 15px; width: 98%; }
     .modal-content img.main-photo { 
-        max-width: 280px; /* Чуть меньше для мобильных */
-        border-width: 5px;
+        width: 250px;  /* Увеличили с 150px */
+        height: 250px; /* Увеличили с 150px */
+    }
+
+    /* Карточки в списке на мобилках */
+    .card {
+        padding: 20px; /* Больше пространства внутри */
+        gap: 20px;
+    }
+    .card img {
+        width: 85px;  /* Ещё чуть крупнее на мобилках, чтобы удобно было тыкать */
+        height: 85px;
+    }
+    .card-info strong {
+        font-size: 1.1rem; /* Имя покрупнее */
     }
 }
 
