@@ -37,7 +37,7 @@ def get_current_time_aware():
 
 # --- КОНФИГУРАЦИЯ API И БОТА ---
 # Считаем, что сервис Django в docker-compose назван 'backend'
-DJANGO_API_BASE_URL = os.getenv("DJANGO_API_BASE_URL", "http://backend:8000/api/") 
+DJANGO_API_BASE_URL = os.getenv("DJANGO_API_URL", "http://backend:8000/api/") 
 APPLICATION_ENDPOINT = f"{DJANGO_API_BASE_URL}applications/"
 DIRECTIONS_ENDPOINT = f"{DJANGO_API_BASE_URL}volunteer-directions/"
 
