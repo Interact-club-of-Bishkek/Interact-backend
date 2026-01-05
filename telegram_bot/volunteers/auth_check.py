@@ -3,32 +3,30 @@ import os
 import asyncio
 import logging
 
-# URL вашего Django API: http://backend:8000/api/bot-auth/
+# Автоматически подтягиваем URL и исправляем его формат
 DJANGO_BASE_URL = os.getenv("DJANGO_API_BASE_URL", "http://backend:8000/api/")
-BOT_AUTH_URL = f"{DJANGO_BASE_URL}bot-auth/"
+# Гарантируем правильный адрес: убираем лишние слэши и добавляем нужный в конце
+BOT_AUTH_URL = f"{DJANGO_BASE_URL.rstrip('/')}/bot-auth/"
 
 async def verify_volunteer_password(access_type: str, entered_password: str) -> bool:
-    """
-    access_type: 'commands' или 'add_project'
-    """
     payload = {
         "access_type": access_type,
         "password": entered_password
     }
 
     try:
-        # Используем thread для синхронного requests в асинхронном окружении
+        # json=payload — это самый важный момент. 
+        # Он сам скажет серверу, что это данные для проверки пароля.
         response = await asyncio.to_thread(
             requests.post, 
             BOT_AUTH_URL, 
-            data=payload, 
+            json=payload, 
             timeout=5
         )
 
-        if response.status_code == 200:
-            return True
-        return False
+        # Если статус 200 — пароль подошел, всё остальное — отказ
+        return response.status_code == 200
 
     except Exception as e:
-        logging.error(f"Ошибка связи с API при проверке пароля: {e}")
+        logging.error(f"Ошибка связи: {e}")
         return False
