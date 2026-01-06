@@ -1,243 +1,310 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Interact Club Bishkek</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Interact Club Bishkek</title>
 
-<link rel="icon" type="image/png" href="https://i.ibb.co/qFYrFSnD/2105176-1-removebg-preview.png">
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;800;900&family=Inter:wght@400;600&display=swap" rel="stylesheet">
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <link rel="icon" type="image/png" href="https://i.ibb.co/qFYrFSnD/2105176-1-removebg-preview.png">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;800;900&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
 
-<style>
-:root {
-    --primary: #00c6ff;
-    --bg: #020408;
-    --glass: rgba(15,23,42,.75);
-    --border: rgba(255,255,255,.12);
-}
+    <style>
+    :root {
+        --primary: #00c6ff;
+        --bg: #020408;
+        --glass: rgba(15, 23, 42, 0.75);
+        --border: rgba(255, 255, 255, 0.12);
+    }
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
-body {
-    min-height: 100vh;
-    background: var(--bg);
-    font-family: 'Inter', sans-serif;
-    color: white;
-    display: grid;
-    place-items: center;
-    overflow: hidden;
-}
+    body {
+        min-height: 100dvh; 
+        background: var(--bg);
+        font-family: 'Inter', sans-serif;
+        color: white;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow-x: hidden;
+        padding: 20px 0;
+    }
 
-#particles-js {
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    background: radial-gradient(circle at center, #10192e 0%, #000 100%);
-}
+    #particles-js {
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        background: radial-gradient(circle at center, #10192e 0%, #000 100%);
+    }
 
-/* ================= CARD ================= */
-.glass-card {
-    position: relative;
-    width: 90%;
-    max-width: 600px;
-    padding: 25px 15px;
-    border-radius: 28px;
-    background: var(--glass);
-    backdrop-filter: blur(16px);
-    border: 1px solid var(--border);
-    text-align: center;
-    box-shadow: 0 0 70px rgba(0,198,255,.18);
-    transform-style: preserve-3d;
-    animation: breathe 6s ease-in-out infinite;
-}
+    /* ================= CARD ================= */
+    .glass-card {
+        position: relative;
+        width: 90%;
+        max-width: 600px;
+        padding: 40px 20px;
+        border-radius: 28px;
+        background: var(--glass);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid var(--border);
+        text-align: center;
+        box-shadow: 0 0 70px rgba(0, 198, 255, 0.15);
+        transform-style: preserve-3d;
+        overflow: hidden; /* Важно, чтобы блик не вылетал за границы */
+    }
 
-.glass-card::before {
-    content: "";
-    position: absolute;
-    inset: -2px;
-    border-radius: inherit;
-    background: linear-gradient(120deg, transparent 30%, rgba(0,198,255,.6), transparent 70%);
-    filter: blur(14px);
-    opacity: .4;
-    animation: glowMove 6s linear infinite;
-    pointer-events: none;
-}
+    /* ИСПРАВЛЕННЫЙ БЛИК НА КАРТОЧКЕ */
+    .glass-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -150%; /* Начинаем далеко слева */
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+            90deg, 
+            transparent, 
+            rgba(255, 255, 255, 0.1), 
+            rgba(0, 198, 255, 0.3), 
+            rgba(255, 255, 255, 0.1), 
+            transparent
+        );
+        transform: skewX(-25deg); /* Наклон блика для реалистичности */
+        animation: glowSweep 4s infinite linear; /* Бесконечная плавная анимация */
+        pointer-events: none;
+    }
 
-@keyframes glowMove { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+    @keyframes glowSweep {
+        0% { left: -150%; }
+        100% { left: 150%; }
+    }
 
-@keyframes breathe {
-    0%,100% { transform: scale(1); box-shadow: 0 0 70px rgba(0,198,255,.2); }
-    50%     { transform: scale(1.02); box-shadow: 0 0 110px rgba(0,198,255,.45); }
-}
+    /* ================= LOGO ================= */
+    .top-logo {
+        width: 130px;
+        max-width: 35%;
+        margin-bottom: 20px;
+        filter: drop-shadow(0 0 12px rgba(0, 198, 255, 0.5));
+        position: relative; 
+        z-index: 2;
+    }
 
-/* ================= LOGO ================= */
-.top-logo {
-    width: 130px;
-    margin-bottom: 15px;
-    filter: drop-shadow(0 0 12px rgba(0,198,255,.5));
-}
+    /* ================= TITLES ================= */
+    h1 { font-family: 'Montserrat', sans-serif; text-transform: uppercase; line-height: 1.1; position: relative; z-index: 2;}
 
-/* ================= TITLES ================= */
-h1 { font-family: 'Montserrat', sans-serif; text-transform: uppercase; }
+    /* ИСПРАВЛЕННЫЙ ПЕРЕЛИВ ТЕКСТА */
+    .main-title {
+        display: block;
+        font-size: clamp(2.2rem, 8vw, 4rem);
+        font-weight: 900;
+        /* Более мягкий градиент */
+        background: linear-gradient(
+            90deg, 
+            #ffffff 0%, 
+            #ffffff 20%, 
+            var(--primary) 50%, 
+            #ffffff 80%, 
+            #ffffff 100%
+        );
+        background-size: 200% auto;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: shine 4s linear infinite; /* Чуть медленнее для солидности */
+        margin-bottom: 10px;
+    }
 
-.main-title {
-    display: block;
-    font-size: clamp(2rem, 6vw, 4rem);
-    background: linear-gradient(90deg, #fff, var(--primary), #fff);
-    background-size: 200% auto;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    animation: shine 3s linear infinite;
-}
+    @keyframes shine { 
+        0% { background-position: -200% center; }
+        100% { background-position: 200% center; }
+    }
 
-@keyframes shine { to { background-position: 200% center; } }
+    .sub-title {
+        display: block;
+        letter-spacing: 2px;
+        font-size: clamp(0.8rem, 3vw, 1.3rem);
+        color: #fff;
+        text-shadow: 0 0 14px rgba(0, 198, 255, 0.35);
+        position: relative; z-index: 2;
+    }
 
-.sub-title {
-    display: block;
-    margin-top: 6px;
-    letter-spacing: 2px;
-    font-size: clamp(0.9rem, 2vw, 1.3rem);
-    text-shadow: 0 0 14px rgba(0,198,255,.35);
-}
+    /* ================= TEXT ================= */
+    .description {
+        margin: 25px auto 35px;
+        max-width: 90%;
+        color: #a8b8d0;
+        line-height: 1.6;
+        font-size: clamp(0.9rem, 2.5vw, 1.1rem);
+        position: relative; z-index: 2;
+    }
 
-/* ================= TEXT ================= */
-.description {
-    margin: 20px auto 30px;
-    max-width: 450px;
-    color: #a8b8d0;
-    line-height: 1.5;
-}
+    /* ================= STATS ================= */
+    .stats-grid {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        margin-bottom: 40px;
+        flex-wrap: wrap;
+        position: relative; z-index: 2;
+    }
 
-/* ================= STATS ================= */
-.stats-grid {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 30px;
-    flex-wrap: wrap;
-}
+    .stat-item {
+        flex: 1;
+        min-width: 100px;
+        padding: 15px 10px;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        transition: 0.3s;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
 
-.stat-item {
-    flex: 1;
-    min-width: 100px;
-    padding: 16px 10px;
-    border-radius: 14px;
-    background: rgba(255,255,255,.03);
-    border: 1px solid rgba(255,255,255,.05);
-    transition: .3s;
-}
+    .stat-item:hover {
+        transform: translateY(-4px);
+        border-color: var(--primary);
+        box-shadow: 0 0 20px rgba(0, 198, 255, 0.3);
+    }
 
-.stat-item:hover {
-    transform: translateY(-4px);
-    border-color: var(--primary);
-    box-shadow: 0 0 20px rgba(0,198,255,.3);
-}
+    .stat-infinity {
+        font-size: 2.5rem;
+        line-height: 1;
+        text-shadow: 0 0 14px var(--primary);
+        margin-bottom: 5px;
+    }
 
-.stat-infinity { font-size: 2.8rem; text-shadow: 0 0 14px var(--primary); }
-.stat-label { font-size: .65rem; letter-spacing: 1px; color: var(--primary); font-weight: 700; }
+    .stat-label {
+        font-size: 0.7rem;
+        letter-spacing: 1px;
+        color: var(--primary);
+        font-weight: 700;
+        text-transform: uppercase;
+    }
 
-/* ================= BUTTON ================= */
-.neon-btn {
-    padding: 14px 40px;
-    border-radius: 50px;
-    background: transparent;
-    border: 2px solid var(--primary);
-    color: var(--primary);
-    font-weight: 800;
-    letter-spacing: 2px;
-    cursor: pointer;
-    position: relative;
-    overflow: hidden;
-    transition: .3s;
-}
+    /* ================= BUTTON ================= */
+    .neon-btn {
+        padding: 16px 50px;
+        border-radius: 50px;
+        background: transparent;
+        border: 2px solid var(--primary);
+        color: var(--primary);
+        font-weight: 800;
+        font-size: 1rem;
+        letter-spacing: 2px;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+        transition: 0.3s;
+        text-transform: uppercase;
+        -webkit-tap-highlight-color: transparent;
+        z-index: 2;
+    }
 
-.neon-btn::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: var(--primary);
-    transform: scaleX(0);
-    transform-origin: left;
-    transition: .3s;
-    z-index: -1;
-}
+    .neon-btn::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: var(--primary);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: 0.3s;
+        z-index: -1;
+    }
 
-.neon-btn:hover {
-    color: #000;
-    transform: scale(1.03);
-    box-shadow: 0 0 35px rgba(0,198,255,.6);
-}
+    .neon-btn:hover, .neon-btn:active {
+        color: #000;
+        box-shadow: 0 0 35px rgba(0, 198, 255, 0.6);
+    }
 
-.neon-btn:hover::before { transform: scaleX(1); }
+    .neon-btn:active::before { transform: scaleX(1); }
+    .neon-btn:hover::before { transform: scaleX(1); }
 
-/* ================= MODAL ================= */
-.modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,.7);
-    backdrop-filter: blur(8px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    visibility: hidden;
-    transition: .3s;
-}
+    /* ================= MODAL ================= */
+    .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        visibility: hidden;
+        transition: 0.3s;
+        z-index: 1000;
+        padding: 20px;
+    }
 
-.modal-overlay.active { opacity: 1; visibility: visible; }
+    .modal-overlay.active { opacity: 1; visibility: visible; }
 
-.modal-content {
-    background: #0f172a;
-    padding: 30px;
-    border-radius: 18px;
-    border: 1px solid var(--primary);
-    text-align: center;
-}
+    .modal-content {
+        background: #0f172a;
+        padding: 40px 30px;
+        border-radius: 24px;
+        border: 1px solid var(--primary);
+        text-align: center;
+        width: 100%;
+        max-width: 350px;
+        box-shadow: 0 0 50px rgba(0,198,255,0.2);
+    }
 
-.social-row {
-    display: flex;
-    gap: 15px;
-    margin-top: 18px;
-}
+    .modal-content h2 {
+        font-family: 'Montserrat', sans-serif;
+        margin-bottom: 20px;
+    }
 
-.social-item {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    background: rgba(255,255,255,.07);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    transition: .3s;
-}
+    .social-row {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+    }
 
-.social-item:hover {
-    background: var(--primary);
-    color: #000;
-    transform: translateY(-4px);
-}
+    .social-item {
+        width: 55px;
+        height: 55px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.07);
+        border: 1px solid rgba(255,255,255,0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+        transition: 0.3s;
+        text-decoration: none;
+    }
 
-/* ================= MEDIA ================= */
-@media (max-width: 768px) {
-    .glass-card { max-width: 420px; padding: 25px 15px; }
-    .top-logo { width: 100px; }
-    .main-title { font-size: clamp(1.6rem, 5.5vw, 3rem); }
-    .sub-title { font-size: clamp(0.75rem, 2.3vw, 1.1rem); }
-    .description { max-width: 380px; font-size: 0.95rem; }
-    .stat-infinity { font-size: 2.4rem; }
-    .neon-btn { padding: 12px 35px; font-size: 0.85rem; }
-}
+    .social-item:hover {
+        background: var(--primary);
+        color: #000;
+        transform: translateY(-4px);
+    }
 
-@media (max-width: 480px) {
-    .glass-card { max-width: 320px; padding: 20px 12px; }
-    .top-logo { width: 80px; }
-    .main-title { font-size: clamp(1.4rem, 5vw, 2.5rem); }
-    .sub-title { font-size: clamp(0.65rem, 2.2vw, 0.95rem); }
-    .description { max-width: 280px; font-size: 0.85rem; }
-    .stat-infinity { font-size: 2rem; }
-    .neon-btn { padding: 10px 30px; font-size: 0.8rem; }
-}
+    /* ================= MEDIA QUERIES ================= */
+    @media (max-width: 768px) {
+        .glass-card { padding: 30px 20px; }
+        .neon-btn { width: 100%; max-width: 300px; }
+    }
+
+    @media (max-width: 480px) {
+        .main-title { font-size: 2.5rem; }
+        .sub-title { font-size: 0.8rem; letter-spacing: 1px; }
+        .stats-grid { gap: 10px; }
+        .stat-item { min-width: 80px; padding: 10px 5px; }
+        .stat-infinity { font-size: 2rem; }
+        .stat-label { font-size: 0.6rem; }
+        .modal-content { padding: 30px 20px; }
+    }
+
+    @media (max-width: 360px) {
+        .main-title { font-size: 2rem; }
+        .stats-grid { flex-direction: column; }
+        .stat-item { width: 100%; flex-direction: row; justify-content: center; gap: 15px; }
+        .stat-infinity { font-size: 1.5rem; margin-bottom: 0; }
+    }
 </style>
 </head>
 
@@ -246,7 +313,7 @@ h1 { font-family: 'Montserrat', sans-serif; text-transform: uppercase; }
 <div id="particles-js"></div>
 
 <div class="glass-card" id="tilt">
-    <img class="top-logo" src="https://i.ibb.co/FbMdgjML/image-removebg-preview.png">
+    <img class="top-logo" src="https://i.ibb.co/FbMdgjML/image-removebg-preview.png" alt="Logo">
 
     <h1>
         <span class="main-title">COMING SOON</span>
@@ -259,9 +326,18 @@ h1 { font-family: 'Montserrat', sans-serif; text-transform: uppercase; }
     </p>
 
     <div class="stats-grid">
-        <div class="stat-item"><div class="stat-infinity">∞</div><div class="stat-label">Проекты</div></div>
-        <div class="stat-item"><div class="stat-infinity">∞</div><div class="stat-label">Люди</div></div>
-        <div class="stat-item"><div class="stat-infinity">∞</div><div class="stat-label">Идеи</div></div>
+        <div class="stat-item">
+            <div class="stat-infinity">&infin;</div>
+            <div class="stat-label">Проекты</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-infinity">&infin;</div>
+            <div class="stat-label">Люди</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-infinity">&infin;</div>
+            <div class="stat-label">Идеи</div>
+        </div>
     </div>
 
     <button class="neon-btn" id="openModal">Присоединиться</button>
@@ -280,29 +356,39 @@ h1 { font-family: 'Montserrat', sans-serif; text-transform: uppercase; }
 
 <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
 <script>
-// Particles
+// Particles (Уменьшаем количество частиц на мобилках для производительности)
+const isMobile = window.innerWidth < 768;
+
 particlesJS("particles-js", {
     particles: {
-        number: { value: 60 },
+        number: { value: isMobile ? 30 : 60 },
         color: { value: "#00c6ff" },
         size: { value: 3, random: true },
         line_linked: { enable: true, opacity: .2 },
         move: { enable: true, speed: 2 }
+    },
+    interactivity: {
+        detect_on: "canvas",
+        events: { onhover: { enable: !isMobile, mode: "grab" } } // Отключаем hover на мобилках
     }
 });
 
-// 3D TILT
+// 3D TILT (Отключаем на мобилках, чтобы не глючило при скролле)
 const card = document.getElementById("tilt");
-document.addEventListener("mousemove", e => {
-    const x = (window.innerWidth/2 - e.clientX)/25;
-    const y = (window.innerHeight/2 - e.clientY)/25;
-    card.style.transform = `rotateY(${x}deg) rotateX(${y}deg)`;
-});
+if (!isMobile) {
+    document.addEventListener("mousemove", e => {
+        const x = (window.innerWidth/2 - e.clientX)/25;
+        const y = (window.innerHeight/2 - e.clientY)/25;
+        card.style.transform = `rotateY(${x}deg) rotateX(${y}deg)`;
+    });
+}
 
 // MODAL
 const modal = document.getElementById("modal");
 document.getElementById("openModal").onclick = () => modal.classList.add("active");
-modal.onclick = e => e.target === modal && modal.classList.remove("active");
+modal.onclick = e => {
+    if(e.target === modal) modal.classList.remove("active");
+}
 </script>
 
 </body>
