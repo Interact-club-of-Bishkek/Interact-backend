@@ -1,208 +1,308 @@
-{% load static %}
 <!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Interact Club </title>
+<title>Interact Club Bishkek</title>
 
-<link rel="icon" type="image/png" href="{% static 'image/logo.png' %}">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="https://i.ibb.co/qFYrFSnD/2105176-1-removebg-preview.png">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;800;900&family=Inter:wght@400;600&display=swap" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
 
 <style>
 :root {
-  --bg-dark: #070b14;
-  --blue: #0055ff;
-  --blue-light: #00d2ff;
-  --white: #ffffff;
-  --gray: rgba(255,255,255,0.6);
+    --primary: #00c6ff;
+    --bg: #020408;
+    --glass: rgba(15,23,42,.75);
+    --border: rgba(255,255,255,.12);
 }
 
-*{margin:0;padding:0;box-sizing:border-box;}
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
-html, body {
-  width: 100%;
-  height: 100%;
-  font-family: 'Inter', sans-serif;
-  background: 
-    linear-gradient(rgba(7, 11, 20, 0.94), rgba(7, 11, 20, 0.94)), 
-    url("{% static 'image/interact_logo.png' %}"); 
-  background-color: var(--bg-dark);
-  background-size: 65%; 
-  background-position: center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
-  color: var(--white);
-  overflow: hidden;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+body {
+    min-height: 100vh;
+    background: var(--bg);
+    font-family: 'Inter', sans-serif;
+    color: white;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
 }
 
-.wrapper {
-  text-align: center;
-  padding: 20px;
-  max-width: 800px;
-  z-index: 10;
+#particles-js {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: radial-gradient(circle at center, #10192e 0%, #000 100%);
 }
 
-h1 {
-  font-size: clamp(2.2rem, 6vw, 4rem);
-  font-weight: 800;
-  margin-bottom: 12px;
-  letter-spacing: -1.5px;
+/* ================= CARD ================= */
+.glass-card {
+    position: relative;
+    width: 90%;
+    max-width: 600px;
+    padding: 25px 15px;
+    border-radius: 28px;
+    background: var(--glass);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--border);
+    text-align: center;
+    box-shadow: 0 0 70px rgba(0,198,255,.18);
+    transform-style: preserve-3d;
+    animation: breathe 6s ease-in-out infinite;
 }
 
-h1 span {
-  display: block;
-  background: linear-gradient(to right, var(--blue) 20%, #fff 45%, #fff 55%, var(--blue) 80%);
-  background-size: 200% auto;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: textShine 5s linear infinite;
+.glass-card::before {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border-radius: inherit;
+    background: linear-gradient(120deg, transparent 30%, rgba(0,198,255,.6), transparent 70%);
+    filter: blur(14px);
+    opacity: .4;
+    animation: glowMove 6s linear infinite;
+    pointer-events: none;
 }
 
-@keyframes textShine { to { background-position: 200% center; } }
+@keyframes glowMove { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
 
-.subtitle {
-  font-size: 1.05rem;
-  color: var(--gray);
-  max-width: 480px;
-  margin: 0 auto 45px;
-  line-height: 1.5;
+@keyframes breathe {
+    0%,100% { transform: scale(1); box-shadow: 0 0 70px rgba(0,198,255,.2); }
+    50%     { transform: scale(1.02); box-shadow: 0 0 110px rgba(0,198,255,.45); }
 }
 
-/* Лаконичный блок с инфо */
-.stats {
-  display: flex;
-  justify-content: center;
-  gap: 40px;
-  margin-bottom: 50px;
+/* ================= LOGO ================= */
+.top-logo {
+    width: 130px;
+    margin-bottom: 15px;
+    filter: drop-shadow(0 0 12px rgba(0,198,255,.5));
 }
 
-.info-item .value { 
-  font-size: 2.2rem; 
-  font-weight: 700; 
-  display: block;
-  color: #fff;
+/* ================= TITLES ================= */
+h1 { font-family: 'Montserrat', sans-serif; text-transform: uppercase; }
+
+.main-title {
+    display: block;
+    font-size: clamp(2rem, 6vw, 4rem);
+    background: linear-gradient(90deg, #fff, var(--primary), #fff);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shine 3s linear infinite;
 }
 
-.info-item .label {
-  font-size: 0.65rem;
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
-  color: var(--blue-light);
-  font-weight: 600;
+@keyframes shine { to { background-position: 200% center; } }
+
+.sub-title {
+    display: block;
+    margin-top: 6px;
+    letter-spacing: 2px;
+    font-size: clamp(0.9rem, 2vw, 1.3rem);
+    text-shadow: 0 0 14px rgba(0,198,255,.35);
 }
 
-/* Кнопка с мягким свечением */
-.btn {
-  padding: 16px 40px;
-  border-radius: 100px;
-  border: none;
-  background: var(--blue);
-  color: #fff;
-  font-weight: 700;
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  cursor: pointer;
-  transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 0 15px rgba(0, 85, 255, 0.4);
+/* ================= TEXT ================= */
+.description {
+    margin: 20px auto 30px;
+    max-width: 450px;
+    color: #a8b8d0;
+    line-height: 1.5;
 }
 
-.btn:hover {
-  background: var(--blue-light);
-  transform: translateY(-2px);
-  box-shadow: 0 0 25px rgba(0, 210, 255, 0.5);
+/* ================= STATS ================= */
+.stats-grid {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
 }
 
-/* Модалка */
-.modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(10px);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  opacity: 0;
-  pointer-events: none;
-  transition: 0.4s;
-  z-index: 100;
+.stat-item {
+    flex: 1;
+    min-width: 100px;
+    padding: 16px 10px;
+    border-radius: 14px;
+    background: rgba(255,255,255,.03);
+    border: 1px solid rgba(255,255,255,.05);
+    transition: .3s;
 }
 
-.modal.active { opacity: 1; pointer-events: auto; }
-
-.modal-box {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 40px;
-  border-radius: 24px;
-  text-align: center;
+.stat-item:hover {
+    transform: translateY(-4px);
+    border-color: var(--primary);
+    box-shadow: 0 0 20px rgba(0,198,255,.3);
 }
 
-.socials { display: flex; gap: 15px; justify-content: center; margin-top: 20px; }
-.socials a {
-  width: 50px; height: 50px; border-radius: 50%;
-  background: rgba(255, 255, 255, 0.07);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 1.2rem; color: #fff; transition: 0.3s;
-}
-.socials a:hover { background: var(--blue); transform: scale(1.1); }
+.stat-infinity { font-size: 2.8rem; text-shadow: 0 0 14px var(--primary); }
+.stat-label { font-size: .65rem; letter-spacing: 1px; color: var(--primary); font-weight: 700; }
 
-@media (max-width: 500px) {
-  .stats { gap: 20px; }
+/* ================= BUTTON ================= */
+.neon-btn {
+    padding: 14px 40px;
+    border-radius: 50px;
+    background: transparent;
+    border: 2px solid var(--primary);
+    color: var(--primary);
+    font-weight: 800;
+    letter-spacing: 2px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: .3s;
+}
+
+.neon-btn::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--primary);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: .3s;
+    z-index: -1;
+}
+
+.neon-btn:hover {
+    color: #000;
+    transform: scale(1.03);
+    box-shadow: 0 0 35px rgba(0,198,255,.6);
+}
+
+.neon-btn:hover::before { transform: scaleX(1); }
+
+/* ================= MODAL ================= */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.7);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: .3s;
+}
+
+.modal-overlay.active { opacity: 1; visibility: visible; }
+
+.modal-content {
+    background: #0f172a;
+    padding: 30px;
+    border-radius: 18px;
+    border: 1px solid var(--primary);
+    text-align: center;
+}
+
+.social-row {
+    display: flex;
+    gap: 15px;
+    margin-top: 18px;
+}
+
+.social-item {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.07);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    transition: .3s;
+}
+
+.social-item:hover {
+    background: var(--primary);
+    color: #000;
+    transform: translateY(-4px);
+}
+
+/* ================= MEDIA ================= */
+@media (max-width: 768px) {
+    .glass-card { max-width: 420px; padding: 25px 15px; }
+    .top-logo { width: 100px; }
+    .main-title { font-size: clamp(1.6rem, 5.5vw, 3rem); }
+    .sub-title { font-size: clamp(0.75rem, 2.3vw, 1.1rem); }
+    .description { max-width: 380px; font-size: 0.95rem; }
+    .stat-infinity { font-size: 2.4rem; }
+    .neon-btn { padding: 12px 35px; font-size: 0.85rem; }
+}
+
+@media (max-width: 480px) {
+    .glass-card { max-width: 320px; padding: 20px 12px; }
+    .top-logo { width: 80px; }
+    .main-title { font-size: clamp(1.4rem, 5vw, 2.5rem); }
+    .sub-title { font-size: clamp(0.65rem, 2.2vw, 0.95rem); }
+    .description { max-width: 280px; font-size: 0.85rem; }
+    .stat-infinity { font-size: 2rem; }
+    .neon-btn { padding: 10px 30px; font-size: 0.8rem; }
 }
 </style>
 </head>
 
 <body>
 
-<div class="wrapper">
-  <h1>INTERACT OF BISHKEK <span>COMING SOON</span></h1>
+<div id="particles-js"></div>
 
-  <p class="subtitle">
-    Международный клуб активной молодёжи.<br>Проекты, развитие и вклад в общество.
-  </p>
+<div class="glass-card" id="tilt">
+    <img class="top-logo" src="https://i.ibb.co/FbMdgjML/image-removebg-preview.png">
 
-  <div class="stats">
-    <div class="info-item">
-      <span class="value">∞</span>
-      <span class="label">Потенциал</span>
-    </div>
-    <div class="info-item">
-      <span class="value">∞</span>
-      <span class="label">Проекты</span>
-    </div>
-    <div class="info-item">
-      <span class="value">∞</span>
-      <span class="label">Возможности</span>
-    </div>
-  </div>
+    <h1>
+        <span class="main-title">COMING SOON</span>
+        <span class="sub-title">INTERACT CLUB OF BISHKEK</span>
+    </h1>
 
-  <div class="cta">
-    <button class="btn" id="openModal">Наши соцсети</button>
-  </div>
+    <p class="description">
+        Международный клуб активной молодежи.<br>
+        Лидерство • Служение • Дружба
+    </p>
+
+    <div class="stats-grid">
+        <div class="stat-item"><div class="stat-infinity">∞</div><div class="stat-label">Проекты</div></div>
+        <div class="stat-item"><div class="stat-infinity">∞</div><div class="stat-label">Люди</div></div>
+        <div class="stat-item"><div class="stat-infinity">∞</div><div class="stat-label">Идеи</div></div>
+    </div>
+
+    <button class="neon-btn" id="openModal">Присоединиться</button>
 </div>
 
-<div class="modal" id="modal">
-  <div class="modal-box">
-    <h2 style="margin-bottom: 5px; font-weight: 700; font-size: 1.2rem;">Следите за нами</h2>
-    <div class="socials">
-      <a href="https://t.me/interact_club_kg_bot"><i class="fab fa-telegram"></i></a>
-      <a href="https://www.instagram.com/interactbishkek"><i class="fab fa-instagram"></i></a>
-      <a href="https://www.tiktok.com/@interactbishkek"><i class="fab fa-tiktok"></i></a>
+<div class="modal-overlay" id="modal">
+    <div class="modal-content">
+        <h2>Мы в соцсетях</h2>
+        <div class="social-row">
+            <a class="social-item" href="https://t.me/interact_club_kg_bot"><i class="fab fa-telegram-plane"></i></a>
+            <a class="social-item" href="https://instagram.com/interactbishkek"><i class="fab fa-instagram"></i></a>
+            <a class="social-item" href="https://tiktok.com/@interactbishkek"><i class="fab fa-tiktok"></i></a>
+        </div>
     </div>
-  </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
 <script>
-const modal = document.getElementById('modal');
-const openBtn = document.getElementById('openModal');
-openBtn.onclick = () => modal.classList.add('active');
-modal.onclick = (e) => { if (e.target === modal) modal.classList.remove('active'); };
+// Particles
+particlesJS("particles-js", {
+    particles: {
+        number: { value: 60 },
+        color: { value: "#00c6ff" },
+        size: { value: 3, random: true },
+        line_linked: { enable: true, opacity: .2 },
+        move: { enable: true, speed: 2 }
+    }
+});
+
+// 3D TILT
+const card = document.getElementById("tilt");
+document.addEventListener("mousemove", e => {
+    const x = (window.innerWidth/2 - e.clientX)/25;
+    const y = (window.innerHeight/2 - e.clientY)/25;
+    card.style.transform = `rotateY(${x}deg) rotateX(${y}deg)`;
+});
+
+// MODAL
+const modal = document.getElementById("modal");
+document.getElementById("openModal").onclick = () => modal.classList.add("active");
+modal.onclick = e => e.target === modal && modal.classList.remove("active");
 </script>
 
 </body>
