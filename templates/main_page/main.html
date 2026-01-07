@@ -52,15 +52,14 @@
         text-align: center;
         box-shadow: 0 0 70px rgba(0, 198, 255, 0.15);
         transform-style: preserve-3d;
-        overflow: hidden; /* Важно, чтобы блик не вылетал за границы */
+        overflow: hidden;
     }
 
-    /* ИСПРАВЛЕННЫЙ БЛИК НА КАРТОЧКЕ */
     .glass-card::before {
         content: "";
         position: absolute;
         top: 0;
-        left: -150%; /* Начинаем далеко слева */
+        left: -150%;
         width: 100%;
         height: 100%;
         background: linear-gradient(
@@ -71,8 +70,8 @@
             rgba(255, 255, 255, 0.1), 
             transparent
         );
-        transform: skewX(-25deg); /* Наклон блика для реалистичности */
-        animation: glowSweep 4s infinite linear; /* Бесконечная плавная анимация */
+        transform: skewX(-25deg);
+        animation: glowSweep 4s infinite linear;
         pointer-events: none;
     }
 
@@ -81,7 +80,6 @@
         100% { left: 150%; }
     }
 
-    /* ================= LOGO ================= */
     .top-logo {
         width: 130px;
         max-width: 35%;
@@ -91,27 +89,17 @@
         z-index: 2;
     }
 
-    /* ================= TITLES ================= */
     h1 { font-family: 'Montserrat', sans-serif; text-transform: uppercase; line-height: 1.1; position: relative; z-index: 2;}
 
-    /* ИСПРАВЛЕННЫЙ ПЕРЕЛИВ ТЕКСТА */
     .main-title {
         display: block;
         font-size: clamp(2.2rem, 8vw, 4rem);
         font-weight: 900;
-        /* Более мягкий градиент */
-        background: linear-gradient(
-            90deg, 
-            #ffffff 0%, 
-            #ffffff 20%, 
-            var(--primary) 50%, 
-            #ffffff 80%, 
-            #ffffff 100%
-        );
+        background: linear-gradient(90deg, #ffffff 0%, #ffffff 20%, var(--primary) 50%, #ffffff 80%, #ffffff 100%);
         background-size: 200% auto;
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        animation: shine 4s linear infinite; /* Чуть медленнее для солидности */
+        animation: shine 4s linear infinite;
         margin-bottom: 10px;
     }
 
@@ -129,14 +117,63 @@
         position: relative; z-index: 2;
     }
 
-    /* ================= TEXT ================= */
     .description {
-        margin: 25px auto 35px;
+        margin: 25px auto 25px;
         max-width: 90%;
         color: #a8b8d0;
         line-height: 1.6;
         font-size: clamp(0.9rem, 2.5vw, 1.1rem);
         position: relative; z-index: 2;
+    }
+
+    /* ================= TIMER STYLES ================= */
+    .countdown-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 35px;
+        position: relative;
+        z-index: 2;
+    }
+
+    .timer-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-width: 65px;
+    }
+
+    .timer-box span {
+        font-family: 'Montserrat', sans-serif;
+        font-size: clamp(1.5rem, 4.5vw, 2.4rem);
+        font-weight: 800;
+        color: #fff;
+        text-shadow: 0 0 15px rgba(0, 198, 255, 0.6);
+        line-height: 1;
+    }
+
+    .timer-box label {
+        font-size: 0.65rem;
+        text-transform: uppercase;
+        color: var(--primary);
+        letter-spacing: 1px;
+        margin-top: 8px;
+        font-weight: 600;
+        opacity: 0.8;
+    }
+
+    .timer-divider {
+        font-size: 1.8rem;
+        color: var(--primary);
+        font-weight: 800;
+        padding-bottom: 22px;
+        animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.3; }
     }
 
     /* ================= STATS ================= */
@@ -218,8 +255,7 @@
         box-shadow: 0 0 35px rgba(0, 198, 255, 0.6);
     }
 
-    .neon-btn:active::before { transform: scaleX(1); }
-    .neon-btn:hover::before { transform: scaleX(1); }
+    .neon-btn:hover::before, .neon-btn:active::before { transform: scaleX(1); }
 
     /* ================= MODAL ================= */
     .modal-overlay {
@@ -251,16 +287,9 @@
         box-shadow: 0 0 50px rgba(0,198,255,0.2);
     }
 
-    .modal-content h2 {
-        font-family: 'Montserrat', sans-serif;
-        margin-bottom: 20px;
-    }
+    .modal-content h2 { font-family: 'Montserrat', sans-serif; margin-bottom: 20px; }
 
-    .social-row {
-        display: flex;
-        justify-content: center;
-        gap: 20px;
-    }
+    .social-row { display: flex; justify-content: center; gap: 20px; }
 
     .social-item {
         width: 55px;
@@ -277,11 +306,7 @@
         text-decoration: none;
     }
 
-    .social-item:hover {
-        background: var(--primary);
-        color: #000;
-        transform: translateY(-4px);
-    }
+    .social-item:hover { background: var(--primary); color: #000; transform: translateY(-4px); }
 
     /* ================= MEDIA QUERIES ================= */
     @media (max-width: 768px) {
@@ -295,15 +320,8 @@
         .stats-grid { gap: 10px; }
         .stat-item { min-width: 80px; padding: 10px 5px; }
         .stat-infinity { font-size: 2rem; }
-        .stat-label { font-size: 0.6rem; }
-        .modal-content { padding: 30px 20px; }
-    }
-
-    @media (max-width: 360px) {
-        .main-title { font-size: 2rem; }
-        .stats-grid { flex-direction: column; }
-        .stat-item { width: 100%; flex-direction: row; justify-content: center; gap: 15px; }
-        .stat-infinity { font-size: 1.5rem; margin-bottom: 0; }
+        .countdown-container { gap: 5px; }
+        .timer-box { min-width: 50px; }
     }
 </style>
 </head>
@@ -324,6 +342,28 @@
         Международный клуб активной молодежи.<br>
         Лидерство • Служение • Дружба
     </p>
+
+    <div class="countdown-container">
+        <div class="timer-box">
+            <span id="days">00</span>
+            <label>дней</label>
+        </div>
+        <div class="timer-divider">:</div>
+        <div class="timer-box">
+            <span id="hours">00</span>
+            <label>часов</label>
+        </div>
+        <div class="timer-divider">:</div>
+        <div class="timer-box">
+            <span id="minutes">00</span>
+            <label>мин</label>
+        </div>
+        <div class="timer-divider">:</div>
+        <div class="timer-box">
+            <span id="seconds">00</span>
+            <label>сек</label>
+        </div>
+    </div>
 
     <div class="stats-grid">
         <div class="stat-item">
@@ -356,9 +396,8 @@
 
 <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
 <script>
-// Particles (Уменьшаем количество частиц на мобилках для производительности)
+// Particles
 const isMobile = window.innerWidth < 768;
-
 particlesJS("particles-js", {
     particles: {
         number: { value: isMobile ? 30 : 60 },
@@ -369,11 +408,11 @@ particlesJS("particles-js", {
     },
     interactivity: {
         detect_on: "canvas",
-        events: { onhover: { enable: !isMobile, mode: "grab" } } // Отключаем hover на мобилках
+        events: { onhover: { enable: !isMobile, mode: "grab" } }
     }
 });
 
-// 3D TILT (Отключаем на мобилках, чтобы не глючило при скролле)
+// 3D TILT
 const card = document.getElementById("tilt");
 if (!isMobile) {
     document.addEventListener("mousemove", e => {
@@ -386,9 +425,30 @@ if (!isMobile) {
 // MODAL
 const modal = document.getElementById("modal");
 document.getElementById("openModal").onclick = () => modal.classList.add("active");
-modal.onclick = e => {
-    if(e.target === modal) modal.classList.remove("active");
+modal.onclick = e => { if(e.target === modal) modal.classList.remove("active"); }
+
+// TIMER LOGIC
+function updateTimer() {
+    const targetDate = new Date("February 1, 2026 00:00:00").getTime();
+    const now = new Date().getTime();
+    const diff = targetDate - now;
+
+    if (diff > 0) {
+        const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const s = Math.floor((diff % (1000 * 60)) / 1000);
+
+        document.getElementById("days").innerText = d.toString().padStart(2, '0');
+        document.getElementById("hours").innerText = h.toString().padStart(2, '0');
+        document.getElementById("minutes").innerText = m.toString().padStart(2, '0');
+        document.getElementById("seconds").innerText = s.toString().padStart(2, '0');
+    } else {
+        document.querySelector(".countdown-container").innerHTML = "<h2 style='color:var(--primary)'>МЫ ОТКРЫЛИСЬ!</h2>";
+    }
 }
+setInterval(updateTimer, 1000);
+updateTimer();
 </script>
 
 </body>
