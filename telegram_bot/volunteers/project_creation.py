@@ -41,13 +41,34 @@ def is_valid_datetime(date_str):
         return False
 
 async def fetch_directions():
+    """
+    Получаем список направлений с API.
+    Возвращаем пустой список только если реально ошибка соединения или сервер вернул не JSON.
+    """
     try:
         response = await asyncio.to_thread(requests.get, DIRECTIONS_API_URL, timeout=5)
-        if response.status_code == 200:
-            return response.json()
+        logging.info(f"[fetch_directions] URL={DIRECTIONS_API_URL} status={response.status_code}")
+
+        # Проверяем контент
+        content_type = response.headers.get("Content-Type", "")
+        if response.status_code != 200:
+            logging.error(f"[fetch_directions] Неверный статус: {response.status_code} body={response.text[:200]}")
+            return []
+
+        if "application/json" not in content_type:
+            logging.error(f"[fetch_directions] Ожидался JSON, пришёл {content_type} body={response.text[:200]}")
+            return []
+
+        data = response.json()
+        if not isinstance(data, list):
+            logging.error(f"[fetch_directions] Некорректный формат JSON: {data}")
+            return []
+
+        return data
+
     except Exception as e:
-        logging.error(f"Ошибка при получении направлений: {e}")
-    return []
+        logging.exception(f"[fetch_directions] Ошибка соединения или парсинга: {e}")
+        return []
 
 # --- Логика сбора данных ---
 
