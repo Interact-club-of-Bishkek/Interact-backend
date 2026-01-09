@@ -4,7 +4,7 @@ import asyncio
 import logging
 
 # Автоматически подтягиваем URL и исправляем его формат
-DJANGO_BASE_URL = os.getenv("DJANGO_API_BASE_URL", "http://backend:8000/api/")
+DJANGO_BASE_URL = os.getenv("DJANGO_API_BASE_URL", "http://backend/api/")
 # Гарантируем правильный адрес: убираем лишние слэши и добавляем нужный в конце
 BOT_AUTH_URL = f"{DJANGO_BASE_URL.rstrip('/')}/bot-auth/"
 
