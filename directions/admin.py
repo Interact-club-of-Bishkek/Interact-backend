@@ -20,3 +20,5 @@ class ProjectDirectionAdmin(admin.ModelAdmin):
     def projects_count(self, obj):
         return obj.projects.count()
     projects_count.short_description = "Количество проектов"
+
+

@@ -21,3 +21,5 @@ class ProjectDirection(models.Model):
     class Meta:
         verbose_name = "Направление проекта"
         verbose_name_plural = "Направления проектов"
+
+

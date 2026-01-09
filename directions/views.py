@@ -27,3 +27,4 @@ class ProjectDirectionViewSet(viewsets.ReadOnlyModelViewSet):
                 queryset=Project.objects.filter(is_archived=False).order_by('time_start')
             )
         ).all()
+    
