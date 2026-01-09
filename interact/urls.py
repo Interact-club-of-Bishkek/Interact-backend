@@ -67,7 +67,7 @@ urlpatterns = [
     path('users/send-accepted-emails/', SendAcceptedVolunteersEmailsView.as_view(), name='send-accepted-emails'),
     path('volunteers-board/', VolunteerBoardView.as_view(), name='volunteers-board'),
 
-    path('bot-auth/', BotCheckAccessView.as_view(), name='bot_auth'),
+    path('api/bot-auth/', BotCheckAccessView.as_view(), name='bot_auth'),
 
     # ------------------ Swagger ------------------
     re_path(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),
