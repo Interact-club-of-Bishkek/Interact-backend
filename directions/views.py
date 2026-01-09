@@ -2,7 +2,7 @@
 from rest_framework import viewsets
 from django.db.models import Prefetch
 
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.permissions import IsAuthenticatedOrReadOnly, AllowAny
 from .models import VolunteerDirection, ProjectDirection
 from projects.models import Project
 from .serializers import VolunteerDirectionSerializer, ProjectDirectionSerializer
@@ -15,7 +15,7 @@ class VolunteerDirectionViewSet(viewsets.ModelViewSet):
 
 class ProjectDirectionViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = ProjectDirectionSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [AllowAny]
 
     def get_queryset(self):
         # Автоархивирование перед выборкой
