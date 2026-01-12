@@ -262,7 +262,6 @@ class DownloadInterviewScheduleView(APIView):
 
     def get(self, request):
         try:
-            # 1. Получаем данные
             volunteers_query = VolunteerApplication.objects.filter(status='interview').order_by('full_name')
             volunteers_list = list(volunteers_query)
             num_volunteers = len(volunteers_list)
@@ -271,14 +270,15 @@ class DownloadInterviewScheduleView(APIView):
                 return Response({"error": "Список волонтеров пуст"}, status=400)
 
             buffer = io.BytesIO()
+            # Увеличим отступы, чтобы таблица точно влезла
             doc = SimpleDocTemplate(
                 buffer, 
                 pagesize=A4,
-                rightMargin=35, leftMargin=35, topMargin=40, bottomMargin=40
+                rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30
             )
             elements = []
 
-            # 2. Шрифт
+            # --- ШРИФТ ---
             font_name = 'Helvetica'
             font_path = os.path.join(settings.BASE_DIR, 'FreeSans.ttf')
             if os.path.exists(font_path):
@@ -289,20 +289,17 @@ class DownloadInterviewScheduleView(APIView):
 
             title_style = ParagraphStyle(
                 'TitleStyle', fontName=font_name, fontSize=18,
-                alignment=1, textColor=colors.HexColor("#333333"), spaceAfter=35
+                alignment=1, textColor=colors.HexColor("#333333"), spaceAfter=20
             )
             elements.append(Paragraph("Расписание собеседований", title_style))
 
-            # 3. Данные (Шапка)
+            # 1. Формируем данные
             data = [['№', 'ФИО Волонтера', 'Телефон', 'Время']]
-            
-            # Предварительно наполняем таблицу данными, чтобы знать точное кол-во строк
             start_time = datetime.strptime("09:00", "%H:%M")
             group_size = 30
 
             for i, v in enumerate(volunteers_list):
                 group_num = i // group_size
-                # Текст пишем только для первого в группе, но ячейки объединим позже
                 if i % group_size == 0:
                     t_start = start_time + timedelta(minutes=group_num * 30)
                     t_end = t_start + timedelta(minutes=30)
@@ -312,37 +309,38 @@ class DownloadInterviewScheduleView(APIView):
 
                 data.append([
                     str(i + 1), 
-                    str(v.full_name or "---"), 
+                    str(v.full_name or "---")[:40], # Ограничим длину имени
                     str(v.phone_number or "---"), 
                     time_text
                 ])
 
-            # 4. Стилизация
+            # 2. Стили (Базовые)
             style_config = [
                 ('FONTNAME', (0, 0), (-1, -1), font_name),
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                 ('FONTSIZE', (0, 0), (-1, 0), 11),
-                ('FONTSIZE', (0, 1), (-1, -1), 10),
-                ('BACKGROUND', (0, 0), (0, 0), colors.HexColor("#FAD7A0")),
-                ('BACKGROUND', (1, 0), (1, 0), colors.HexColor("#A9DFBF")),
-                ('BACKGROUND', (2, 0), (2, 0), colors.HexColor("#AED6F1")),
-                ('BACKGROUND', (3, 0), (3, 0), colors.HexColor("#D5DBDB")),
+                ('FONTSIZE', (0, 1), (-1, -1), 9),
+                
+                # Цвета столбцов (Пастель)
                 ('BACKGROUND', (0, 1), (0, -1), colors.HexColor("#FEF9E7")),
                 ('BACKGROUND', (1, 1), (1, -1), colors.HexColor("#E9F7EF")),
                 ('BACKGROUND', (2, 1), (2, -1), colors.HexColor("#EBF5FB")),
                 ('BACKGROUND', (3, 1), (3, -1), colors.HexColor("#F8F9F9")),
-                ('BOX', (0, 0), (-1, -1), 1, colors.black),
-                ('LINEBEFORE', (1, 0), (1, -1), 1, colors.black),
-                ('LINEBEFORE', (2, 0), (2, -1), 1, colors.black),
-                ('LINEBEFORE', (3, 0), (3, -1), 1, colors.black),
-                ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-                ('TOPPADDING', (0, 0), (-1, -1), 10),
+
+                # Шапка
+                ('BACKGROUND', (0, 0), (0, 0), colors.HexColor("#FAD7A0")),
+                ('BACKGROUND', (1, 0), (1, 0), colors.HexColor("#A9DFBF")),
+                ('BACKGROUND', (2, 0), (2, 0), colors.HexColor("#AED6F1")),
+                ('BACKGROUND', (3, 0), (3, 0), colors.HexColor("#D5DBDB")),
+
+                # Границы
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.black), # Сначала общая тонкая сетка
+                ('BOX', (0, 0), (-1, -1), 1.2, colors.black),
+                ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black), # Жирная под шапкой
             ]
 
-            # 5. Логика SPAN и LINEBELOW (теперь считаем по строкам data)
-            # data[0] - заголовок. Данные начинаются с 1 до len(data)-1
+            # 3. SPAN и Жирные линии (Расчет индексов)
             for start_row in range(1, len(data), group_size):
                 end_row = start_row + group_size - 1
                 if end_row >= len(data):
@@ -351,11 +349,15 @@ class DownloadInterviewScheduleView(APIView):
                 # Объединяем время
                 style_config.append(('SPAN', (3, start_row), (3, end_row)))
                 
-                # Жирная линия под группой
+                # Жирная линия между группами
                 if end_row < len(data) - 1:
                     style_config.append(('LINEBELOW', (0, end_row), (-1, end_row), 2, colors.black))
 
-            table = Table(data, colWidths=[35, 210, 130, 115])
+            # КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: Задаем высоту каждой строки вручную (например, 25 единиц)
+            # Это предотвращает расчет rh (row heights) внутри ReportLab, который выдавал ошибку.
+            row_heights = [30] + [22] * (len(data) - 1)
+
+            table = Table(data, colWidths=[35, 215, 125, 115], rowHeights=row_heights)
             table.setStyle(TableStyle(style_config))
             elements.append(table)
             
@@ -365,10 +367,10 @@ class DownloadInterviewScheduleView(APIView):
             return FileResponse(buffer, as_attachment=True, filename="Schedule.pdf")
 
         except Exception as e:
-            print(f"!!! ОШИБКА ГЕНЕРАЦИИ PDF: {str(e)}")
             import traceback
-            traceback.print_exc() # Это покажет в логах точную строку ошибки
-            return Response({"error": f"Ошибка: {str(e)}"}, status=500)
+            print(f"!!! КРИТИЧЕСКАЯ ОШИБКА PDF: {str(e)}")
+            traceback.print_exc()
+            return Response({"error": f"Ошибка генерации: {str(e)}"}, status=500)
 # ---------------- Страница Доски ----------------
 
 class VolunteerBoardView(TemplateView):
