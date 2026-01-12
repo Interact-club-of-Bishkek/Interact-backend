@@ -6,7 +6,8 @@ from .views import (
     VolunteerColumnsView, 
     SendAcceptedVolunteersEmailsView, 
     VolunteerBoardView, 
-    BotCheckAccessView
+    BotCheckAccessView,
+    DownloadInterviewScheduleView
 )
 
 urlpatterns = [
@@ -16,7 +17,7 @@ urlpatterns = [
 
     # Volunteer columns view
     path('api/volunteer-columns/', VolunteerColumnsView.as_view(), name='volunteer-columns'),
-
+    path('api/download-schedule/', DownloadInterviewScheduleView.as_view(), name='download_schedule'),
     # Emails & Board
     path('users/send-accepted-emails/', SendAcceptedVolunteersEmailsView.as_view(), name='send-accepted-emails'),
     path('volunteers-board/', VolunteerBoardView.as_view(), name='volunteers-board'),

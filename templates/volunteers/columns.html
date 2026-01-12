@@ -21,7 +21,7 @@ body {
     background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
     background-attachment: fixed;
     margin: 0;
-    padding: 10px; /* Уменьшил отступ для мобилок */
+    padding: 10px;
     color: var(--text-dark);
     overflow-x: hidden;
 }
@@ -76,17 +76,24 @@ h1 {
 }
 .card:hover { transform: scale(1.02); box-shadow: 0 10px 20px rgba(255, 77, 109, 0.2); }
 .card img { 
-    width: 75px;        /* Было 50px */
-    height: 75px;       /* Было 50px */
-    border-radius: 18px; /* Сделаем углы чуть более квадратными, так фото крупнее визуально */
-    border: 3px solid var(--pink-soft); 
-    object-fit: cover; 
-    flex-shrink: 0; 
+    width: 75px; height: 75px; border-radius: 18px; 
+    border: 3px solid var(--pink-soft); object-fit: cover; flex-shrink: 0; 
 }
 .card-info { overflow: hidden; }
 .card-info strong { color: #800020; display: block; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
 .card-info span { font-size: 0.85rem; }
 .directions-brief { color: var(--magic-purple); font-weight: 700; font-size: 0.75rem; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+
+/* НОВАЯ КНОПКА СКАЧИВАНИЯ */
+.download-section {
+    text-align: center; margin-top: 15px;
+}
+.btn-download {
+    background: var(--magic-purple); color: white; border: none; padding: 10px 20px;
+    border-radius: 20px; font-weight: bold; cursor: pointer; transition: 0.3s;
+    font-size: 0.85rem; width: 100%;
+}
+.btn-download:hover { background: var(--pink-bright); transform: scale(1.02); }
 
 /* МОДАЛКА */
 .modal {
@@ -101,10 +108,8 @@ h1 {
 }
 .close-btn { position: absolute; top: 10px; right: 20px; font-size: 2rem; cursor: pointer; color: var(--pink-bright); font-weight: bold; z-index: 10; }
 
-/* ЛИСТАЛКА В МОДАЛКЕ */
 .modal-nav {
-    display: flex; align-items: center; justify-content: center;
-    gap: 15px; margin-bottom: 15px; padding-top: 10px;
+    display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 15px; padding-top: 10px;
 }
 .nav-btn {
     background: var(--pink-bright); color: white; border: none;
@@ -114,44 +119,18 @@ h1 {
 }
 .nav-btn:hover { transform: scale(1.1); background: var(--magic-purple); }
 .nav-btn:disabled { background: #cbd5e1; cursor: not-allowed; transform: none; }
-.nav-counter {
-    display: flex; align-items: center; gap: 8px; font-weight: 800; color: var(--pink-bright);
-}
-.nav-counter input {
-    width: 50px; text-align: center; border: 2px solid var(--pink-soft);
-    border-radius: 10px; padding: 5px; color: var(--magic-purple); font-weight: bold;
-}
+.nav-counter { display: flex; align-items: center; gap: 8px; font-weight: 800; color: var(--pink-bright); }
+.nav-counter input { width: 50px; text-align: center; border: 2px solid var(--pink-soft); border-radius: 10px; padding: 5px; color: var(--magic-purple); font-weight: bold; }
 
-/* УВЕЛИЧЕННОЕ ФОТО В МОДАЛКЕ */
 .modal-content img.main-photo { 
-    display: block; 
-    width: 100%; /* Занимает всю ширину контейнера */
-    max-width: 400px; /* Но не более 400px */
-    height: auto; /* Пропорциональная высота */
-    aspect-ratio: 1 / 1; /* Делает фото квадратным */
-    border-radius: 40px; /* Более мягкие углы */
-    margin: 10px auto 25px; 
-    border: 8px solid var(--pink-soft); 
-    object-fit: cover; 
-    box-shadow: 0 15px 35px rgba(255, 77, 109, 0.3);
-    transition: transform 0.3s ease;
-}
-
-.modal-content img.main-photo:hover {
-    transform: scale(1.02) rotate(1deg); /* Легкий эффект при наведении */
-}
-
-@media (max-width: 768px) {
-    .modal-content img.main-photo { 
-        max-width: 280px; /* Чуть меньше для мобильных */
-        border-width: 5px;
-    }
+    display: block; width: 100%; max-width: 400px; height: auto; aspect-ratio: 1/1; 
+    border-radius: 40px; margin: 10px auto 25px; border: 8px solid var(--pink-soft); 
+    object-fit: cover; box-shadow: 0 15px 35px rgba(255, 77, 109, 0.3);
 }
 
 .modal-content hr { border: none; border-top: 2px dashed var(--pink-soft); margin: 20px 0; }
 .directions-list { padding-left: 20px; color: var(--magic-purple); font-weight: 600; list-style-type: "🌸 "; }
 
-/* КНОПКИ ДЕЙСТВИЙ */
 .buttons { display: flex; gap: 10px; margin-top: 30px; }
 .buttons button { flex: 1; padding: 12px; border: none; border-radius: 15px; font-weight: 800; cursor: pointer; color: white; transition: 0.2s; font-size: 0.9rem; }
 .btn-stage { background: var(--pink-bright); animation: pulse 2s infinite; }
@@ -159,7 +138,6 @@ h1 {
 
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 77, 109, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(255, 77, 109, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 77, 109, 0); } }
 
-/* ТАБЫ (МОБИЛКИ) */
 .tabs { display: none; background: white; border-radius: 30px; margin-bottom: 20px; padding: 5px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
 .tab-button { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-weight: bold; border-radius: 25px; transition: 0.3s; font-size: 0.8rem; }
 .tab-button.active { background: var(--pink-bright); color: white; }
@@ -173,7 +151,6 @@ h1 {
     .modal-content img.main-photo { width: 150px; height: 150px; }
 }
 
-/* Статистика */
 .stats-container { margin-top:40px; background:white; padding:20px; border-radius:30px; border:4px solid var(--pink-soft); }
 #statsGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
 </style>
@@ -195,9 +172,15 @@ h1 {
 </div>
 
 <div class="columns">
-  <div class="column active" id="submitted"><h2>Отправлено 💌</h2></div>
-  <div class="column" id="interview"><h2>Собеседование 🎀</h2></div>
-  <div class="column" id="accepted"><h2>Приняты 👑</h2></div>
+  <div class="column active" id="submitted"><h2>Отправлено 💌</h2><div class="cards-list"></div></div>
+  <div class="column" id="interview">
+      <h2>Собеседование 🎀</h2>
+      <div class="download-section">
+          <button class="btn-download" onclick="downloadSchedule()">📥 Скачать PDF расписание</button>
+      </div>
+      <div class="cards-list"></div>
+  </div>
+  <div class="column" id="accepted"><h2>Приняты 👑</h2><div class="cards-list"></div></div>
 </div>
 
 <div class="stats-container">
@@ -253,9 +236,9 @@ h1 {
 
 <script>
 const columnsElements = {
-  submitted: document.getElementById('submitted'),
-  interview: document.getElementById('interview'),
-  accepted: document.getElementById('accepted')
+  submitted: document.querySelector('#submitted .cards-list'),
+  interview: document.querySelector('#interview .cards-list'),
+  accepted: document.querySelector('#accepted .cards-list')
 };
 
 const searchName = document.getElementById('searchName');
@@ -265,18 +248,15 @@ const statsGrid = document.getElementById('statsGrid');
 const modal = document.getElementById('modal');
 const closeModal = document.getElementById('closeModal');
 const tabButtons = document.querySelectorAll('.tab-button');
-
-// Элементы навигации
 const prevBtn = document.getElementById('prevVolunteer');
 const nextBtn = document.getElementById('nextVolunteer');
 const currentIdxInput = document.getElementById('currentVolunteerIdx');
 const totalCountSpan = document.getElementById('totalVolunteersCount');
 
-let allVolunteers = []; // Все данные с сервера
-let currentFilteredList = []; // Список волонтеров, которые видны сейчас (с учетом фильтров)
-let currentVolunteerIndex = -1; // Индекс открытого волонтера в currentFilteredList
+let allVolunteers = []; 
+let currentFilteredList = []; 
+let currentVolunteerIndex = -1; 
 
-// Феечки
 function spawnFairy() {
     const f = document.createElement('div');
     f.className = 'fairy-dust';
@@ -318,12 +298,11 @@ function populateFilters() {
 }
 
 function renderColumns() {
-  const titles = { submitted: 'Отправлено', interview: 'Собес', accepted: 'Приняты' };
+  const titles = { submitted: 'Отправлено 💌', interview: 'Собес 🎀', accepted: 'Приняты 👑' };
   const nQ = searchName.value.toLowerCase();
   const sQ = filterStudy.value;
   const yQ = filterYear.value;
 
-  // Обновляем текущий отфильтрованный список (порядок важен для листалки)
   currentFilteredList = allVolunteers.filter(v => {
       const mN = (v.full_name || v.name || "").toLowerCase().includes(nQ);
       const mSt = !sQ || v.place_of_study === sQ;
@@ -333,7 +312,8 @@ function renderColumns() {
 
   for (let col in columnsElements) {
     const list = currentFilteredList.filter(v => v.status === col);
-    columnsElements[col].innerHTML = `<h2>${titles[col]} (${list.length})</h2>`;
+    document.querySelector(`#${col} h2`).textContent = `${titles[col]} (${list.length})`;
+    columnsElements[col].innerHTML = '';
     
     list.forEach(v => {
       const card = document.createElement('div');
@@ -368,24 +348,19 @@ function renderStats() {
 
 function openModal(v) {
   if (!v) return;
-  
-  // Обновляем навигацию
   currentIdxInput.value = currentVolunteerIndex + 1;
   totalCountSpan.textContent = currentFilteredList.length;
   prevBtn.disabled = currentVolunteerIndex <= 0;
   nextBtn.disabled = currentVolunteerIndex >= currentFilteredList.length - 1;
 
   const vPhoto = document.getElementById('volunteerPhoto');
-  // Используем URL фото
   const photoPath = v.photo_url || v.image_url || '';
   vPhoto.src = photoPath;
   vPhoto.style.display = photoPath ? 'block' : 'none';
 
-  // Плавная прокрутка модалки вверх при смене волонтера
   const modalBody = modal.querySelector('.modal-content');
   modalBody.scrollTo({ top: 0, behavior: 'smooth' });
 
-  // Остальное заполнение данных...
   document.getElementById('volunteerName').textContent = v.full_name || v.name;
   document.getElementById('volunteerEmail').textContent = v.email || '-';
   document.getElementById('volunteerPhone').textContent = v.phone_number || '-';
@@ -418,10 +393,12 @@ function openModal(v) {
   });
   
   modal.style.display = 'flex';
-  modal.querySelector('.modal-content').scrollTop = 0;
 }
 
-// Функции перелистывания
+function downloadSchedule() {
+    window.location.href = '/api/download-schedule/';
+}
+
 prevBtn.onclick = () => {
     if (currentVolunteerIndex > 0) {
         currentVolunteerIndex--;
@@ -448,8 +425,6 @@ currentIdxInput.onchange = () => {
 
 async function updateStatus(id, action) {
   const statusMap = { 'На 2 этап': 'interview', 'Принят': 'accepted', 'Отказ': 'rejected' };
-  
-  // Функция для получения CSRF токена
   const getCookie = (name) => {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -470,23 +445,18 @@ async function updateStatus(id, action) {
       method: 'POST', 
       headers: {
         'Content-Type': 'application/json',
-        'X-CSRFToken': getCookie('csrftoken') // ОБЯЗАТЕЛЬНО для Django
+        'X-CSRFToken': getCookie('csrftoken')
       },
       body: JSON.stringify({status: statusMap[action]})
     });
 
     if (response.ok) {
       modal.style.display = 'none'; 
-      fetchVolunteers(); // Перезагружаем список
+      fetchVolunteers();
     } else {
-      const errorData = await response.json();
-      console.error('Ошибка сервера:', errorData);
-      alert('Ошибка магии: ' + (errorData.detail || 'Сервер отклонил запрос'));
+      alert('Ошибка магии!');
     }
-  } catch(err) { 
-    console.error(err);
-    alert('Сетевая ошибка!'); 
-  }
+  } catch(err) { alert('Сетевая ошибка!'); }
 }
 
 searchName.addEventListener('input', renderColumns);
@@ -495,7 +465,7 @@ filterYear.addEventListener('change', renderColumns);
 
 tabButtons.forEach(btn => btn.onclick = () => {
     tabButtons.forEach(b => b.classList.remove('active')); btn.classList.add('active');
-    Object.values(columnsElements).forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('.column').forEach(c => c.classList.remove('active'));
     document.getElementById(btn.dataset.target).classList.add('active');
 });
 

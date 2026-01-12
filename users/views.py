@@ -1,23 +1,35 @@
-from rest_framework import viewsets, generics, status, serializers # Добавлен serializers
+import io
+import os
+import random
+import string
+from datetime import datetime, timedelta
+
+from django.db import transaction
+from django.conf import settings
+from django.core.mail import send_mail
+from django.http import FileResponse
+from django.views.generic import TemplateView
+
+from rest_framework import viewsets, generics, status, serializers
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework_simplejwt.tokens import RefreshToken
-from django.db import transaction
-from django.views.generic import TemplateView
-from django.core.mail import send_mail
-from django.conf import settings
-import random
-import string
-from rest_framework.permissions import AllowAny # Импортируйте это
+
+# ReportLab для генерации красивого PDF
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 
 from .models import Volunteer, VolunteerApplication, BotAccessConfig
 from .serializers import (
     VolunteerSerializer, VolunteerLoginSerializer,
     VolunteerApplicationSerializer, VolunteerApplicationStatusUpdateSerializer, BotAuthSerializer
 )
-
 
 # ---------------- Volunteers ----------------
 class VolunteerViewSet(viewsets.ModelViewSet):
@@ -26,7 +38,7 @@ class VolunteerViewSet(viewsets.ModelViewSet):
 
 
 class VolunteerLoginView(APIView):
-    permission_classes = []  # логин ВСЕГДА без токена
+    permission_classes = []  # логин доступен без токена
 
     def post(self, request):
         serializer = VolunteerLoginSerializer(data=request.data)
@@ -47,25 +59,24 @@ class VolunteerLoginView(APIView):
         })
 
 
-
 class VolunteerProfileView(generics.RetrieveAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = VolunteerSerializer
 
     def get_object(self):
-        user_id = self.request.user.id
-        return Volunteer.objects.get(id=user_id)
+        return Volunteer.objects.get(id=self.request.user.id)
 
 
-# ---------------- Columns для фронта ----------------
+# ---------------- Serializers для колонок ----------------
 
-# !!! ИСПРАВЛЕНИЕ ЗДЕСЬ !!!
 class VolunteerColumnsSerializer(serializers.Serializer):
-    # Используем VolunteerApplicationSerializer для ВСЕХ колонок,
-    # чтобы ответы на вопросы (why_volunteer и т.д.) были доступны везде.
+    """
+    Сериализатор для объединения заявок по статусам.
+    Используем VolunteerApplicationSerializer для всех статусов, 
+    чтобы на фронте были доступны все данные анкеты.
+    """
     submitted = VolunteerApplicationSerializer(many=True, read_only=True)
     interview = VolunteerApplicationSerializer(many=True, read_only=True)
-    # Было VolunteerSerializer, стало VolunteerApplicationSerializer
     accepted = VolunteerApplicationSerializer(many=True, read_only=True)
 
 
@@ -90,18 +101,17 @@ class VolunteerApplicationViewSet(viewsets.ModelViewSet):
 
         if creating_volunteer:
             with transaction.atomic():
-                # Убираем явную передачу None, чтобы сработал метод save() модели
+                # Создаем запись волонтера на основе анкеты
                 volunteer = Volunteer.objects.create(
                     name=obj.full_name,
                     phone_number=obj.phone_number,
                     email=obj.email,
-                    image=obj.photo # Копируем фото из анкеты
+                    image=obj.photo 
                 )
                 
                 if obj.directions.exists():
                     volunteer.direction.set(obj.directions.all())
                 
-                # Привязываем созданного пользователя к анкете
                 obj.volunteer_created = True
                 obj.volunteer = volunteer
                 obj.save()
@@ -142,25 +152,20 @@ class VolunteerApplicationViewSet(viewsets.ModelViewSet):
         return Response({'sent_to': sent, 'count': len(sent)})
 
 
-# ---------------- Columns View (Исправлено) ----------------
+# ---------------- Columns View ----------------
 
 class VolunteerColumnsView(APIView):
     """
-    GET: возвращает три группы волонтёров для фронта
+    GET: возвращает группы волонтеров (анкеты) для Канбан-доски
     """
     permission_classes = [] 
 
     def get(self, request):
         submitted = VolunteerApplication.objects.filter(status='submitted').order_by('-created_at')
         interview = VolunteerApplication.objects.filter(status='interview').order_by('-created_at')
-        
-        # !!! ИСПРАВЛЕНИЕ ЗДЕСЬ !!!
-        # Мы запрашиваем VolunteerApplication, а не Volunteer.
-        # Это гарантирует, что все поля анкеты будут переданы на фронт.
         accepted = VolunteerApplication.objects.filter(status='accepted').order_by('-created_at')
         
         context = {'request': request} 
-        
         serializer = VolunteerColumnsSerializer(
             {
                 'submitted': submitted,
@@ -169,7 +174,6 @@ class VolunteerColumnsView(APIView):
             }, 
             context=context 
         )
-        
         return Response(serializer.data)
 
 
@@ -200,7 +204,6 @@ class SendAcceptedVolunteersEmailsView(APIView):
                 volunteer.save()
 
             try:
-                print(f"[INFO] Отправка письма на {volunteer.email}")
                 send_mail(
                     subject='Ваши данные для входа в систему волонтёра',
                     message=(
@@ -213,10 +216,8 @@ class SendAcceptedVolunteersEmailsView(APIView):
                     recipient_list=[volunteer.email],
                     fail_silently=False,
                 )
-                print(f"[SUCCESS] Письмо отправлено: {volunteer.email}")
                 sent.append(volunteer.email)
             except Exception as e:
-                print(f"[ERROR] Не удалось отправить письмо {volunteer.email}: {e}")
                 failed.append({'email': volunteer.email, 'error': str(e)})
                 continue
 
@@ -228,11 +229,10 @@ class SendAcceptedVolunteersEmailsView(APIView):
         })
 
 
+# ---------------- Bot Auth ----------------
+
 class BotCheckAccessView(APIView):
-    """
-    Эндпоинт для проверки паролей из Telegram бота
-    """
-    permission_classes = [] # Доступ без токена, проверка идет по паролю
+    permission_classes = [] 
 
     def post(self, request):
         serializer = BotAuthSerializer(data=request.data)
@@ -241,23 +241,110 @@ class BotCheckAccessView(APIView):
         access_type = serializer.validated_data['access_type']
         password = serializer.validated_data['password']
 
-        # Получаем пароли из БД
         configs = {config.role: config.password for config in BotAccessConfig.objects.all()}
         
         curator_pass = configs.get('curator')
         volunteer_pass = configs.get('volunteer')
 
-        # 1. Куратор всегда проходит
         if password == curator_pass:
             return Response({"status": "access_granted", "role": "curator"}, status=status.HTTP_200_OK)
 
-        # 2. Волонтер проходит только в раздел команд
         if access_type == "commands" and password == volunteer_pass:
             return Response({"status": "access_granted", "role": "volunteer"}, status=status.HTTP_200_OK)
 
         return Response({"status": "access_denied"}, status=status.HTTP_403_FORBIDDEN)
 
+
+# ---------------- PDF Генерация ----------------
+
+class DownloadInterviewScheduleView(APIView):
+    permission_classes = []
+
+    def get(self, request):
+        volunteers = VolunteerApplication.objects.filter(status='interview').order_by('full_name')
+        buffer = io.BytesIO()
+        
+        doc = SimpleDocTemplate(
+            buffer, 
+            pagesize=A4,
+            rightMargin=35, leftMargin=35, topMargin=40, bottomMargin=40
+        )
+        elements = []
+
+        # --- ШРИФТ ---
+        font_name = 'Helvetica'
+        font_path = os.path.join(settings.BASE_DIR, 'FreeSans.ttf')
+        if os.path.exists(font_path):
+            try:
+                pdfmetrics.registerFont(TTFont('FreeSans', font_path))
+                font_name = 'FreeSans'
+            except: pass
+
+        # Заголовок
+        title_style = ParagraphStyle(
+            'TitleStyle',
+            fontName=font_name,
+            fontSize=18,
+            alignment=1, 
+            textColor=colors.HexColor("#333333"),
+            spaceAfter=35
+        )
+        elements.append(Paragraph("Расписание собеседований", title_style))
+
+        # Данные
+        data = [['№', 'ФИО Волонтера', 'Телефон', 'Время']]
+        start_time = datetime.strptime("09:00", "%H:%M")
+        for i, v in enumerate(volunteers):
+            current_slot = start_time + timedelta(minutes=i * 30)
+            end_slot = current_slot + timedelta(minutes=30)
+            time_range = f"{current_slot.strftime('%H:%M')} - {end_slot.strftime('%H:%M')}"
+            data.append([str(i + 1), str(v.full_name or "---"), str(v.phone_number or "---"), time_range])
+
+        t = Table(data, colWidths=[35, 210, 130, 115])
+        
+        # Настройка стиля с черными границами столбцов
+        style_config = [
+            ('FONTNAME', (0, 0), (-1, -1), font_name),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTSIZE', (0, 0), (-1, 0), 11),
+            ('FONTSIZE', (0, 1), (-1, -1), 10),
+            
+            # --- ЦВЕТА ШАПКИ ---
+            ('BACKGROUND', (0, 0), (0, 0), colors.HexColor("#FAD7A0")),
+            ('BACKGROUND', (1, 0), (1, 0), colors.HexColor("#A9DFBF")),
+            ('BACKGROUND', (2, 0), (2, 0), colors.HexColor("#AED6F1")),
+            ('BACKGROUND', (3, 0), (3, 0), colors.HexColor("#D5DBDB")),
+            
+            # --- ЦВЕТА СТОЛБЦОВ ---
+            ('BACKGROUND', (0, 1), (0, -1), colors.HexColor("#FEF9E7")),
+            ('BACKGROUND', (1, 1), (1, -1), colors.HexColor("#E9F7EF")),
+            ('BACKGROUND', (2, 1), (2, -1), colors.HexColor("#EBF5FB")),
+            ('BACKGROUND', (3, 1), (3, -1), colors.HexColor("#F8F9F9")),
+
+            # --- ЧЕРНЫЕ ГРАНИЦЫ (Контуры столбцов) ---
+            # Внешняя рамка всей таблицы
+            ('BOX', (0, 0), (-1, -1), 1, colors.black),
+            # Вертикальные линии между всеми столбцами
+            ('LINEBEFORE', (1, 0), (1, -1), 1, colors.black),
+            ('LINEBEFORE', (2, 0), (2, -1), 1, colors.black),
+            ('LINEBEFORE', (3, 0), (3, -1), 1, colors.black),
+            # Горизонтальная линия после шапки
+            ('LINEBELOW', (0, 0), (-1, 0), 1, colors.black),
+            
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+            ('TOPPADDING', (0, 0), (-1, -1), 10),
+        ]
+
+        t.setStyle(TableStyle(style_config))
+
+        elements.append(t)
+        doc.build(elements)
+        buffer.seek(0)
+        
+        return FileResponse(buffer, as_attachment=True, filename=f'Schedule_{datetime.now().strftime("%d_%m")}.pdf')
+
+# ---------------- Страница Доски ----------------
+
 class VolunteerBoardView(TemplateView):
     template_name = "volunteers/columns.html"
-
-
