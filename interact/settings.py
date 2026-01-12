@@ -140,10 +140,8 @@ REST_FRAMEWORK = {
 
 
 SIMPLE_JWT = {
-    "USER_ID_FIELD": "id",
-    "USER_ID_CLAIM": "volunteer_id",
+    "AUTH_HEADER_TYPES": ("Bearer",),
 }
-
 
 AUTH_USER_MODEL = 'users.Volunteer'
 

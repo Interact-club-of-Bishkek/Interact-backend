@@ -25,18 +25,17 @@ class VolunteerViewSet(viewsets.ModelViewSet):
 
 
 class VolunteerLoginView(APIView):
+    permission_classes = []  # логин ВСЕГДА без токена
+
     def post(self, request):
         serializer = VolunteerLoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         volunteer = serializer.validated_data["volunteer"]
 
         refresh = RefreshToken.for_user(volunteer)
-        refresh["volunteer_id"] = volunteer.id
-        access_token = refresh.access_token
-        access_token["volunteer_id"] = volunteer.id
 
         return Response({
-            "access": str(access_token),
+            "access": str(refresh.access_token),
             "refresh": str(refresh),
             "volunteer": {
                 "id": volunteer.id,
@@ -45,6 +44,7 @@ class VolunteerLoginView(APIView):
                 "board": volunteer.board,
             }
         })
+
 
 
 class VolunteerProfileView(generics.RetrieveAPIView):
