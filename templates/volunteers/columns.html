@@ -448,14 +448,45 @@ currentIdxInput.onchange = () => {
 
 async function updateStatus(id, action) {
   const statusMap = { 'На 2 этап': 'interview', 'Принят': 'accepted', 'Отказ': 'rejected' };
+  
+  // Функция для получения CSRF токена
+  const getCookie = (name) => {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  };
+
   try {
-    await fetch(`/api/applications/${id}/update_status/`, {
-      method: 'POST', headers: {'Content-Type':'application/json'},
+    const response = await fetch(`/api/applications/${id}/update_status/`, {
+      method: 'POST', 
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken') // ОБЯЗАТЕЛЬНО для Django
+      },
       body: JSON.stringify({status: statusMap[action]})
     });
-    modal.style.display = 'none'; 
-    fetchVolunteers();
-  } catch(err) { alert('Ошибка магии!'); }
+
+    if (response.ok) {
+      modal.style.display = 'none'; 
+      fetchVolunteers(); // Перезагружаем список
+    } else {
+      const errorData = await response.json();
+      console.error('Ошибка сервера:', errorData);
+      alert('Ошибка магии: ' + (errorData.detail || 'Сервер отклонил запрос'));
+    }
+  } catch(err) { 
+    console.error(err);
+    alert('Сетевая ошибка!'); 
+  }
 }
 
 searchName.addEventListener('input', renderColumns);

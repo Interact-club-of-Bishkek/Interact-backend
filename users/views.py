@@ -10,6 +10,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 import random
 import string
+from rest_framework.permissions import AllowAny # Импортируйте это
 
 from .models import Volunteer, VolunteerApplication, BotAccessConfig
 from .serializers import (
@@ -72,6 +73,7 @@ class VolunteerColumnsSerializer(serializers.Serializer):
 class VolunteerApplicationViewSet(viewsets.ModelViewSet):
     queryset = VolunteerApplication.objects.all().order_by('-created_at')
     serializer_class = VolunteerApplicationSerializer
+    permission_classes = [AllowAny]
 
     @action(detail=True, methods=['post'])
     def update_status(self, request, pk=None):
@@ -88,15 +90,16 @@ class VolunteerApplicationViewSet(viewsets.ModelViewSet):
 
         if creating_volunteer:
             with transaction.atomic():
-                volunteer = Volunteer.objects.create_user(
-                    login=None,
-                    password=None,
+                # Убираем явную передачу None, чтобы сработал метод save() модели
+                volunteer = Volunteer.objects.create(
                     name=obj.full_name,
                     phone_number=obj.phone_number,
-                    email=obj.email
+                    email=obj.email,
+                    image=obj.photo # Копируем фото из анкеты
                 )
-                volunteer.direction.set(obj.directions.all())
-                volunteer.save()
+                
+                if obj.directions.exists():
+                    volunteer.direction.set(obj.directions.all())
                 
                 # Привязываем созданного пользователя к анкете
                 obj.volunteer_created = True

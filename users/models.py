@@ -143,23 +143,19 @@ class Volunteer(AbstractBaseUser, PermissionsMixin):
                 return login_candidate
 
     def save(self, *args, **kwargs):
-        # Логика, выполняемая только при первом сохранении (создании)
-        if not self.pk:
-            # 1. Генерация уникального логина
-            if not self.login and self.name:
-                self.login = self.generate_unique_login(self.name)
-
-            # 2. Генерация пароля
-            if not self.password:
-                raw_password = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
-                self.visible_password = raw_password
-                self.set_password(raw_password)
+            if not self.pk:
+                # Если логин пустой, генерируем его
+                if not self.login:
+                    self.login = self.generate_unique_login(self.name)
                 
-        # Проверка и установка пароля при необходимости, если логика save вызывается напрямую
-        elif self.password and not self.password.startswith('pbkdf2_'):
-            self.set_password(self.password)
+                # Если пароля нет (даже захешированного), создаем его
+                if not self.password:
+                    raw_password = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+                    self.visible_password = raw_password
+                    self.set_password(raw_password)
             
-        super().save(*args, **kwargs)
+            # Важно: вызываем родительский метод
+            super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name
