@@ -262,7 +262,7 @@ class DownloadInterviewScheduleView(APIView):
 
     def get(self, request):
         try:
-            # Превращаем QuerySet в список, чтобы точно знать количество
+            # 1. Получаем данные
             volunteers_query = VolunteerApplication.objects.filter(status='interview').order_by('full_name')
             volunteers_list = list(volunteers_query)
             num_volunteers = len(volunteers_list)
@@ -278,7 +278,7 @@ class DownloadInterviewScheduleView(APIView):
             )
             elements = []
 
-            # --- ШРИФТ ---
+            # 2. Шрифт
             font_name = 'Helvetica'
             font_path = os.path.join(settings.BASE_DIR, 'FreeSans.ttf')
             if os.path.exists(font_path):
@@ -287,74 +287,26 @@ class DownloadInterviewScheduleView(APIView):
                     font_name = 'FreeSans'
                 except: pass
 
-            # Заголовок
             title_style = ParagraphStyle(
                 'TitleStyle', fontName=font_name, fontSize=18,
                 alignment=1, textColor=colors.HexColor("#333333"), spaceAfter=35
             )
             elements.append(Paragraph("Расписание собеседований", title_style))
 
-            # Формируем данные (первая строка — шапка)
+            # 3. Данные (Шапка)
             data = [['№', 'ФИО Волонтера', 'Телефон', 'Время']]
             
-            # Базовая конфигурация стиля
-            style_config = [
-                ('FONTNAME', (0, 0), (-1, -1), font_name),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTSIZE', (0, 0), (-1, 0), 11),
-                ('FONTSIZE', (0, 1), (-1, -1), 10),
-                
-                # Цвета шапки
-                ('BACKGROUND', (0, 0), (0, 0), colors.HexColor("#FAD7A0")),
-                ('BACKGROUND', (1, 0), (1, 0), colors.HexColor("#A9DFBF")),
-                ('BACKGROUND', (2, 0), (2, 0), colors.HexColor("#AED6F1")),
-                ('BACKGROUND', (3, 0), (3, 0), colors.HexColor("#D5DBDB")),
-                
-                # Цвета столбцов (Пастель)
-                ('BACKGROUND', (0, 1), (0, -1), colors.HexColor("#FEF9E7")),
-                ('BACKGROUND', (1, 1), (1, -1), colors.HexColor("#E9F7EF")),
-                ('BACKGROUND', (2, 1), (2, -1), colors.HexColor("#EBF5FB")),
-                ('BACKGROUND', (3, 1), (3, -1), colors.HexColor("#F8F9F9")),
-
-                # Границы (Черные рамки)
-                ('BOX', (0, 0), (-1, -1), 1, colors.black),
-                ('LINEBEFORE', (1, 0), (1, -1), 1, colors.black),
-                ('LINEBEFORE', (2, 0), (2, -1), 1, colors.black),
-                ('LINEBEFORE', (3, 0), (3, -1), 1, colors.black),
-                ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black), # Жирная под шапкой
-                
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-                ('TOPPADDING', (0, 0), (-1, -1), 10),
-            ]
-
+            # Предварительно наполняем таблицу данными, чтобы знать точное кол-во строк
             start_time = datetime.strptime("09:00", "%H:%M")
             group_size = 30
 
             for i, v in enumerate(volunteers_list):
-                # Номер текущей строки в таблице (учитывая, что data[0] - шапка)
-                row_idx = i + 1 
-                
-                # Каждые 30 человек рассчитываем блок времени
+                group_num = i // group_size
+                # Текст пишем только для первого в группе, но ячейки объединим позже
                 if i % group_size == 0:
-                    group_num = i // group_size
                     t_start = start_time + timedelta(minutes=group_num * 30)
                     t_end = t_start + timedelta(minutes=30)
                     time_text = f"{t_start.strftime('%H:%M')} - {t_end.strftime('%H:%M')}"
-                    
-                    # Определяем индекс последней строки в текущем блоке
-                    # row_idx (начало) + 29 строк (размер группы - 1)
-                    span_end = row_idx + group_size - 1
-                    # Но не больше, чем всего волонтеров
-                    if span_end > num_volunteers:
-                        span_end = num_volunteers
-                    
-                    # Объединяем ячейки времени
-                    style_config.append(('SPAN', (3, row_idx), (3, span_end)))
-                    
-                    # Рисуем жирную разделительную линию под блоком времени
-                    if span_end < num_volunteers:
-                        style_config.append(('LINEBELOW', (0, span_end), (-1, span_end), 2, colors.black))
                 else:
                     time_text = ""
 
@@ -365,6 +317,44 @@ class DownloadInterviewScheduleView(APIView):
                     time_text
                 ])
 
+            # 4. Стилизация
+            style_config = [
+                ('FONTNAME', (0, 0), (-1, -1), font_name),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTSIZE', (0, 0), (-1, 0), 11),
+                ('FONTSIZE', (0, 1), (-1, -1), 10),
+                ('BACKGROUND', (0, 0), (0, 0), colors.HexColor("#FAD7A0")),
+                ('BACKGROUND', (1, 0), (1, 0), colors.HexColor("#A9DFBF")),
+                ('BACKGROUND', (2, 0), (2, 0), colors.HexColor("#AED6F1")),
+                ('BACKGROUND', (3, 0), (3, 0), colors.HexColor("#D5DBDB")),
+                ('BACKGROUND', (0, 1), (0, -1), colors.HexColor("#FEF9E7")),
+                ('BACKGROUND', (1, 1), (1, -1), colors.HexColor("#E9F7EF")),
+                ('BACKGROUND', (2, 1), (2, -1), colors.HexColor("#EBF5FB")),
+                ('BACKGROUND', (3, 1), (3, -1), colors.HexColor("#F8F9F9")),
+                ('BOX', (0, 0), (-1, -1), 1, colors.black),
+                ('LINEBEFORE', (1, 0), (1, -1), 1, colors.black),
+                ('LINEBEFORE', (2, 0), (2, -1), 1, colors.black),
+                ('LINEBEFORE', (3, 0), (3, -1), 1, colors.black),
+                ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+                ('TOPPADDING', (0, 0), (-1, -1), 10),
+            ]
+
+            # 5. Логика SPAN и LINEBELOW (теперь считаем по строкам data)
+            # data[0] - заголовок. Данные начинаются с 1 до len(data)-1
+            for start_row in range(1, len(data), group_size):
+                end_row = start_row + group_size - 1
+                if end_row >= len(data):
+                    end_row = len(data) - 1
+                
+                # Объединяем время
+                style_config.append(('SPAN', (3, start_row), (3, end_row)))
+                
+                # Жирная линия под группой
+                if end_row < len(data) - 1:
+                    style_config.append(('LINEBELOW', (0, end_row), (-1, end_row), 2, colors.black))
+
             table = Table(data, colWidths=[35, 210, 130, 115])
             table.setStyle(TableStyle(style_config))
             elements.append(table)
@@ -372,11 +362,12 @@ class DownloadInterviewScheduleView(APIView):
             doc.build(elements)
             buffer.seek(0)
             
-            return FileResponse(buffer, as_attachment=True, filename="Interview_Schedule.pdf")
+            return FileResponse(buffer, as_attachment=True, filename="Schedule.pdf")
 
         except Exception as e:
-            # Вывод ошибки в терминал бэкенда
             print(f"!!! ОШИБКА ГЕНЕРАЦИИ PDF: {str(e)}")
+            import traceback
+            traceback.print_exc() # Это покажет в логах точную строку ошибки
             return Response({"error": f"Ошибка: {str(e)}"}, status=500)
 # ---------------- Страница Доски ----------------
 
