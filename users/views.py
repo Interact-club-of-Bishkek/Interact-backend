@@ -282,37 +282,15 @@ class DownloadInterviewScheduleView(APIView):
 
         # Заголовок
         title_style = ParagraphStyle(
-            'TitleStyle',
-            fontName=font_name,
-            fontSize=18,
-            alignment=1, 
-            textColor=colors.HexColor("#333333"),
-            spaceAfter=35
+            'TitleStyle', fontName=font_name, fontSize=18,
+            alignment=1, textColor=colors.HexColor("#333333"), spaceAfter=35
         )
         elements.append(Paragraph("Расписание собеседований", title_style))
 
-        # Данные таблицы
+        # Подготовка данных
         data = [['№', 'ФИО Волонтера', 'Телефон', 'Время']]
         
-        start_time = datetime.strptime("09:00", "%H:%M")
-        
-        for i, v in enumerate(volunteers):
-            # ЛОГИКА: Группировка по 30 человек на один интервал
-            group_index = i // 30  # 0-29 -> 0, 30-59 -> 1, и т.д.
-            current_slot = start_time + timedelta(minutes=group_index * 30)
-            end_slot = current_slot + timedelta(minutes=30)
-            time_range = f"{current_slot.strftime('%H:%M')} - {end_slot.strftime('%H:%M')}"
-            
-            data.append([
-                str(i + 1), 
-                str(v.full_name or "---"), 
-                str(v.phone_number or "---"), 
-                time_range
-            ])
-
-        t = Table(data, colWidths=[35, 210, 130, 115])
-        
-        # Стиль с пастельными цветами и черными рамками
+        # Начальные стили таблицы
         style_config = [
             ('FONTNAME', (0, 0), (-1, -1), font_name),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
@@ -320,29 +298,55 @@ class DownloadInterviewScheduleView(APIView):
             ('FONTSIZE', (0, 0), (-1, 0), 11),
             ('FONTSIZE', (0, 1), (-1, -1), 10),
             
-            # Цвета ШАПКИ
-            ('BACKGROUND', (0, 0), (0, 0), colors.HexColor("#FAD7A0")), # Желтый
-            ('BACKGROUND', (1, 0), (1, 0), colors.HexColor("#A9DFBF")), # Зеленый
-            ('BACKGROUND', (2, 0), (2, 0), colors.HexColor("#AED6F1")), # Голубой
-            ('BACKGROUND', (3, 0), (3, 0), colors.HexColor("#D5DBDB")), # Серый
+            # Цвета шапки
+            ('BACKGROUND', (0, 0), (0, 0), colors.HexColor("#FAD7A0")),
+            ('BACKGROUND', (1, 0), (1, 0), colors.HexColor("#A9DFBF")),
+            ('BACKGROUND', (2, 0), (2, 0), colors.HexColor("#AED6F1")),
+            ('BACKGROUND', (3, 0), (3, 0), colors.HexColor("#D5DBDB")),
             
-            # Цвета СТОЛБЦОВ
+            # Цвета столбцов
             ('BACKGROUND', (0, 1), (0, -1), colors.HexColor("#FEF9E7")),
             ('BACKGROUND', (1, 1), (1, -1), colors.HexColor("#E9F7EF")),
             ('BACKGROUND', (2, 1), (2, -1), colors.HexColor("#EBF5FB")),
             ('BACKGROUND', (3, 1), (3, -1), colors.HexColor("#F8F9F9")),
 
-            # ЧЕРНЫЕ ГРАНИЦЫ
-            ('BOX', (0, 0), (-1, -1), 1, colors.black),           # Общая рамка
-            ('LINEBEFORE', (1, 0), (1, -1), 1, colors.black),      # Линия перед ФИО
-            ('LINEBEFORE', (2, 0), (2, -1), 1, colors.black),      # Линия перед Телефоном
-            ('LINEBEFORE', (3, 0), (3, -1), 1, colors.black),      # Линия перед Временем
-            ('LINEBELOW', (0, 0), (-1, 0), 1, colors.black),       # Линия под шапкой
+            # Базовые границы
+            ('BOX', (0, 0), (-1, -1), 1, colors.black),
+            ('LINEBEFORE', (1, 0), (1, -1), 1, colors.black),
+            ('LINEBEFORE', (2, 0), (2, -1), 1, colors.black),
+            ('LINEBEFORE', (3, 0), (3, -1), 1, colors.black),
+            ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black), # Толстая линия под шапкой
             
             ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
             ('TOPPADDING', (0, 0), (-1, -1), 10),
         ]
 
+        start_time = datetime.strptime("09:00", "%H:%M")
+        num_volunteers = volunteers.count()
+        group_size = 30
+
+        for i, v in enumerate(volunteers):
+            # Текст времени пишем только для первого человека в группе
+            if i % group_size == 0:
+                group_idx = i // group_size
+                current_slot = start_time + timedelta(minutes=group_idx * 30)
+                end_slot = current_slot + timedelta(minutes=30)
+                time_range = f"{current_slot.strftime('%H:%M')} - {end_slot.strftime('%H:%M')}"
+                
+                # Добавляем объединение ячеек (SPAN) для столбца "Время"
+                start_row = i + 1
+                end_row = min(i + group_size, num_volunteers)
+                style_config.append(('SPAN', (3, start_row), (3, end_row)))
+                
+                # Рисуем толстую линию под всей группой (кроме последней)
+                if end_row < num_volunteers + 1:
+                    style_config.append(('LINEBELOW', (0, end_row), (-1, end_row), 2, colors.black))
+            else:
+                time_range = "" # Пусто, так как ячейка будет объединена
+
+            data.append([str(i + 1), str(v.full_name or "---"), str(v.phone_number or "---"), time_range])
+
+        t = Table(data, colWidths=[35, 210, 130, 115])
         t.setStyle(TableStyle(style_config))
 
         elements.append(t)
