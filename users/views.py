@@ -262,12 +262,13 @@ class DownloadInterviewScheduleView(APIView):
 
     def get(self, request):
         try:
-            # Получаем волонтеров
-            volunteers_list = list(VolunteerApplication.objects.filter(status='interview').order_by('full_name'))
+            # Превращаем QuerySet в список, чтобы точно знать количество
+            volunteers_query = VolunteerApplication.objects.filter(status='interview').order_by('full_name')
+            volunteers_list = list(volunteers_query)
             num_volunteers = len(volunteers_list)
             
             if num_volunteers == 0:
-                return Response({"error": "Нет волонтеров со статусом interview"}, status=400)
+                return Response({"error": "Список волонтеров пуст"}, status=400)
 
             buffer = io.BytesIO()
             doc = SimpleDocTemplate(
@@ -293,9 +294,10 @@ class DownloadInterviewScheduleView(APIView):
             )
             elements.append(Paragraph("Расписание собеседований", title_style))
 
-            # Данные таблицы (Шапка - индекс 0)
+            # Формируем данные (первая строка — шапка)
             data = [['№', 'ФИО Волонтера', 'Телефон', 'Время']]
             
+            # Базовая конфигурация стиля
             style_config = [
                 ('FONTNAME', (0, 0), (-1, -1), font_name),
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
@@ -315,12 +317,12 @@ class DownloadInterviewScheduleView(APIView):
                 ('BACKGROUND', (2, 1), (2, -1), colors.HexColor("#EBF5FB")),
                 ('BACKGROUND', (3, 1), (3, -1), colors.HexColor("#F8F9F9")),
 
-                # Черные границы столбцов
+                # Границы (Черные рамки)
                 ('BOX', (0, 0), (-1, -1), 1, colors.black),
                 ('LINEBEFORE', (1, 0), (1, -1), 1, colors.black),
                 ('LINEBEFORE', (2, 0), (2, -1), 1, colors.black),
                 ('LINEBEFORE', (3, 0), (3, -1), 1, colors.black),
-                ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
+                ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black), # Жирная под шапкой
                 
                 ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
                 ('TOPPADDING', (0, 0), (-1, -1), 10),
@@ -330,35 +332,37 @@ class DownloadInterviewScheduleView(APIView):
             group_size = 30
 
             for i, v in enumerate(volunteers_list):
-                # row_in_table — это индекс в списке `data`. 
-                # Так как data[0] это шапка, то первый волонтер (i=0) будет в data[1].
-                row_in_table = i + 1 
+                # Номер текущей строки в таблице (учитывая, что data[0] - шапка)
+                row_idx = i + 1 
                 
-                # Каждые 30 человек делаем блок времени
+                # Каждые 30 человек рассчитываем блок времени
                 if i % group_size == 0:
-                    group_idx = i // group_size
-                    t_start = start_time + timedelta(minutes=group_idx * 30)
+                    group_num = i // group_size
+                    t_start = start_time + timedelta(minutes=group_num * 30)
                     t_end = t_start + timedelta(minutes=30)
-                    time_label = f"{t_start.strftime('%H:%M')} - {t_end.strftime('%H:%M')}"
+                    time_text = f"{t_start.strftime('%H:%M')} - {t_end.strftime('%H:%M')}"
                     
-                    # Рассчитываем, до какой строки объединять (SPAN)
-                    # Номер последней строки в группе: текущая + 29 (но не больше общего кол-ва)
-                    last_row_in_group = min(row_in_table + group_size - 1, num_volunteers)
+                    # Определяем индекс последней строки в текущем блоке
+                    # row_idx (начало) + 29 строк (размер группы - 1)
+                    span_end = row_idx + group_size - 1
+                    # Но не больше, чем всего волонтеров
+                    if span_end > num_volunteers:
+                        span_end = num_volunteers
                     
                     # Объединяем ячейки времени
-                    style_config.append(('SPAN', (3, row_in_table), (3, last_row_in_group)))
+                    style_config.append(('SPAN', (3, row_idx), (3, span_end)))
                     
-                    # Если этот блок не последний, рисуем жирную черную линию снизу
-                    if last_row_in_group < num_volunteers:
-                        style_config.append(('LINEBELOW', (0, last_row_in_group), (-1, last_row_in_group), 2, colors.black))
+                    # Рисуем жирную разделительную линию под блоком времени
+                    if span_end < num_volunteers:
+                        style_config.append(('LINEBELOW', (0, span_end), (-1, span_end), 2, colors.black))
                 else:
-                    time_label = ""
+                    time_text = ""
 
                 data.append([
                     str(i + 1), 
                     str(v.full_name or "---"), 
                     str(v.phone_number or "---"), 
-                    time_label
+                    time_text
                 ])
 
             table = Table(data, colWidths=[35, 210, 130, 115])
@@ -371,9 +375,9 @@ class DownloadInterviewScheduleView(APIView):
             return FileResponse(buffer, as_attachment=True, filename="Interview_Schedule.pdf")
 
         except Exception as e:
-            # Печатаем ошибку в лог докера, чтобы мы могли её увидеть
-            print(f"!!! КРИТИЧЕСКАЯ ОШИБКА: {str(e)}")
-            return Response({"error": f"Internal error: {str(e)}"}, status=500)
+            # Вывод ошибки в терминал бэкенда
+            print(f"!!! ОШИБКА ГЕНЕРАЦИИ PDF: {str(e)}")
+            return Response({"error": f"Ошибка: {str(e)}"}, status=500)
 # ---------------- Страница Доски ----------------
 
 class VolunteerBoardView(TemplateView):
