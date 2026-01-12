@@ -291,18 +291,28 @@ class DownloadInterviewScheduleView(APIView):
         )
         elements.append(Paragraph("Расписание собеседований", title_style))
 
-        # Данные
+        # Данные таблицы
         data = [['№', 'ФИО Волонтера', 'Телефон', 'Время']]
+        
         start_time = datetime.strptime("09:00", "%H:%M")
+        
         for i, v in enumerate(volunteers):
-            current_slot = start_time + timedelta(minutes=i * 30)
+            # ЛОГИКА: Группировка по 30 человек на один интервал
+            group_index = i // 30  # 0-29 -> 0, 30-59 -> 1, и т.д.
+            current_slot = start_time + timedelta(minutes=group_index * 30)
             end_slot = current_slot + timedelta(minutes=30)
             time_range = f"{current_slot.strftime('%H:%M')} - {end_slot.strftime('%H:%M')}"
-            data.append([str(i + 1), str(v.full_name or "---"), str(v.phone_number or "---"), time_range])
+            
+            data.append([
+                str(i + 1), 
+                str(v.full_name or "---"), 
+                str(v.phone_number or "---"), 
+                time_range
+            ])
 
         t = Table(data, colWidths=[35, 210, 130, 115])
         
-        # Настройка стиля с черными границами столбцов
+        # Стиль с пастельными цветами и черными рамками
         style_config = [
             ('FONTNAME', (0, 0), (-1, -1), font_name),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
@@ -310,27 +320,24 @@ class DownloadInterviewScheduleView(APIView):
             ('FONTSIZE', (0, 0), (-1, 0), 11),
             ('FONTSIZE', (0, 1), (-1, -1), 10),
             
-            # --- ЦВЕТА ШАПКИ ---
-            ('BACKGROUND', (0, 0), (0, 0), colors.HexColor("#FAD7A0")),
-            ('BACKGROUND', (1, 0), (1, 0), colors.HexColor("#A9DFBF")),
-            ('BACKGROUND', (2, 0), (2, 0), colors.HexColor("#AED6F1")),
-            ('BACKGROUND', (3, 0), (3, 0), colors.HexColor("#D5DBDB")),
+            # Цвета ШАПКИ
+            ('BACKGROUND', (0, 0), (0, 0), colors.HexColor("#FAD7A0")), # Желтый
+            ('BACKGROUND', (1, 0), (1, 0), colors.HexColor("#A9DFBF")), # Зеленый
+            ('BACKGROUND', (2, 0), (2, 0), colors.HexColor("#AED6F1")), # Голубой
+            ('BACKGROUND', (3, 0), (3, 0), colors.HexColor("#D5DBDB")), # Серый
             
-            # --- ЦВЕТА СТОЛБЦОВ ---
+            # Цвета СТОЛБЦОВ
             ('BACKGROUND', (0, 1), (0, -1), colors.HexColor("#FEF9E7")),
             ('BACKGROUND', (1, 1), (1, -1), colors.HexColor("#E9F7EF")),
             ('BACKGROUND', (2, 1), (2, -1), colors.HexColor("#EBF5FB")),
             ('BACKGROUND', (3, 1), (3, -1), colors.HexColor("#F8F9F9")),
 
-            # --- ЧЕРНЫЕ ГРАНИЦЫ (Контуры столбцов) ---
-            # Внешняя рамка всей таблицы
-            ('BOX', (0, 0), (-1, -1), 1, colors.black),
-            # Вертикальные линии между всеми столбцами
-            ('LINEBEFORE', (1, 0), (1, -1), 1, colors.black),
-            ('LINEBEFORE', (2, 0), (2, -1), 1, colors.black),
-            ('LINEBEFORE', (3, 0), (3, -1), 1, colors.black),
-            # Горизонтальная линия после шапки
-            ('LINEBELOW', (0, 0), (-1, 0), 1, colors.black),
+            # ЧЕРНЫЕ ГРАНИЦЫ
+            ('BOX', (0, 0), (-1, -1), 1, colors.black),           # Общая рамка
+            ('LINEBEFORE', (1, 0), (1, -1), 1, colors.black),      # Линия перед ФИО
+            ('LINEBEFORE', (2, 0), (2, -1), 1, colors.black),      # Линия перед Телефоном
+            ('LINEBEFORE', (3, 0), (3, -1), 1, colors.black),      # Линия перед Временем
+            ('LINEBELOW', (0, 0), (-1, 0), 1, colors.black),       # Линия под шапкой
             
             ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
             ('TOPPADDING', (0, 0), (-1, -1), 10),
@@ -343,7 +350,6 @@ class DownloadInterviewScheduleView(APIView):
         buffer.seek(0)
         
         return FileResponse(buffer, as_attachment=True, filename=f'Schedule_{datetime.now().strftime("%d_%m")}.pdf')
-
 # ---------------- Страница Доски ----------------
 
 class VolunteerBoardView(TemplateView):
