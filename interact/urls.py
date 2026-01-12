@@ -1,22 +1,19 @@
+# urls.py (ГЛАВНЫЙ)
 from django.contrib import admin
 from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
+
 from rest_framework.routers import DefaultRouter
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 
-from users.views import (
-    VolunteerViewSet, VolunteerLoginView, VolunteerProfileView,
-    VolunteerApplicationViewSet, VolunteerColumnsView, SendAcceptedVolunteersEmailsView, VolunteerBoardView,
-    BotCheckAccessView
-)
+# Импорты только для роутера
+from users.views import VolunteerViewSet, VolunteerApplicationViewSet
 from directions.views import VolunteerDirectionViewSet, ProjectDirectionViewSet
-from projects.views import ProjectListView, YearResultListView, ProjectArchiveListView, ProjectCreateAPIView
-from teatre import views
-from projects.views import main_page
-# ------------------ Swagger ------------------
+
+# ------------------ Swagger Setup ------------------
 schema_view = get_schema_view(
     openapi.Info(
         title="Interact Club API",
@@ -28,52 +25,33 @@ schema_view = get_schema_view(
     permission_classes=(permissions.AllowAny,),
 )
 
-# ------------------ Router ------------------
+# ------------------ Router Setup ------------------
+# ViewSets остаются здесь, так как они формируют REST структуру
 router = DefaultRouter()
 router.register(r'volunteer', VolunteerViewSet)
 router.register(r'volunteer-directions', VolunteerDirectionViewSet, basename='volunteer-directions')
 router.register(r'project-directions', ProjectDirectionViewSet, basename='project-directions')
-router.register(r'applications', VolunteerApplicationViewSet, basename='applications')  # <-- новый роут
+router.register(r'applications', VolunteerApplicationViewSet, basename='applications')
 
-# ------------------ URLS ------------------
+# ------------------ Main URL Patterns ------------------
 urlpatterns = [
     path('admin/', admin.site.urls),
+    
+    # Подключаем роутер (ViewSet'ы)
     path('api/', include(router.urls)),
 
-    path('', main_page, name='main'),
-
-    path('', include('logs.urls')), 
-
-    # Auth
-    path('api/login', VolunteerLoginView.as_view(), name='volunteer-login'),
-    path('api/profile', VolunteerProfileView.as_view()),
-
-    # Volunteer columns view (для фронта)
-    path('api/volunteer-columns/', VolunteerColumnsView.as_view(), name='volunteer-columns'),
-
-    # Booking
-    path('book/', views.booking_page, name='booking_page'), 
-    path('api/book', views.api_book, name='api_book'),
-
-    # Projects
-    path('api/projects', ProjectListView.as_view()),
-    path('api/projects/create', ProjectCreateAPIView.as_view(), name='project-create'),
-    path('api/projects/archive', ProjectArchiveListView.as_view(), name='projects-archive'),
-    path('api/year-result', YearResultListView.as_view()),
-
-    # Finik payments
-    path('finik/', include('finik.urls')),
-
-    path('users/send-accepted-emails/', SendAcceptedVolunteersEmailsView.as_view(), name='send-accepted-emails'),
-    path('volunteers-board/', VolunteerBoardView.as_view(), name='volunteers-board'),
-
-    path('api/bot-auth/', BotCheckAccessView.as_view(), name='bot_auth'),
+    # Подключаем urls из приложений (APIViews и обычные Views)
+    path('', include('users.urls')),      # Auth, Profile, Board, Bot
+    path('', include('projects.urls')),   # Main page, Projects API
+    path('', include('teatre.urls')),     # Booking
+    path('', include('logs.urls')),       # Logs
+    path('finik/', include('finik.urls')), # Payments
 
     # ------------------ Swagger ------------------
     re_path(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
-    
+
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT) \
   + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 

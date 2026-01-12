@@ -8,6 +8,7 @@ class VolunteerDirectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = VolunteerDirection
         fields = ['id', 'name']
+        ref_name = 'UserVolunteerDirection'
 
 
 # --------- Сериализатор Волонтёра (User) ---------
@@ -23,6 +24,7 @@ class VolunteerSerializer(serializers.ModelSerializer):
             'telegram_username', 'telegram_id', 'board', 'direction',
             'point', 'yellow_card'
         ]
+        ref_name = 'UserVolunteer'
 
     def get_image_url(self, obj):
         if obj.image:

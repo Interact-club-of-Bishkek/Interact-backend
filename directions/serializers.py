@@ -12,7 +12,7 @@ class VolunteerSerializer(serializers.ModelSerializer):
             'telegram_username', 'telegram_id', 'board', 'direction',
             'point', 'yellow_card'
         ]
-
+        ref_name = 'DirectionVolunteer'
 
 class ProjectSerializer(serializers.ModelSerializer):
     class Meta:
@@ -29,7 +29,7 @@ class VolunteerDirectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = VolunteerDirection
         fields = ['id', 'name', 'volunteers']
-
+        ref_name = 'DirectionVolunteerDirection'
 
 class ProjectDirectionSerializer(serializers.ModelSerializer):
     projects = ProjectSerializer(many=True, read_only=True)
