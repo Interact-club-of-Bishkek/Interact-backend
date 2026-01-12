@@ -257,15 +257,30 @@ class BotCheckAccessView(APIView):
 
 # ---------------- PDF Генерация ----------------
 
+import os
+import io
+from datetime import datetime, timedelta
+from django.conf import settings
+from django.http import FileResponse
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
 class DownloadInterviewScheduleView(APIView):
     permission_classes = []
 
     def get(self, request):
         try:
-            # Получаем список волонтеров
+            # 1. Получаем данные
             volunteers = VolunteerApplication.objects.filter(status='interview').order_by('full_name')
             num_volunteers = volunteers.count()
             
+            # Если волонтеров нет, возвращаем 400 вместо 500
             if num_volunteers == 0:
                 return Response({"error": "Список волонтеров пуст"}, status=400)
 
@@ -277,7 +292,7 @@ class DownloadInterviewScheduleView(APIView):
             )
             elements = []
 
-            # --- НАСТРОЙКА ШРИФТА ---
+            # 2. Настройка шрифта
             font_name = 'Helvetica'
             font_path = os.path.join(settings.BASE_DIR, 'FreeSans.ttf')
             if os.path.exists(font_path):
@@ -286,17 +301,16 @@ class DownloadInterviewScheduleView(APIView):
                     font_name = 'FreeSans'
                 except: pass
 
-            # Заголовок документа
+            # 3. Заголовок
             title_style = ParagraphStyle(
                 'TitleStyle', fontName=font_name, fontSize=18,
                 alignment=1, textColor=colors.HexColor("#333333"), spaceAfter=35
             )
             elements.append(Paragraph("Расписание собеседований", title_style))
 
-            # Шапка таблицы
+            # 4. Формирование таблицы
             data = [['№', 'ФИО Волонтера', 'Телефон', 'Время']]
             
-            # Базовые стили
             style_config = [
                 ('FONTNAME', (0, 0), (-1, -1), font_name),
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
@@ -304,24 +318,24 @@ class DownloadInterviewScheduleView(APIView):
                 ('FONTSIZE', (0, 0), (-1, 0), 11),
                 ('FONTSIZE', (0, 1), (-1, -1), 10),
                 
-                # Цвета шапки (Мягкие)
-                ('BACKGROUND', (0, 0), (0, 0), colors.HexColor("#FAD7A0")), # Желтый
-                ('BACKGROUND', (1, 0), (1, 0), colors.HexColor("#A9DFBF")), # Зеленый
-                ('BACKGROUND', (2, 0), (2, 0), colors.HexColor("#AED6F1")), # Голубой
-                ('BACKGROUND', (3, 0), (3, 0), colors.HexColor("#D5DBDB")), # Серый
+                # Цвета шапки
+                ('BACKGROUND', (0, 0), (0, 0), colors.HexColor("#FAD7A0")),
+                ('BACKGROUND', (1, 0), (1, 0), colors.HexColor("#A9DFBF")),
+                ('BACKGROUND', (2, 0), (2, 0), colors.HexColor("#AED6F1")),
+                ('BACKGROUND', (3, 0), (3, 0), colors.HexColor("#D5DBDB")),
                 
-                # Цвета столбцов (Пастель)
+                # Цвета столбцов
                 ('BACKGROUND', (0, 1), (0, -1), colors.HexColor("#FEF9E7")),
                 ('BACKGROUND', (1, 1), (1, -1), colors.HexColor("#E9F7EF")),
                 ('BACKGROUND', (2, 1), (2, -1), colors.HexColor("#EBF5FB")),
                 ('BACKGROUND', (3, 1), (3, -1), colors.HexColor("#F8F9F9")),
 
-                # Границы столбцов
+                # Границы
                 ('BOX', (0, 0), (-1, -1), 1, colors.black),
                 ('LINEBEFORE', (1, 0), (1, -1), 1, colors.black),
                 ('LINEBEFORE', (2, 0), (2, -1), 1, colors.black),
                 ('LINEBEFORE', (3, 0), (3, -1), 1, colors.black),
-                ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black), # Толстая линия под шапкой
+                ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
                 
                 ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
                 ('TOPPADDING', (0, 0), (-1, -1), 10),
@@ -331,33 +345,28 @@ class DownloadInterviewScheduleView(APIView):
             group_size = 30
 
             for i, v in enumerate(volunteers):
-                row_idx = i + 1 # Индекс строки в таблице (с учетом шапки)
+                row_idx = i + 1  # Индекс в данных (data), где 0 - это шапка
                 
-                # Каждые 30 человек определяем временной блок
                 if i % group_size == 0:
                     group_num = i // group_size
                     time_start = start_time + timedelta(minutes=group_num * 30)
                     time_end = time_start + timedelta(minutes=30)
                     time_text = f"{time_start.strftime('%H:%M')} - {time_end.strftime('%H:%M')}"
                     
-                    # Объединяем ячейки для этого блока времени
-                    end_row_span = min(row_idx + group_size - 1, num_volunteers)
-                    style_config.append(('SPAN', (3, row_idx), (3, end_row_span)))
+                    # Безопасный расчет конца объединения
+                    # (row_idx - текущая строка, group_size - сколько строк объединить)
+                    span_end = min(row_idx + group_size - 1, num_volunteers)
+                    style_config.append(('SPAN', (3, row_idx), (3, span_end)))
                     
-                    # Рисуем толстую линию ПОСЛЕ завершения блока (если это не конец списка)
-                    if end_row_span < num_volunteers:
-                        style_config.append(('LINEBELOW', (0, end_row_span), (-1, end_row_span), 2, colors.black))
+                    # Рисуем жирную линию под всем блоком времени
+                    if span_end < num_volunteers:
+                        style_config.append(('LINEBELOW', (0, span_end), (-1, span_end), 2, colors.black))
                 else:
                     time_text = ""
 
-                data.append([
-                    str(i + 1), 
-                    str(v.full_name or "---"), 
-                    str(v.phone_number or "---"), 
-                    time_text
-                ])
+                data.append([str(i + 1), str(v.full_name or "---"), str(v.phone_number or "---"), time_text])
 
-            # Создание таблицы
+            # 5. Сборка PDF
             table = Table(data, colWidths=[35, 210, 130, 115])
             table.setStyle(TableStyle(style_config))
             elements.append(table)
@@ -365,14 +374,11 @@ class DownloadInterviewScheduleView(APIView):
             doc.build(elements)
             buffer.seek(0)
             
-            return FileResponse(
-                buffer, 
-                as_attachment=True, 
-                filename=f'Schedule_{datetime.now().strftime("%d_%m")}.pdf'
-            )
+            return FileResponse(buffer, as_attachment=True, filename=f'Schedule_{datetime.now().strftime("%d_%m")}.pdf')
 
         except Exception as e:
-            print(f"ОШИБКА ГЕНЕРАЦИИ PDF: {str(e)}")
+            # Логируем точную ошибку в консоль бэкенда
+            print(f"!!! ОШИБКА ГЕНЕРАЦИИ PDF: {str(e)}")
             return Response({"error": f"Internal error: {str(e)}"}, status=500)
 # ---------------- Страница Доски ----------------
 
