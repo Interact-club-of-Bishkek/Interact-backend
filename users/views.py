@@ -261,99 +261,114 @@ class DownloadInterviewScheduleView(APIView):
     permission_classes = []
 
     def get(self, request):
-        volunteers = VolunteerApplication.objects.filter(status='interview').order_by('full_name')
-        buffer = io.BytesIO()
-        
-        doc = SimpleDocTemplate(
-            buffer, 
-            pagesize=A4,
-            rightMargin=35, leftMargin=35, topMargin=40, bottomMargin=40
-        )
-        elements = []
-
-        # --- ШРИФТ ---
-        font_name = 'Helvetica'
-        font_path = os.path.join(settings.BASE_DIR, 'FreeSans.ttf')
-        if os.path.exists(font_path):
-            try:
-                pdfmetrics.registerFont(TTFont('FreeSans', font_path))
-                font_name = 'FreeSans'
-            except: pass
-
-        # Заголовок
-        title_style = ParagraphStyle(
-            'TitleStyle', fontName=font_name, fontSize=18,
-            alignment=1, textColor=colors.HexColor("#333333"), spaceAfter=35
-        )
-        elements.append(Paragraph("Расписание собеседований", title_style))
-
-        # Подготовка данных
-        data = [['№', 'ФИО Волонтера', 'Телефон', 'Время']]
-        
-        # Начальные стили таблицы
-        style_config = [
-            ('FONTNAME', (0, 0), (-1, -1), font_name),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTSIZE', (0, 0), (-1, 0), 11),
-            ('FONTSIZE', (0, 1), (-1, -1), 10),
+        try:
+            volunteers = VolunteerApplication.objects.filter(status='interview').order_by('full_name')
+            buffer = io.BytesIO()
             
-            # Цвета шапки
-            ('BACKGROUND', (0, 0), (0, 0), colors.HexColor("#FAD7A0")),
-            ('BACKGROUND', (1, 0), (1, 0), colors.HexColor("#A9DFBF")),
-            ('BACKGROUND', (2, 0), (2, 0), colors.HexColor("#AED6F1")),
-            ('BACKGROUND', (3, 0), (3, 0), colors.HexColor("#D5DBDB")),
+            doc = SimpleDocTemplate(
+                buffer, 
+                pagesize=A4,
+                rightMargin=35, leftMargin=35, topMargin=40, bottomMargin=40
+            )
+            elements = []
+
+            # --- БЕЗОПАСНЫЙ ПОИСК ШРИФТА ---
+            font_name = 'Helvetica'
+            # Проверяем корень проекта и папку приложения
+            possible_font_paths = [
+                os.path.join(settings.BASE_DIR, 'FreeSans.ttf'),
+                os.path.join(os.path.dirname(os.path.abspath(__file__)), 'FreeSans.ttf'),
+            ]
             
-            # Цвета столбцов
-            ('BACKGROUND', (0, 1), (0, -1), colors.HexColor("#FEF9E7")),
-            ('BACKGROUND', (1, 1), (1, -1), colors.HexColor("#E9F7EF")),
-            ('BACKGROUND', (2, 1), (2, -1), colors.HexColor("#EBF5FB")),
-            ('BACKGROUND', (3, 1), (3, -1), colors.HexColor("#F8F9F9")),
-
-            # Базовые границы
-            ('BOX', (0, 0), (-1, -1), 1, colors.black),
-            ('LINEBEFORE', (1, 0), (1, -1), 1, colors.black),
-            ('LINEBEFORE', (2, 0), (2, -1), 1, colors.black),
-            ('LINEBEFORE', (3, 0), (3, -1), 1, colors.black),
-            ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black), # Толстая линия под шапкой
+            for path in possible_font_paths:
+                if os.path.exists(path):
+                    try:
+                        pdfmetrics.registerFont(TTFont('FreeSans', path))
+                        font_name = 'FreeSans'
+                        break
+                    except Exception as e:
+                        print(f"Ошибка регистрации шрифта: {e}")
             
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-            ('TOPPADDING', (0, 0), (-1, -1), 10),
-        ]
+            if font_name == 'Helvetica':
+                print("КРИТИЧЕСКАЯ ОШИБКА: Шрифт FreeSans.ttf не найден! Проверьте наличие файла в корне.")
 
-        start_time = datetime.strptime("09:00", "%H:%M")
-        num_volunteers = volunteers.count()
-        group_size = 30
+            # Стиль заголовка
+            title_style = ParagraphStyle(
+                'TitleStyle', fontName=font_name, fontSize=18,
+                alignment=1, textColor=colors.HexColor("#333333"), spaceAfter=35
+            )
+            elements.append(Paragraph("Расписание собеседований", title_style))
 
-        for i, v in enumerate(volunteers):
-            # Текст времени пишем только для первого человека в группе
-            if i % group_size == 0:
-                group_idx = i // group_size
-                current_slot = start_time + timedelta(minutes=group_idx * 30)
-                end_slot = current_slot + timedelta(minutes=30)
-                time_range = f"{current_slot.strftime('%H:%M')} - {end_slot.strftime('%H:%M')}"
+            # Подготовка данных
+            data = [['№', 'ФИО Волонтера', 'Телефон', 'Время']]
+            style_config = [
+                ('FONTNAME', (0, 0), (-1, -1), font_name),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTSIZE', (0, 0), (-1, 0), 11),
+                ('FONTSIZE', (0, 1), (-1, -1), 10),
                 
-                # Добавляем объединение ячеек (SPAN) для столбца "Время"
-                start_row = i + 1
-                end_row = min(i + group_size, num_volunteers)
-                style_config.append(('SPAN', (3, start_row), (3, end_row)))
+                # Цвета шапки
+                ('BACKGROUND', (0, 0), (0, 0), colors.HexColor("#FAD7A0")),
+                ('BACKGROUND', (1, 0), (1, 0), colors.HexColor("#A9DFBF")),
+                ('BACKGROUND', (2, 0), (2, 0), colors.HexColor("#AED6F1")),
+                ('BACKGROUND', (3, 0), (3, 0), colors.HexColor("#D5DBDB")),
                 
-                # Рисуем толстую линию под всей группой (кроме последней)
-                if end_row < num_volunteers + 1:
-                    style_config.append(('LINEBELOW', (0, end_row), (-1, end_row), 2, colors.black))
-            else:
-                time_range = "" # Пусто, так как ячейка будет объединена
+                # Цвета столбцов (Пастель)
+                ('BACKGROUND', (0, 1), (0, -1), colors.HexColor("#FEF9E7")),
+                ('BACKGROUND', (1, 1), (1, -1), colors.HexColor("#E9F7EF")),
+                ('BACKGROUND', (2, 1), (2, -1), colors.HexColor("#EBF5FB")),
+                ('BACKGROUND', (3, 1), (3, -1), colors.HexColor("#F8F9F9")),
 
-            data.append([str(i + 1), str(v.full_name or "---"), str(v.phone_number or "---"), time_range])
+                # Границы
+                ('BOX', (0, 0), (-1, -1), 1, colors.black),
+                ('LINEBEFORE', (1, 0), (1, -1), 1, colors.black),
+                ('LINEBEFORE', (2, 0), (2, -1), 1, colors.black),
+                ('LINEBEFORE', (3, 0), (3, -1), 1, colors.black),
+                ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
+                
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+                ('TOPPADDING', (0, 0), (-1, -1), 10),
+            ]
 
-        t = Table(data, colWidths=[35, 210, 130, 115])
-        t.setStyle(TableStyle(style_config))
+            start_time = datetime.strptime("09:00", "%H:%M")
+            num_volunteers = volunteers.count()
+            group_size = 30
 
-        elements.append(t)
-        doc.build(elements)
-        buffer.seek(0)
-        
-        return FileResponse(buffer, as_attachment=True, filename=f'Schedule_{datetime.now().strftime("%d_%m")}.pdf')
+            for i, v in enumerate(volunteers):
+                if i % group_size == 0:
+                    group_idx = i // group_size
+                    current_slot = start_time + timedelta(minutes=group_idx * 30)
+                    end_slot = current_slot + timedelta(minutes=30)
+                    time_range = f"{current_slot.strftime('%H:%M')} - {end_slot.strftime('%H:%M')}"
+                    
+                    # Объединение ячеек для времени (30 строк)
+                    start_row = i + 1
+                    end_row = min(i + group_size, num_volunteers)
+                    style_config.append(('SPAN', (3, start_row), (3, end_row)))
+                    
+                    # Толстая черная линия-разделитель между группами
+                    if end_row < num_volunteers + 1:
+                        style_config.append(('LINEBELOW', (0, end_row), (-1, end_row), 2, colors.black))
+                else:
+                    time_range = ""
+
+                data.append([str(i + 1), str(v.full_name or "---"), str(v.phone_number or "---"), time_range])
+
+            t = Table(data, colWidths=[35, 210, 130, 115])
+            t.setStyle(TableStyle(style_config))
+            elements.append(t)
+            
+            doc.build(elements)
+            buffer.seek(0)
+            
+            filename = f'Schedule_{datetime.now().strftime("%d_%m")}.pdf'
+            return FileResponse(buffer, as_attachment=True, filename=filename)
+
+        except Exception as e:
+            # Если случилась любая ошибка, мы увидим её в консоли вместо просто "500"
+            print(f"ОШИБКА ГЕНЕРАЦИИ PDF: {str(e)}")
+            return Response({"error": "Ошибка на сервере при создании PDF"}, status=500)
 # ---------------- Страница Доски ----------------
 
 class VolunteerBoardView(TemplateView):
