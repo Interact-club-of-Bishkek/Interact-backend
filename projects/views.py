@@ -54,5 +54,8 @@ class YearResultListView(ListAPIView):
 def main_page(request):
     return render(request, 'main_page/main.html')
 
+def promotion_page(request):
+    return render(request, 'promotion/promotion.html')
+
 def custom_page_not_found(request, exception):
     return render(request, 'error/404.html', status=404)

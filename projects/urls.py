@@ -5,12 +5,14 @@ from .views import (
     ProjectCreateAPIView, 
     ProjectArchiveListView, 
     YearResultListView, 
-    main_page
+    main_page,
+    promotion_page
 )
 
 urlpatterns = [
     # Main Page
     path('', main_page, name='main'),
+    path('promotion', promotion_page, name='promotion'),
 
     # Projects API
     path('api/projects', ProjectListView.as_view(), name='project-list'),
