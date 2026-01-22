@@ -373,5 +373,95 @@ class DownloadInterviewScheduleView(APIView):
             return Response({"error": f"Ошибка генерации: {str(e)}"}, status=500)
 # ---------------- Страница Доски ----------------
 
+class DownloadAcceptedNamesView(APIView):
+    permission_classes = []
+
+    def get(self, request):
+        try:
+            volunteers = VolunteerApplication.objects.filter(
+                status='accepted'
+            ).order_by('full_name')
+
+            if not volunteers.exists():
+                return Response(
+                    {"error": "Список принятых волонтеров пуст"},
+                    status=400
+                )
+
+            buffer = io.BytesIO()
+            doc = SimpleDocTemplate(
+                buffer,
+                pagesize=A4,
+                rightMargin=40, leftMargin=40,
+                topMargin=40, bottomMargin=40
+            )
+
+            elements = []
+
+            # --- Шрифт ---
+            font_name = 'Helvetica'
+            font_path = os.path.join(settings.BASE_DIR, 'FreeSans.ttf')
+            if os.path.exists(font_path):
+                try:
+                    pdfmetrics.registerFont(TTFont('FreeSans', font_path))
+                    font_name = 'FreeSans'
+                except:
+                    pass
+
+            title_style = ParagraphStyle(
+                'Title',
+                fontName=font_name,
+                fontSize=18,
+                alignment=1,
+                spaceAfter=20
+            )
+
+            elements.append(Paragraph("Список принятых волонтеров", title_style))
+
+            # Таблица: № + ФИО
+            data = [['№', 'ФИО']]
+
+            for i, v in enumerate(volunteers, start=1):
+                data.append([str(i), v.full_name or '---'])
+
+            table = Table(
+                data,
+                colWidths=[50, 430],
+                rowHeights=[30] + [22] * (len(data) - 1)
+            )
+
+            table.setStyle(TableStyle([
+                ('FONTNAME', (0, 0), (-1, -1), font_name),
+                ('FONTSIZE', (0, 0), (-1, 0), 11),
+                ('FONTSIZE', (0, 1), (-1, -1), 10),
+                ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#E8DAEF")),
+                ('BACKGROUND', (1, 1), (-1, -1), colors.HexColor("#FDFEFE")),
+
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+                ('BOX', (0, 0), (-1, -1), 1.2, colors.black),
+                ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
+            ]))
+
+            elements.append(table)
+            doc.build(elements)
+
+            buffer.seek(0)
+            return FileResponse(
+                buffer,
+                as_attachment=True,
+                filename="Accepted_Volunteers.pdf"
+            )
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {"error": f"Ошибка генерации PDF: {str(e)}"},
+                status=500
+            )
+
 class VolunteerBoardView(TemplateView):
     template_name = "volunteers/columns.html"

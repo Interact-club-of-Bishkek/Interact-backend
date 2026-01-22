@@ -180,7 +180,18 @@ h1 {
       </div>
       <div class="cards-list"></div>
   </div>
-  <div class="column" id="accepted"><h2>Приняты 👑</h2><div class="cards-list"></div></div>
+  <div class="column" id="accepted">
+    <h2>Приняты 👑</h2>
+
+    <div class="download-section">
+        <button class="btn-download" onclick="downloadAcceptedNames()">
+            📥 Скачать список ФИО
+        </button>
+    </div>
+
+    <div class="cards-list"></div>
+</div>
+
 </div>
 
 <div class="stats-container">
@@ -397,6 +408,10 @@ function openModal(v) {
 
 function downloadSchedule() {
     window.location.href = '/api/download-schedule/';
+}
+
+function downloadAcceptedNames() {
+    window.location.href = '/api/download-accepted-names/';
 }
 
 prevBtn.onclick = () => {
