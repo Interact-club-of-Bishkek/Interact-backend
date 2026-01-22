@@ -419,14 +419,19 @@ class DownloadAcceptedNamesView(APIView):
             elements.append(Paragraph("Список принятых волонтеров", title_style))
 
             # Таблица: № + ФИО
-            data = [['№', 'ФИО']]
+            data = [['№', 'ФИО', 'Телефон']]
 
             for i, v in enumerate(volunteers, start=1):
-                data.append([str(i), v.full_name or '---'])
+                data.append([
+                    str(i),
+                    v.full_name or '---',
+                    v.phone_number or '---'
+                ])
+
 
             table = Table(
                 data,
-                colWidths=[50, 430],
+                colWidths=[45, 285, 120],
                 rowHeights=[30] + [22] * (len(data) - 1)
             )
 
@@ -434,16 +439,25 @@ class DownloadAcceptedNamesView(APIView):
                 ('FONTNAME', (0, 0), (-1, -1), font_name),
                 ('FONTSIZE', (0, 0), (-1, 0), 11),
                 ('FONTSIZE', (0, 1), (-1, -1), 10),
+
                 ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+                ('ALIGN', (2, 1), (2, -1), 'CENTER'),
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
 
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#E8DAEF")),
-                ('BACKGROUND', (1, 1), (-1, -1), colors.HexColor("#FDFEFE")),
+                # Шапка
+                ('BACKGROUND', (0, 0), (0, 0), colors.HexColor("#E8DAEF")),
+                ('BACKGROUND', (1, 0), (1, 0), colors.HexColor("#D6EAF8")),
+                ('BACKGROUND', (2, 0), (2, 0), colors.HexColor("#D5F5E3")),
+
+                # Тело
+                ('BACKGROUND', (1, 1), (1, -1), colors.HexColor("#FDFEFE")),
+                ('BACKGROUND', (2, 1), (2, -1), colors.HexColor("#FBFCFC")),
 
                 ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
                 ('BOX', (0, 0), (-1, -1), 1.2, colors.black),
                 ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
             ]))
+
 
             elements.append(table)
             doc.build(elements)
