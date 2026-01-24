@@ -418,20 +418,16 @@ class DownloadAcceptedNamesView(APIView):
 
             elements.append(Paragraph("Список принятых волонтеров", title_style))
 
-            # Таблица: № + ФИО
-            data = [['№', 'ФИО', 'Телефон']]
+            # --- Таблица: Только ФИО ---
+            data = [['ФИО']]  # Только заголовок ФИО
 
-            for i, v in enumerate(volunteers, start=1):
-                data.append([
-                    str(i),
-                    v.full_name or '---',
-                    v.phone_number or '---'
-                ])
+            for v in volunteers:
+                data.append([v.full_name or '---'])
 
-
+            # Растягиваем колонку ФИО на всю ширину (примерно 450-500 для A4)
             table = Table(
                 data,
-                colWidths=[45, 285, 120],
+                colWidths=[450],
                 rowHeights=[30] + [22] * (len(data) - 1)
             )
 
@@ -440,24 +436,20 @@ class DownloadAcceptedNamesView(APIView):
                 ('FONTSIZE', (0, 0), (-1, 0), 11),
                 ('FONTSIZE', (0, 1), (-1, -1), 10),
 
-                ('ALIGN', (0, 0), (0, -1), 'CENTER'),
-                ('ALIGN', (2, 1), (2, -1), 'CENTER'),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),  # Выравнивание текста влево
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 15), # Отступ текста от края
 
                 # Шапка
-                ('BACKGROUND', (0, 0), (0, 0), colors.HexColor("#E8DAEF")),
-                ('BACKGROUND', (1, 0), (1, 0), colors.HexColor("#D6EAF8")),
-                ('BACKGROUND', (2, 0), (2, 0), colors.HexColor("#D5F5E3")),
+                ('BACKGROUND', (0, 0), (0, 0), colors.HexColor("#D6EAF8")),
 
                 # Тело
-                ('BACKGROUND', (1, 1), (1, -1), colors.HexColor("#FDFEFE")),
-                ('BACKGROUND', (2, 1), (2, -1), colors.HexColor("#FBFCFC")),
+                ('BACKGROUND', (0, 1), (0, -1), colors.HexColor("#FDFEFE")),
 
                 ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
                 ('BOX', (0, 0), (-1, -1), 1.2, colors.black),
                 ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
             ]))
-
 
             elements.append(table)
             doc.build(elements)
@@ -466,7 +458,7 @@ class DownloadAcceptedNamesView(APIView):
             return FileResponse(
                 buffer,
                 as_attachment=True,
-                filename="Accepted_Volunteers.pdf"
+                filename="Accepted_Volunteers_Names.pdf"
             )
 
         except Exception as e:
