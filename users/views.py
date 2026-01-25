@@ -2,6 +2,7 @@ import io
 import os
 import random
 import string
+import math
 from datetime import datetime, timedelta
 
 from django.db import transaction
@@ -469,7 +470,120 @@ class DownloadAcceptedNamesView(APIView):
                 status=500
             )
 
+import random
+import math
+
 class DownloadDistributionByDirectionView(APIView):
+    permission_classes = []
+
+    def get(self, request):
+        try:
+            # 1. Загружаем данные
+            all_volunteers = list(VolunteerApplication.objects.filter(status='accepted').prefetch_related('directions'))
+            all_directions = list(set([d for app in all_volunteers for d in app.directions.all()]))
+            
+            if not all_volunteers or not all_directions:
+                return Response({"error": "Нет данных для распределения"}, status=400)
+
+            # Перемешиваем волонтеров для честного рандома
+            random.shuffle(all_volunteers)
+
+            # Лимит человек на одно направление (с запасом вверх)
+            limit = math.ceil(len(all_volunteers) / len(all_directions))
+            
+            # Итоговая структура: { Направление: [Список имен] }
+            distribution = {d.name: [] for d in all_directions}
+            
+            # Список тех, кто не влез в свои приоритеты
+            leftovers = []
+
+            # 2. АЛГОРИТМ РОМНОГО РАСПРЕДЕЛЕНИЯ
+            for app in all_volunteers:
+                # Очистка имени
+                parts = (app.full_name or "").strip().split()
+                clean_name = " ".join(parts[:2]) if len(parts) >= 2 else (parts[0] if parts else "---")
+                
+                assigned = False
+                # Пробуем приоритеты волонтера
+                for direction in app.directions.all():
+                    if len(distribution[direction.name]) < limit:
+                        distribution[direction.name].append(clean_name)
+                        assigned = True
+                        break
+                
+                if not assigned:
+                    leftovers.append(clean_name)
+
+            # Рассовываем оставшихся туда, где меньше всего людей
+            for person in leftovers:
+                # Сортируем направления по текущему заполнению и берем самое пустое
+                target_dir = min(distribution, key=lambda k: len(distribution[k]))
+                distribution[target_dir].append(person)
+
+            # 3. ГЕНЕРАЦИЯ КРАСИВОГО PDF
+            buffer = io.BytesIO()
+            doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
+            
+            font_name = 'Helvetica'
+            font_path = os.path.join(settings.BASE_DIR, 'FreeSans.ttf')
+            if os.path.exists(font_path):
+                pdfmetrics.registerFont(TTFont('FreeSans', font_path))
+                font_name = 'FreeSans'
+
+            elements = []
+            styles = getSampleStyleSheet()
+            
+            # Стили
+            title_style = ParagraphStyle('Title', fontName=font_name, fontSize=20, alignment=1, spaceAfter=30, textColor=colors.HexColor("#283593"))
+            header_style = ParagraphStyle('Header', fontName=font_name, fontSize=14, textColor=colors.white, leftIndent=10)
+            count_style = ParagraphStyle('Count', fontName=font_name, fontSize=9, textColor=colors.grey, alignment=2)
+
+            elements.append(Paragraph("ИТОГОВОЕ РАСПРЕДЕЛЕНИЕ КОМАНД", title_style))
+
+            palette = ["#3949AB", "#00897B", "#8E24AA", "#D81B60", "#F4511E", "#039BE5"]
+
+            for i, (dir_name, names) in enumerate(sorted(distribution.items())):
+                color = palette[i % len(palette)]
+                
+                # Шапка направления
+                header_data = [[Paragraph(dir_name.upper(), header_style), Paragraph(f"Итого: {len(names)} чел.", count_style)]]
+                header_table = Table(header_data, colWidths=[380, 135])
+                header_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(color)),
+                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ('TOPPADDING', (0, 0), (-1, -1), 10),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+                ]))
+                elements.append(header_table)
+
+                # Таблица с именами (в 2 колонки)
+                random.shuffle(names) # Еще раз мешаем внутри для красоты
+                table_data = []
+                for j in range(0, len(names), 2):
+                    row = [names[j]]
+                    row.append(names[j+1] if j+1 < len(names) else "")
+                    table_data.append(row)
+
+                t = Table(table_data, colWidths=[257.5, 257.5])
+                t.setStyle(TableStyle([
+                    ('FONTNAME', (0, 0), (-1, -1), font_name),
+                    ('FONTSIZE', (0, 0), (-1, -1), 10),
+                    ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#F5F5F5")),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.white),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 15),
+                    ('TOPPADDING', (0, 0), (-1, -1), 5),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+                ]))
+                elements.append(t)
+                elements.append(Spacer(1, 20))
+
+            doc.build(elements)
+            buffer.seek(0)
+            return FileResponse(buffer, as_attachment=True, filename="Balanced_Distribution.pdf")
+
+        except Exception as e:
+            traceback.print_exc()
+            return Response({"error": str(e)}, status=500)
     permission_classes = []
 
     def get(self, request):
