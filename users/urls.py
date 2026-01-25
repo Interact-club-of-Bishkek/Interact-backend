@@ -8,7 +8,8 @@ from .views import (
     VolunteerBoardView, 
     BotCheckAccessView,
     DownloadInterviewScheduleView,
-    DownloadAcceptedNamesView
+    DownloadAcceptedNamesView,
+    DownloadDistributionByDirectionView
 )
 
 urlpatterns = [
@@ -20,7 +21,8 @@ urlpatterns = [
     path('api/volunteer-columns/', VolunteerColumnsView.as_view(), name='volunteer-columns'),
     path('api/download-schedule/', DownloadInterviewScheduleView.as_view(), name='download_schedule'),
     path('api/download-accepted-names/', DownloadAcceptedNamesView.as_view()),
-
+    path(
+        'api/applications/download-distribution/', DownloadDistributionByDirectionView.as_view(), name='download_distribution'),
     # Emails & Board
     path('users/send-accepted-emails/', SendAcceptedVolunteersEmailsView.as_view(), name='send-accepted-emails'),
     path('volunteers-board/', VolunteerBoardView.as_view(), name='volunteers-board'),

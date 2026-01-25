@@ -469,5 +469,105 @@ class DownloadAcceptedNamesView(APIView):
                 status=500
             )
 
+class DownloadDistributionByDirectionView(APIView):
+    permission_classes = []
+
+    def get(self, request):
+        try:
+            # 1. Получаем все принятые заявки с предзагрузкой направлений
+            applications = VolunteerApplication.objects.filter(
+                status='accepted'
+            ).prefetch_related('directions').order_by('full_name')
+
+            if not applications.exists():
+                return Response({"error": "Нет принятых волонтеров для распределения"}, status=400)
+
+            # 2. Группируем волонтеров по направлениям
+            # { 'Экология': ['Иванов Иван', 'Петров Петр'], 'Медиа': [...] }
+            distribution = {}
+            for app in applications:
+                # Очистка ФИО (только Фамилия и Имя)
+                full_name_parts = (app.full_name or "").split()
+                clean_name = " ".join(full_name_parts[:2]) if full_name_parts else "---"
+
+                for direction in app.directions.all():
+                    dir_name = direction.name # Предполагается, что у модели Direction есть поле name
+                    if dir_name not in distribution:
+                        distribution[dir_name] = []
+                    distribution[dir_name].append(clean_name)
+
+            # 3. Генерация PDF
+            buffer = io.BytesIO()
+            doc = SimpleDocTemplate(
+                buffer,
+                pagesize=A4,
+                rightMargin=50, leftMargin=50,
+                topMargin=50, bottomMargin=50
+            )
+
+            # Настройка шрифтов
+            font_name = 'Helvetica'
+            font_path = os.path.join(settings.BASE_DIR, 'FreeSans.ttf')
+            if os.path.exists(font_path):
+                try:
+                    pdfmetrics.registerFont(TTFont('FreeSans', font_path))
+                    font_name = 'FreeSans'
+                except: pass
+
+            styles = getSampleStyleSheet()
+            header_style = ParagraphStyle(
+                'DirHeader',
+                fontName=font_name,
+                fontSize=16,
+                leading=20,
+                spaceBefore=20,
+                spaceAfter=10,
+                textColor=colors.HexColor("#2C3E50"),
+                alignment=0 # По левому краю
+            )
+            
+            elements = []
+            elements.append(Paragraph("Распределение волонтеров по направлениям", styles['Title']))
+
+            # 4. Создаем таблицы для каждого направления
+            for dir_name, names in sorted(distribution.items()):
+                # Заголовок направления
+                elements.append(Paragraph(f"Направление: {dir_name}", header_style))
+                
+                # Список имен в таблицу
+                table_data = [[name] for name in names]
+                
+                # Если волонтеров в направлении нет (вдруг), пропустим
+                if not table_data:
+                    continue
+
+                table = Table(table_data, colWidths=[400])
+                table.setStyle(TableStyle([
+                    ('FONTNAME', (0, 0), (-1, -1), font_name),
+                    ('FONTSIZE', (0, 0), (-1, -1), 10),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+                    ('TOPPADDING', (0, 0), (-1, -1), 5),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 10),
+                ]))
+                
+                elements.append(table)
+                elements.append(Spacer(1, 10))
+
+            doc.build(elements)
+            buffer.seek(0)
+            
+            return FileResponse(
+                buffer, 
+                as_attachment=True, 
+                filename=f"Distribution_{datetime.now().strftime('%Y-%m-%d')}.pdf"
+            )
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({"error": str(e)}, status=500)
+
 class VolunteerBoardView(TemplateView):
     template_name = "volunteers/columns.html"
