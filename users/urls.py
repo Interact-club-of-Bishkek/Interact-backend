@@ -23,7 +23,7 @@ urlpatterns = [
     path('api/download-accepted-names/', DownloadAcceptedNamesView.as_view(), name='download-accepted-names'),
     
     # Путь для распределения
-    path('api/applications/download-distribution/', DownloadDistributionByDirectionView.as_view(), name='download_distribution'),
+    path('api/download-distribution/', DownloadDistributionByDirectionView.as_view(), name='download_distribution'),
 
     # Emails & Board
     path('api/send-accepted-emails/', SendAcceptedVolunteersEmailsView.as_view(), name='send-accepted-emails'),
