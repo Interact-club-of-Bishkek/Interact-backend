@@ -474,86 +474,115 @@ class DownloadDistributionByDirectionView(APIView):
 
     def get(self, request):
         try:
-            # 1. Получаем все принятые заявки с предзагрузкой направлений
+            # 1. Загружаем данные
             applications = VolunteerApplication.objects.filter(
                 status='accepted'
-            ).prefetch_related('directions').order_by('full_name')
+            ).prefetch_related('directions')
 
             if not applications.exists():
-                return Response({"error": "Нет принятых волонтеров для распределения"}, status=400)
+                return Response({"error": "Нет данных для генерации"}, status=400)
 
-            # 2. Группируем волонтеров по направлениям
-            # { 'Экология': ['Иванов Иван', 'Петров Петр'], 'Медиа': [...] }
+            # 2. Распределяем по желаниям
             distribution = {}
             for app in applications:
-                # Очистка ФИО (только Фамилия и Имя)
-                full_name_parts = (app.full_name or "").split()
-                clean_name = " ".join(full_name_parts[:2]) if full_name_parts else "---"
+                # Очистка ФИО: только Фамилия Имя
+                parts = (app.full_name or "").strip().split()
+                clean_name = " ".join(parts[:2]) if len(parts) >= 2 else (parts[0] if parts else "---")
 
                 for direction in app.directions.all():
-                    dir_name = direction.name # Предполагается, что у модели Direction есть поле name
+                    dir_name = direction.name
                     if dir_name not in distribution:
                         distribution[dir_name] = []
                     distribution[dir_name].append(clean_name)
 
-            # 3. Генерация PDF
+            # --- РАНДОМИЗАЦИЯ ---
+            for dir_name in distribution:
+                random.shuffle(distribution[dir_name])
+
+            # 3. Настройка PDF
             buffer = io.BytesIO()
+            # Увеличим поля для эффекта "презентации"
             doc = SimpleDocTemplate(
                 buffer,
                 pagesize=A4,
-                rightMargin=50, leftMargin=50,
-                topMargin=50, bottomMargin=50
+                rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40
             )
 
-            # Настройка шрифтов
+            # Регистрация шрифта (FreeSans поддерживает кириллицу)
             font_name = 'Helvetica'
             font_path = os.path.join(settings.BASE_DIR, 'FreeSans.ttf')
             if os.path.exists(font_path):
-                try:
-                    pdfmetrics.registerFont(TTFont('FreeSans', font_path))
-                    font_name = 'FreeSans'
-                except: pass
+                pdfmetrics.registerFont(TTFont('FreeSans', font_path))
+                font_name = 'FreeSans'
 
-            styles = getSampleStyleSheet()
+            elements = []
+            
+            # --- СТИЛИ ---
+            title_style = ParagraphStyle(
+                'MainTitle',
+                fontName=font_name,
+                fontSize=22,
+                alignment=1,
+                spaceAfter=30,
+                textColor=colors.HexColor("#1A237E") # Темно-синий
+            )
+
             header_style = ParagraphStyle(
                 'DirHeader',
                 fontName=font_name,
-                fontSize=16,
-                leading=20,
-                spaceBefore=20,
-                spaceAfter=10,
-                textColor=colors.HexColor("#2C3E50"),
-                alignment=0 # По левому краю
+                fontSize=14,
+                leading=18,
+                leftIndent=10,
+                textColor=colors.whitesmoke,
+                alignment=0
             )
-            
-            elements = []
-            elements.append(Paragraph("Распределение волонтеров по направлениям", styles['Title']))
 
-            # 4. Создаем таблицы для каждого направления
-            for dir_name, names in sorted(distribution.items()):
-                # Заголовок направления
-                elements.append(Paragraph(f"Направление: {dir_name}", header_style))
-                
-                # Список имен в таблицу
-                table_data = [[name] for name in names]
-                
-                # Если волонтеров в направлении нет (вдруг), пропустим
-                if not table_data:
-                    continue
+            # 4. Построение контента
+            elements.append(Paragraph("КОМАНДЫ ВОЛОНТЕРОВ", title_style))
+            elements.append(Spacer(1, 10))
 
-                table = Table(table_data, colWidths=[400])
-                table.setStyle(TableStyle([
-                    ('FONTNAME', (0, 0), (-1, -1), font_name),
-                    ('FONTSIZE', (0, 0), (-1, -1), 10),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-                    ('TOPPADDING', (0, 0), (-1, -1), 5),
-                    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            # Цветовая схема для направлений (будет чередоваться)
+            palette = ["#3F51B5", "#009688", "#673AB7", "#E91E63", "#FF9800", "#03A9F4"]
+
+            for i, (dir_name, names) in enumerate(sorted(distribution.items())):
+                color = palette[i % len(palette)]
+                
+                # Делаем "плашку" заголовка направления через таблицу
+                header_table = Table([[Paragraph(dir_name.upper(), header_style)]], colWidths=[515])
+                header_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(color)),
+                    ('TOPPADDING', (0, 0), (-1, -1), 8),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
                     ('LEFTPADDING', (0, 0), (-1, -1), 10),
                 ]))
+                elements.append(header_table)
+
+                # Список волонтеров
+                # Разбиваем список на 2 колонки для красоты, если людей много
+                table_data = []
+                for j in range(0, len(names), 2):
+                    row = [names[j]]
+                    if j + 1 < len(names):
+                        row.append(names[j+1])
+                    else:
+                        row.append("")
+                    table_data.append(row)
+
+                content_table = Table(table_data, colWidths=[257.5, 257.5])
+                content_table.setStyle(TableStyle([
+                    ('FONTNAME', (0, 0), (-1, -1), font_name),
+                    ('FONTSIZE', (0, 0), (-1, -1), 10),
+                    ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor("#424242")),
+                    ('BACKGROUND', (0, 0), (-1, -1), colors.whitesmoke),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.white), # Белая сетка на сером фоне
+                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 15),
+                    ('TOPPADDING', (0, 0), (-1, -1), 6),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                ]))
                 
-                elements.append(table)
-                elements.append(Spacer(1, 10))
+                elements.append(content_table)
+                elements.append(Spacer(1, 25)) # Отступ между блоками
 
             doc.build(elements)
             buffer.seek(0)
@@ -561,7 +590,7 @@ class DownloadDistributionByDirectionView(APIView):
             return FileResponse(
                 buffer, 
                 as_attachment=True, 
-                filename=f"Distribution_{datetime.now().strftime('%Y-%m-%d')}.pdf"
+                filename=f"Volunteers_Teams_{datetime.now().strftime('%d_%m')}.pdf"
             )
 
         except Exception as e:
