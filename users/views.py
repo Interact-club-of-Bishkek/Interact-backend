@@ -10,6 +10,7 @@ from django.conf import settings
 from django.core.mail import send_mail
 from django.http import FileResponse
 from django.views.generic import TemplateView
+from django.db.models import Count
 
 from rest_framework import viewsets, generics, status, serializers
 from rest_framework.views import APIView
@@ -470,57 +471,67 @@ class DownloadAcceptedNamesView(APIView):
                 status=500
             )
 
-import random
-import math
-
 class DownloadDistributionByDirectionView(APIView):
     permission_classes = []
 
     def get(self, request):
         try:
             # 1. Загружаем данные
-            all_volunteers = list(VolunteerApplication.objects.filter(status='accepted').prefetch_related('directions'))
-            all_directions = list(set([d for app in all_volunteers for d in app.directions.all()]))
+            all_volunteers = list(VolunteerApplication.objects.filter(
+                status='accepted'
+            ).prefetch_related('directions'))
             
-            if not all_volunteers or not all_directions:
+            # Получаем список всех направлений, которые были в заявках
+            all_directions_objs = list(set([d for app in all_volunteers for d in app.directions.all()]))
+            
+            if not all_volunteers or not all_directions_objs:
                 return Response({"error": "Нет данных для распределения"}, status=400)
 
-            # Перемешиваем волонтеров для честного рандома
+            # 2. Математический расчет "ровности"
+            total_vols = len(all_volunteers)
+            num_dirs = len(all_directions_objs)
+            base_limit = total_vols // num_dirs
+            remainder = total_vols % num_dirs
+            
+            # Создаем словарь лимитов (кому-то достанется на 1 больше, если не делится ровно)
+            dir_limits = {}
+            for i, d in enumerate(all_directions_objs):
+                dir_limits[d.name] = base_limit + (1 if i < remainder else 0)
+
+            # Перемешиваем волонтеров для случайного порядка обработки
             random.shuffle(all_volunteers)
 
-            # Лимит человек на одно направление (с запасом вверх)
-            limit = math.ceil(len(all_volunteers) / len(all_directions))
-            
-            # Итоговая структура: { Направление: [Список имен] }
-            distribution = {d.name: [] for d in all_directions}
-            
-            # Список тех, кто не влез в свои приоритеты
-            leftovers = []
+            # Итоговая структура распределения
+            distribution = {d.name: [] for d in all_directions_objs}
+            assigned_vols_ids = set()
 
-            # 2. АЛГОРИТМ РОМНОГО РАСПРЕДЕЛЕНИЯ
+            # 3. ЭТАП 1: Распределение по желаниям (учитывая лимиты)
             for app in all_volunteers:
-                # Очистка имени
+                # Очистка имени (Фамилия Имя)
                 parts = (app.full_name or "").strip().split()
                 clean_name = " ".join(parts[:2]) if len(parts) >= 2 else (parts[0] if parts else "---")
                 
-                assigned = False
-                # Пробуем приоритеты волонтера
-                for direction in app.directions.all():
-                    if len(distribution[direction.name]) < limit:
-                        distribution[direction.name].append(clean_name)
-                        assigned = True
+                # Пробуем каждое из выбранных волонтером направлений
+                for chosen_dir in app.directions.all():
+                    if len(distribution[chosen_dir.name]) < dir_limits[chosen_dir.name]:
+                        distribution[chosen_dir.name].append(clean_name)
+                        assigned_vols_ids.add(app.id)
                         break
+
+            # 4. ЭТАП 2: Распределение оставшихся (кто не попал в свои приоритеты)
+            unassigned_vols = [v for v in all_volunteers if v.id not in assigned_vols_ids]
+            
+            for app in unassigned_vols:
+                parts = (app.full_name or "").strip().split()
+                clean_name = " ".join(parts[:2]) if len(parts) >= 2 else (parts[0] if parts else "---")
                 
-                if not assigned:
-                    leftovers.append(clean_name)
+                # Ищем любое направление, где еще есть место
+                for dir_name, limit in dir_limits.items():
+                    if len(distribution[dir_name]) < limit:
+                        distribution[dir_name].append(clean_name)
+                        break
 
-            # Рассовываем оставшихся туда, где меньше всего людей
-            for person in leftovers:
-                # Сортируем направления по текущему заполнению и берем самое пустое
-                target_dir = min(distribution, key=lambda k: len(distribution[k]))
-                distribution[target_dir].append(person)
-
-            # 3. ГЕНЕРАЦИЯ КРАСИВОГО PDF
+            # 5. ГЕНЕРАЦИЯ PDF (Улучшенный дизайн)
             buffer = io.BytesIO()
             doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
             
@@ -531,33 +542,39 @@ class DownloadDistributionByDirectionView(APIView):
                 font_name = 'FreeSans'
 
             elements = []
-            styles = getSampleStyleSheet()
             
             # Стили
-            title_style = ParagraphStyle('Title', fontName=font_name, fontSize=20, alignment=1, spaceAfter=30, textColor=colors.HexColor("#283593"))
-            header_style = ParagraphStyle('Header', fontName=font_name, fontSize=14, textColor=colors.white, leftIndent=10)
-            count_style = ParagraphStyle('Count', fontName=font_name, fontSize=9, textColor=colors.grey, alignment=2)
+            title_style = ParagraphStyle('Title', fontName=font_name, fontSize=20, alignment=1, spaceAfter=20, textColor=colors.HexColor("#1A237E"))
+            dir_label_style = ParagraphStyle('DirLabel', fontName=font_name, fontSize=12, textColor=colors.white, leading=14)
+            count_label_style = ParagraphStyle('CountLabel', fontName=font_name, fontSize=10, textColor=colors.whitesmoke, alignment=2)
 
-            elements.append(Paragraph("ИТОГОВОЕ РАСПРЕДЕЛЕНИЕ КОМАНД", title_style))
+            elements.append(Paragraph("СТРОГОЕ РАСПРЕДЕЛЕНИЕ ПО ГРУППАМ", title_style))
+            elements.append(Paragraph(f"Всего волонтеров: {total_vols} | Групп: {num_dirs}", 
+                                      ParagraphStyle('Sub', fontName=font_name, alignment=1, spaceAfter=20)))
 
-            palette = ["#3949AB", "#00897B", "#8E24AA", "#D81B60", "#F4511E", "#039BE5"]
+            palette = ["#2E3B4E", "#1B5E20", "#4A148C", "#880E4F", "#BF360C", "#01579B"]
 
             for i, (dir_name, names) in enumerate(sorted(distribution.items())):
                 color = palette[i % len(palette)]
                 
-                # Шапка направления
-                header_data = [[Paragraph(dir_name.upper(), header_style), Paragraph(f"Итого: {len(names)} чел.", count_style)]]
-                header_table = Table(header_data, colWidths=[380, 135])
+                # Рандомизируем список внутри для красоты
+                random.shuffle(names)
+
+                # Шапка блока
+                header_table = Table([[Paragraph(dir_name.upper(), dir_label_style), 
+                                       Paragraph(f"Состав: {len(names)} чел.", count_label_style)]], 
+                                     colWidths=[380, 135])
                 header_table.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(color)),
                     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                     ('TOPPADDING', (0, 0), (-1, -1), 10),
                     ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 12),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 12),
                 ]))
                 elements.append(header_table)
 
-                # Таблица с именами (в 2 колонки)
-                random.shuffle(names) # Еще раз мешаем внутри для красоты
+                # Таблица имен
                 table_data = []
                 for j in range(0, len(names), 2):
                     row = [names[j]]
@@ -568,149 +585,23 @@ class DownloadDistributionByDirectionView(APIView):
                 t.setStyle(TableStyle([
                     ('FONTNAME', (0, 0), (-1, -1), font_name),
                     ('FONTSIZE', (0, 0), (-1, -1), 10),
-                    ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#F5F5F5")),
+                    ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor("#333333")),
+                    ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#FAFAFA")),
                     ('GRID', (0, 0), (-1, -1), 0.5, colors.white),
                     ('LEFTPADDING', (0, 0), (-1, -1), 15),
-                    ('TOPPADDING', (0, 0), (-1, -1), 5),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+                    ('TOPPADDING', (0, 0), (-1, -1), 6),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
                 ]))
                 elements.append(t)
                 elements.append(Spacer(1, 20))
 
             doc.build(elements)
             buffer.seek(0)
-            return FileResponse(buffer, as_attachment=True, filename="Balanced_Distribution.pdf")
+            return FileResponse(buffer, as_attachment=True, filename="Strict_Equal_Distribution.pdf")
 
         except Exception as e:
             traceback.print_exc()
             return Response({"error": str(e)}, status=500)
-    permission_classes = []
-
-    def get(self, request):
-        try:
-            # 1. Загружаем данные
-            applications = VolunteerApplication.objects.filter(
-                status='accepted'
-            ).prefetch_related('directions')
-
-            if not applications.exists():
-                return Response({"error": "Нет данных для генерации"}, status=400)
-
-            # 2. Распределяем по желаниям
-            distribution = {}
-            for app in applications:
-                # Очистка ФИО: только Фамилия Имя
-                parts = (app.full_name or "").strip().split()
-                clean_name = " ".join(parts[:2]) if len(parts) >= 2 else (parts[0] if parts else "---")
-
-                for direction in app.directions.all():
-                    dir_name = direction.name
-                    if dir_name not in distribution:
-                        distribution[dir_name] = []
-                    distribution[dir_name].append(clean_name)
-
-            # --- РАНДОМИЗАЦИЯ ---
-            for dir_name in distribution:
-                random.shuffle(distribution[dir_name])
-
-            # 3. Настройка PDF
-            buffer = io.BytesIO()
-            # Увеличим поля для эффекта "презентации"
-            doc = SimpleDocTemplate(
-                buffer,
-                pagesize=A4,
-                rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40
-            )
-
-            # Регистрация шрифта (FreeSans поддерживает кириллицу)
-            font_name = 'Helvetica'
-            font_path = os.path.join(settings.BASE_DIR, 'FreeSans.ttf')
-            if os.path.exists(font_path):
-                pdfmetrics.registerFont(TTFont('FreeSans', font_path))
-                font_name = 'FreeSans'
-
-            elements = []
-            
-            # --- СТИЛИ ---
-            title_style = ParagraphStyle(
-                'MainTitle',
-                fontName=font_name,
-                fontSize=22,
-                alignment=1,
-                spaceAfter=30,
-                textColor=colors.HexColor("#1A237E") # Темно-синий
-            )
-
-            header_style = ParagraphStyle(
-                'DirHeader',
-                fontName=font_name,
-                fontSize=14,
-                leading=18,
-                leftIndent=10,
-                textColor=colors.whitesmoke,
-                alignment=0
-            )
-
-            # 4. Построение контента
-            elements.append(Paragraph("КОМАНДЫ ВОЛОНТЕРОВ", title_style))
-            elements.append(Spacer(1, 10))
-
-            # Цветовая схема для направлений (будет чередоваться)
-            palette = ["#3F51B5", "#009688", "#673AB7", "#E91E63", "#FF9800", "#03A9F4"]
-
-            for i, (dir_name, names) in enumerate(sorted(distribution.items())):
-                color = palette[i % len(palette)]
-                
-                # Делаем "плашку" заголовка направления через таблицу
-                header_table = Table([[Paragraph(dir_name.upper(), header_style)]], colWidths=[515])
-                header_table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(color)),
-                    ('TOPPADDING', (0, 0), (-1, -1), 8),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 10),
-                ]))
-                elements.append(header_table)
-
-                # Список волонтеров
-                # Разбиваем список на 2 колонки для красоты, если людей много
-                table_data = []
-                for j in range(0, len(names), 2):
-                    row = [names[j]]
-                    if j + 1 < len(names):
-                        row.append(names[j+1])
-                    else:
-                        row.append("")
-                    table_data.append(row)
-
-                content_table = Table(table_data, colWidths=[257.5, 257.5])
-                content_table.setStyle(TableStyle([
-                    ('FONTNAME', (0, 0), (-1, -1), font_name),
-                    ('FONTSIZE', (0, 0), (-1, -1), 10),
-                    ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor("#424242")),
-                    ('BACKGROUND', (0, 0), (-1, -1), colors.whitesmoke),
-                    ('GRID', (0, 0), (-1, -1), 0.5, colors.white), # Белая сетка на сером фоне
-                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 15),
-                    ('TOPPADDING', (0, 0), (-1, -1), 6),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-                ]))
-                
-                elements.append(content_table)
-                elements.append(Spacer(1, 25)) # Отступ между блоками
-
-            doc.build(elements)
-            buffer.seek(0)
-            
-            return FileResponse(
-                buffer, 
-                as_attachment=True, 
-                filename=f"Volunteers_Teams_{datetime.now().strftime('%d_%m')}.pdf"
-            )
-
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-            return Response({"error": str(e)}, status=500)
-
+        
 class VolunteerBoardView(TemplateView):
     template_name = "volunteers/columns.html"
