@@ -1,9 +1,7 @@
 from django.db import models
 from django.utils.text import slugify
-from unidecode import unidecode
 import uuid
 import os
-
 
 class Command(models.Model):
     title = models.CharField("Название команды", max_length=255)
@@ -11,6 +9,8 @@ class Command(models.Model):
         "URL",
         unique=True,
         blank=True,
+        max_length=255,
+        allow_unicode=True,  # Разрешает русские буквы в URL
         help_text="Генерируется автоматически"
     )
     description = models.TextField("Описание", blank=True)
@@ -23,13 +23,21 @@ class Command(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            base_slug = slugify(unidecode(self.title))
+            # Генерируем слаг из заголовка. allow_unicode=True сохранит кириллицу.
+            base_slug = slugify(self.title, allow_unicode=True)
+            
+            # Если заголовок пустой или состоит из символов, которые slugify удалил
+            if not base_slug:
+                base_slug = "command-" + uuid.uuid4().hex[:6]
+
             slug = base_slug
             counter = 1
+            # Проверка уникальности
             while Command.objects.filter(slug=slug).exists():
                 slug = f"{base_slug}-{counter}"
                 counter += 1
             self.slug = slug
+            
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -57,7 +65,7 @@ class Question(models.Model):
     required = models.BooleanField("Обязательный", default=True)
     order = models.PositiveIntegerField("Порядок", blank=True, null=True)
 
-    options = models.JSONField(  # <-- вместо ArrayField
+    options = models.JSONField(
         blank=True,
         default=list,
         help_text="Только для select: список вариантов"
@@ -110,9 +118,10 @@ class Application(models.Model):
 
 
 def attachment_upload_to(instance, filename):
-    ext = filename.split('.')[-1]  # получаем расширение
-    name = uuid.uuid4().hex          # уникальное имя
+    ext = filename.split('.')[-1]
+    name = uuid.uuid4().hex
     return f'applications/{instance.application.id}/{name}.{ext}'
+
 
 class Attachment(models.Model):
     application = models.ForeignKey(
