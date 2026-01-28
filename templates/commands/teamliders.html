@@ -2,251 +2,313 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Curator Pro | Management Console</title>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@800;900&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root { --primary: #00c6ff; --bg: #020408; --glass: rgba(15, 23, 42, 0.85); }
+        
         body { 
             background: var(--bg); 
             font-family: 'Inter', sans-serif; 
             color: white;
             background-image: radial-gradient(circle at 50% -20%, #10192e 0%, #020408 100%);
             min-height: 100vh;
-            margin: 0;
+            overflow-x: hidden;
         }
-        
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 10px; }
 
+        /* --- ДИЗАЙНЕРСКИЙ ВЫПАДАЮЩИЙ СПИСОК --- */
+        .custom-select-wrapper { position: relative; user-select: none; z-index: 50; }
+        
+        .select-trigger {
+            background: rgba(0, 198, 255, 0.07);
+            border: 2px solid rgba(0, 198, 255, 0.2);
+            border-radius: 22px;
+            padding: 1.1rem 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .select-trigger:hover { border-color: var(--primary); background: rgba(0, 198, 255, 0.12); transform: translateY(-2px); }
+
+        .select-options {
+            position: absolute;
+            top: calc(100% + 12px);
+            left: 0; right: 0;
+            background: rgba(10, 15, 28, 0.98);
+            backdrop-filter: blur(25px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            overflow: hidden;
+            display: none;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.8);
+            animation: selectSlide 0.3s ease-out;
+            z-index: 100;
+        }
+        .select-options.active { display: block; }
+
+        .option-item {
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.2s;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .option-item:hover { background: var(--primary); color: #000; }
+        .option-item .badge { font-size: 10px; background: rgba(255,255,255,0.1); padding: 2px 8px; border-radius: 6px; font-weight: 900; }
+        .option-item:hover .badge { background: rgba(0,0,0,0.2); }
+
+        @keyframes selectSlide { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .chevron-rotate { transition: transform 0.3s; }
+        .select-trigger.active .chevron-rotate { transform: rotate(180deg); }
+
+        /* --- КАРТОЧКИ И КНОПКИ --- */
         .glass-card { 
             background: var(--glass); 
-            backdrop-filter: blur(20px); 
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255,255,255,0.08); 
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1); 
+            transition: all 0.3s ease;
         }
-        .glass-card:hover { 
-            border-color: var(--primary); 
-            box-shadow: 0 0 30px rgba(0, 198, 255, 0.2);
-            transform: translateY(-2px);
-        }
+        .glass-card:hover { border-color: var(--primary); transform: translateY(-4px); }
 
-        .media-container {
-            width: 100%;
-            background: #000;
-            border-radius: 28px;
-            overflow: hidden;
-            border: 1px solid rgba(255,255,255,0.1);
-            position: relative;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        .btn-primary {
+            background: var(--primary); color: #000;
+            box-shadow: 0 0 20px rgba(0, 198, 255, 0.2);
+            transition: all 0.3s;
         }
-        .media-container video, .media-container img {
-            width: 100%;
-            display: block;
-            object-fit: contain;
-            max-height: 650px;
-        }
-        .media-container iframe {
-            width: 100%;
-            height: 500px;
-            border: none;
-        }
+        .btn-primary:hover { box-shadow: 0 0 35px rgba(0, 198, 255, 0.5); transform: translateY(-2px); background: #fff; }
 
-        #filter {
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2300c6ff'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 1rem center;
-            background-size: 1.2em;
-        }
+        .media-container { border-radius: 24px; overflow: hidden; border: 2px solid rgba(255,255,255,0.05); background: #000; }
 
-        .animate-fade-up { animation: fadeUp 0.4s ease-out forwards; }
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body class="p-4 md:p-10">
     <div class="max-w-7xl mx-auto">
-        <header class="flex flex-col md:flex-row justify-between items-center mb-16 gap-6">
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-16 gap-8">
             <div>
-                <h1 class="font-['Montserrat'] font-black text-4xl tracking-tighter uppercase italic text-primary">
+                <h1 class="font-['Montserrat'] font-black text-4xl md:text-6xl tracking-tighter uppercase italic text-primary leading-none">
                     Curator<span class="text-white">Pro</span>
                 </h1>
-                <p class="text-[10px] text-primary/50 font-black uppercase tracking-[0.4em] mt-1">Management Interface v2.0</p>
+                <div class="flex items-center gap-2 mt-3">
+                    <span class="h-[2px] w-10 bg-primary"></span>
+                    <p class="text-[10px] text-primary font-bold uppercase tracking-[0.5em]">System Control Panel</p>
+                </div>
             </div>
-            <select id="filter" class="w-full md:w-80 bg-gray-900 border-2 border-primary/20 p-4 rounded-2xl outline-none text-xs font-black text-primary hover:border-primary transition-all cursor-pointer">
-                <option value="">ВСЕ НАПРАВЛЕНИЯ</option>
-            </select>
+            
+            <div class="custom-select-wrapper w-full md:w-96">
+                <div class="select-trigger" id="selectTrigger">
+                    <div class="flex items-center gap-4">
+                        <i class="fas fa-filter text-primary"></i>
+                        <span id="selectedLabel" class="text-xs font-black uppercase tracking-widest text-white">Все направления</span>
+                    </div>
+                    <i class="fas fa-chevron-down text-[10px] text-primary chevron-rotate"></i>
+                </div>
+                <div class="select-options" id="selectOptions"></div>
+            </div>
         </header>
 
-        <div class="grid lg:grid-cols-2 gap-12">
+        <div class="grid lg:grid-cols-2 gap-10 md:gap-14">
             <section>
-                <div class="flex items-center gap-4 mb-8">
-                    <div class="w-3 h-3 bg-orange-500 rounded-full animate-pulse shadow-[0_0_15px_#f97316]"></div>
-                    <h2 class="font-black uppercase text-sm tracking-widest italic text-orange-500">Входящие анкеты</h2>
+                <div class="flex items-center justify-between mb-8 px-2">
+                    <div class="flex items-center gap-3">
+                        <span class="flex h-3 w-3 relative">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-3 w-3 bg-orange-500"></span>
+                        </span>
+                        <h2 class="font-black uppercase text-sm tracking-widest text-orange-500 italic">Новые заявки</h2>
+                    </div>
+                    <span id="pCountGlobal" class="bg-orange-500/10 text-orange-500 px-4 py-1 rounded-full text-[10px] font-black border border-orange-500/20">0</span>
                 </div>
-                <div id="pending" class="grid gap-6"></div>
+                <div id="pendingContainer" class="space-y-4"></div>
             </section>
 
-            <section>
-                <div class="flex items-center gap-4 mb-8">
-                    <div class="w-3 h-3 bg-green-500 rounded-full shadow-[0_0_15px_#22c55e]"></div>
-                    <h2 class="font-black uppercase text-sm tracking-widest italic text-green-500">Одобренные</h2>
+            <section class="opacity-90">
+                <div class="flex items-center justify-between mb-8 px-2">
+                    <div class="flex items-center gap-3">
+                        <div class="w-3 h-3 bg-green-500 rounded-full shadow-[0_0_15px_rgba(0,255,136,0.4)]"></div>
+                        <h2 class="font-black uppercase text-sm tracking-widest text-green-500 italic">Одобрено</h2>
+                    </div>
+                    <span id="aCountGlobal" class="bg-green-500/10 text-green-500 px-4 py-1 rounded-full text-[10px] font-black border border-green-500/20">0</span>
                 </div>
-                <div id="accepted" class="grid gap-6"></div>
+                <div id="acceptedContainer" class="space-y-4"></div>
             </section>
         </div>
     </div>
 
-    <div id="modal" class="hidden fixed inset-0 bg-black/98 backdrop-blur-2xl flex items-center justify-center p-4 z-50">
-        <div class="glass-card w-full max-w-5xl rounded-[48px] p-6 md:p-14 max-h-[92vh] overflow-y-auto relative shadow-2xl">
-            <button onclick="closeModal()" class="fixed top-8 right-8 text-gray-500 hover:text-primary transition-all z-50 bg-black/50 w-12 h-12 rounded-full flex items-center justify-center border border-white/10">
-                <i class="fas fa-times text-xl"></i>
+    <div id="modal" class="hidden fixed inset-0 bg-black/98 backdrop-blur-3xl flex items-center justify-center p-2 md:p-6 z-[200]">
+        <div class="modal-inner glass-card w-full max-w-4xl rounded-[45px] p-6 md:p-12 max-h-[94vh] overflow-y-auto relative border-white/10 shadow-[0_0_100px_rgba(0,0,0,1)]">
+            <button onclick="closeModal()" class="sticky top-0 float-right bg-white/5 hover:bg-white/15 w-14 h-14 rounded-full flex items-center justify-center border border-white/10 transition-all z-50 group">
+                <i class="fas fa-times text-xl group-hover:rotate-90 transition-transform"></i>
             </button>
-            
-            <div id="modalContent" class="animate-fade-up"></div>
-            
-            <div class="mt-14 flex flex-col md:flex-row gap-5 border-t border-white/10 pt-10">
-                <button id="approveBtn" class="flex-[2] py-6 bg-primary text-black font-black uppercase rounded-3xl hover:shadow-[0_0_40px_rgba(0,198,255,0.4)] transition-all text-lg active:scale-95">
-                    <i class="fas fa-user-plus mr-2"></i> Принять в клуб
+            <div id="modalContent" class="animate-fade-in"></div>
+            <div class="mt-12 flex flex-col md:flex-row gap-4 border-t border-white/10 pt-10">
+                <button id="approveBtn" class="btn-primary flex-[2] py-6 font-black uppercase rounded-[25px] text-lg flex items-center justify-center gap-4">
+                    <i class="fas fa-check-double"></i> Подтвердить Кандидата
                 </button>
-                <button onclick="closeModal()" class="flex-1 py-6 bg-white/5 text-white font-bold uppercase rounded-3xl border border-white/10 hover:bg-white/10 transition-all">
-                    Вернуться к списку
-                </button>
+                <button onclick="closeModal()" class="flex-1 py-6 bg-white/5 hover:bg-white/10 text-gray-400 font-bold uppercase rounded-[25px] transition-all">Назад</button>
             </div>
         </div>
     </div>
 
     <script>
         const API_APPS = '/commands-applications/';
-        const filter = document.getElementById('filter');
+        const API_CMDS = '/commands/';
+        
+        const trigger = document.getElementById('selectTrigger');
+        const optionsContainer = document.getElementById('selectOptions');
+        const selectedLabel = document.getElementById('selectedLabel');
+        let currentSlug = "";
 
-        async function load() {
+        // --- УПРАВЛЕНИЕ DROP-DOWN ---
+        trigger.onclick = () => {
+            trigger.classList.toggle('active');
+            optionsContainer.classList.toggle('active');
+        };
+
+        window.onclick = (e) => {
+            if (!trigger.contains(e.target)) {
+                trigger.classList.remove('active');
+                optionsContainer.classList.remove('active');
+            }
+        };
+
+        async function updateFilters() {
             try {
-                const res = await fetch(`${API_APPS}${filter.value ? '?slug='+filter.value : ''}`);
+                const [cmdRes, appsRes] = await Promise.all([fetch(API_CMDS), fetch(API_APPS)]);
+                const commands = await cmdRes.json();
+                const allApps = await appsRes.json();
+
+                let html = `<div class="option-item" onclick="applyFilter('', 'Все направления')">
+                    <span class="text-[11px] font-black uppercase tracking-widest">⚡ Все направления</span>
+                    <span class="badge">${allApps.filter(a => a.status === 'pending').length}</span>
+                </div>`;
+
+                commands.forEach(cmd => {
+                    const count = allApps.filter(a => a.command_title === cmd.title && a.status === 'pending').length;
+                    html += `<div class="option-item" onclick="applyFilter('${cmd.slug}', '${cmd.title}')">
+                        <span class="text-[11px] font-black uppercase tracking-widest">${cmd.title}</span>
+                        <span class="badge">${count}</span>
+                    </div>`;
+                });
+                optionsContainer.innerHTML = html;
+            } catch (e) { console.error(e); }
+        }
+
+        function applyFilter(slug, title) {
+            currentSlug = slug;
+            selectedLabel.textContent = title;
+            loadApps();
+        }
+
+        // --- ЗАГРУЗКА ДАННЫХ ---
+        async function loadApps() {
+            try {
+                const res = await fetch(`${API_APPS}${currentSlug ? '?slug=' + currentSlug : ''}`);
                 const apps = await res.json();
-                const p = document.getElementById('pending'), a = document.getElementById('accepted');
-                p.innerHTML = ''; a.innerHTML = '';
+                
+                const pBox = document.getElementById('pendingContainer'), 
+                      aBox = document.getElementById('acceptedContainer');
+                
+                pBox.innerHTML = ''; aBox.innerHTML = '';
+                let pNum = 0, aNum = 0;
 
                 apps.forEach(app => {
-                    // Фильтруем пустые заявки без выбранных команд
-                    if (!app.command_title || app.command_title.includes('Загрузка')) return;
-
                     const card = document.createElement('div');
-                    card.className = "glass-card p-8 rounded-[32px] cursor-pointer group relative overflow-hidden animate-fade-up";
-                    card.onclick = () => show(app);
+                    card.className = "glass-card p-7 rounded-[30px] cursor-pointer group animate-fade-in";
+                    card.onclick = () => showDetails(app);
                     
-                    const firstAnswer = Object.values(app.answers)[0] || "Нет описания";
+                    const firstAnswer = Object.values(app.answers)[0] || "No Data";
                     
                     card.innerHTML = `
                         <div class="flex justify-between items-start mb-5">
-                            <span class="px-4 py-1.5 rounded-xl bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest border border-primary/20">
-                                ${app.command_title}
-                            </span>
-                            <span class="text-[10px] text-gray-700 font-mono italic font-bold">#REQ-${app.id}</span>
+                            <span class="px-3 py-1 rounded-lg bg-primary/10 text-primary text-[10px] font-black uppercase border border-primary/20">${app.command_title}</span>
+                            <span class="text-[9px] font-mono text-gray-600">ID-${app.id}</span>
                         </div>
-                        <h3 class="text-lg font-bold text-gray-200 group-hover:text-white transition-colors leading-tight">
-                            ${firstAnswer.substring(0, 70)}${firstAnswer.length > 70 ? '...' : ''}
-                        </h3>
-                        <div class="mt-8 flex justify-between items-center border-t border-white/5 pt-5">
-                            <div class="flex items-center gap-2 text-gray-500">
-                                <i class="far fa-calendar-alt text-[10px]"></i>
-                                <span class="text-[9px] font-black uppercase tracking-tighter">${new Date(app.created_at).toLocaleString()}</span>
-                            </div>
-                            <i class="fas fa-arrow-right text-primary opacity-0 group-hover:opacity-100 group-hover:translate-x-3 transition-all"></i>
-                        </div>
+                        <h3 class="text-lg font-bold text-gray-200 group-hover:text-white italic uppercase line-clamp-1">${firstAnswer}</h3>
                     `;
-                    (app.status === 'pending' ? p : a).appendChild(card);
+                    
+                    if (app.status === 'pending') { pBox.appendChild(card); pNum++; } 
+                    else { aBox.appendChild(card); aNum++; }
                 });
-            } catch (e) { console.error("API Error:", e); }
+
+                document.getElementById('pCountGlobal').textContent = pNum;
+                document.getElementById('aCountGlobal').textContent = aNum;
+                updateFilters();
+            } catch (e) { console.error(e); }
         }
 
-        function show(app) {
+        function showDetails(app) {
             const content = document.getElementById('modalContent');
             let html = `
-                <div class="mb-14 pb-10 border-b border-white/10">
-                    <div class="inline-block px-4 py-1 rounded-full bg-primary/20 text-primary text-[10px] font-black uppercase tracking-[0.3em] mb-4">${app.command_title}</div>
-                    <h2 class="font-['Montserrat'] font-black text-5xl md:text-6xl uppercase italic tracking-tighter text-white">Досье<br><span class="text-primary">Кандидата</span></h2>
+                <div class="mb-12 pb-10 border-b border-white/10">
+                    <span class="text-primary font-black text-sm uppercase tracking-[0.4em]">${app.command_title}</span>
+                    <h2 class="font-['Montserrat'] font-black text-5xl md:text-6xl uppercase italic text-white mt-4 leading-none">Анкета <span class="text-primary text-outline">Волонтера</span></h2>
                 </div>
-                <div class="space-y-12">
-            `;
+                <div class="grid gap-8">`;
             
-            // Ответы
             Object.entries(app.answers).forEach(([q, a]) => {
                 html += `
-                    <div class="bg-white/[0.03] p-8 rounded-[32px] border border-white/5 hover:border-primary/20 transition-colors">
-                        <label class="text-[10px] font-black uppercase text-gray-500 tracking-[0.4em] mb-4 block italic"><i class="fas fa-terminal mr-2 text-primary/50"></i> ${q}</label>
-                        <p class="text-2xl font-medium text-gray-100 leading-relaxed">${a}</p>
-                    </div>`;
+                <div class="space-y-4">
+                    <label class="text-[10px] font-black uppercase text-gray-500 tracking-[0.2em] flex items-center gap-3 italic">
+                        <span class="w-6 h-[2px] bg-primary/30"></span> ${q}
+                    </label>
+                    <div class="bg-white/5 p-7 rounded-3xl border border-white/5 text-xl font-medium text-gray-100 leading-relaxed shadow-inner">
+                        ${a}
+                    </div>
+                </div>`;
             });
 
-            // МЕДИА (ФОТО / ВИДЕО / PDF)
             if(app.files && app.files.length) {
-                html += `<div class="pt-10 space-y-16">`;
+                html += `<div class="mt-12 pt-12 border-t border-white/10 space-y-12">`;
                 app.files.forEach(f => {
-                    const fileUrl = f.file.toLowerCase();
-                    const isImg = fileUrl.match(/\.(jpg|jpeg|png|webp|gif|avif|heic)$/i);
-                    const isVid = fileUrl.match(/\.(mp4|mov|webm|ogg|quicktime)$/i);
-                    const isPdf = fileUrl.match(/\.(pdf)$/i);
-                    
-                    html += `
-                        <div class="space-y-6 animate-fade-up">
-                            <div class="flex items-center justify-between px-2">
-                                <label class="text-[11px] font-black uppercase text-primary tracking-[0.3em] italic">
-                                    <i class="fas fa-link mr-2"></i> ${f.label}
-                                </label>
-                            </div>
-                            
-                            <div class="media-container">
-                                ${isImg ? 
-                                    `<img src="${f.file}" class="cursor-zoom-in hover:scale-[1.01] transition-transform duration-700" onclick="window.open('${f.file}', '_blank')">` : 
-                                    isVid ?
-                                    `<video src="${f.file}" controls playsinline preload="metadata"></video>` :
-                                    isPdf ?
-                                    `<iframe src="${f.file}"></iframe>` :
-                                    `<div class="p-20 text-center flex flex-col items-center gap-4">
-                                        <i class="fas fa-file-circle-exclamation text-6xl text-gray-800"></i>
-                                        <p class="text-gray-600 text-[10px] font-black uppercase tracking-widest">Превью недоступно для этого расширения</p>
-                                     </div>`
-                                }
-                            </div>
+                    const isImg = f.file.toLowerCase().match(/\.(jpg|jpeg|png|webp|gif)$/i);
+                    const isVid = f.file.toLowerCase().match(/\.(mp4|mov|webm)$/i);
 
-                            <div class="flex flex-col sm:flex-row gap-4">
-                                <a href="${f.file}" download="${f.label}" target="_blank" 
-                                   class="flex-[2] flex items-center justify-center gap-3 px-10 py-5 rounded-2xl bg-primary text-black text-[12px] font-black uppercase tracking-widest hover:shadow-[0_0_30px_rgba(0,198,255,0.4)] transition-all">
-                                    <i class="fas fa-cloud-download-alt text-lg"></i> Запустить и скачать файл
-                                </a>
-                                <a href="${f.file}" target="_blank" 
-                                   class="flex-1 flex items-center justify-center gap-3 px-10 py-5 rounded-2xl bg-white/5 border border-white/10 text-[11px] font-black uppercase tracking-widest text-gray-400 hover:bg-white/10 transition-all">
-                                    <i class="fas fa-expand"></i> В новом окне
-                                </a>
+                    html += `
+                        <div class="space-y-5">
+                            <label class="text-[11px] font-black uppercase text-primary tracking-widest italic flex items-center gap-2">
+                                <i class="fas fa-paperclip rotate-45"></i> ${f.label}
+                            </label>
+                            <div class="media-container">
+                                ${isImg ? `<img src="${f.file}" class="w-full">` : 
+                                  isVid ? `<video controls class="w-full bg-black"><source src="${f.file}"></video>` :
+                                  `<div class="p-16 text-center text-gray-500">Document: ${f.file.split('/').pop()}</div>`}
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <a href="${f.file}" download class="btn-primary py-5 text-center font-black text-xs uppercase rounded-2xl">Download</a>
+                                <a href="${f.file}" target="_blank" class="bg-white/5 hover:bg-white/10 py-5 text-center font-black text-xs uppercase rounded-2xl transition-all">Open Link</a>
                             </div>
                         </div>`;
                 });
                 html += `</div>`;
             }
             
-            content.innerHTML = html;
+            content.innerHTML = html + `</div>`;
             const btn = document.getElementById('approveBtn');
             btn.style.display = app.status === 'pending' ? 'flex' : 'none';
             btn.onclick = async () => {
-                const res = await fetch(`${API_APPS}${app.id}/accept/`, { method: 'PATCH' });
-                if(res.ok) { closeModal(); load(); }
+                btn.disabled = true; btn.innerHTML = '<i class="fas fa-sync fa-spin"></i> SYNC...';
+                await fetch(`${API_APPS}${app.id}/accept/`, { method: 'PATCH' });
+                closeModal(); loadApps();
             };
             document.getElementById('modal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
         }
 
-        function closeModal() { document.getElementById('modal').classList.add('hidden'); }
-        
-        // Подгрузка списка команд в фильтр
-        fetch('/commands/').then(r => r.json()).then(data => {
-            data.forEach(c => filter.innerHTML += `<option value="${c.slug}">${c.title}</option>`);
-        });
+        function closeModal() { document.getElementById('modal').classList.add('hidden'); document.body.style.overflow = 'auto'; }
 
-        filter.onchange = load;
-        load();
+        // INIT
+        loadApps();
+        setInterval(loadApps, 30000);
     </script>
 </body>
 </html>
