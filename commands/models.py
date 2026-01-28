@@ -1,14 +1,40 @@
 from django.db import models
+from django.utils.text import slugify
+from unidecode import unidecode
+import uuid
+import os
+
 
 class Command(models.Model):
     title = models.CharField("Название команды", max_length=255)
-    slug = models.SlugField("URL (slug)", unique=True)
-    description = models.TextField("Полное описание", blank=True)
+    slug = models.SlugField(
+        "URL",
+        unique=True,
+        blank=True,
+        help_text="Генерируется автоматически"
+    )
+    description = models.TextField("Описание", blank=True)
     start_date = models.DateTimeField("Начало набора", null=True, blank=True)
     end_date = models.DateTimeField("Конец набора", null=True, blank=True)
 
+    class Meta:
+        verbose_name = "Команда"
+        verbose_name_plural = "Команды"
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base_slug = slugify(unidecode(self.title))
+            slug = base_slug
+            counter = 1
+            while Command.objects.filter(slug=slug).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+            self.slug = slug
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.title
+
 
 class Question(models.Model):
     FIELD_TYPES = [
@@ -17,24 +43,90 @@ class Question(models.Model):
         ('number', 'Число'),
         ('photo', 'Фото'),
         ('video', 'Видео'),
-        ('select', 'Выбор из направлений'), # Добавляем этот тип
-    ]   
-    command = models.ForeignKey(Command, related_name='questions', on_delete=models.CASCADE)
+        ('select', 'Выбор'),
+    ]
+
+    command = models.ForeignKey(
+        Command,
+        related_name='questions',
+        on_delete=models.CASCADE,
+        verbose_name="Команда"
+    )
     label = models.CharField("Текст вопроса", max_length=500)
-    field_type = models.CharField(max_length=20, choices=FIELD_TYPES)
-    order = models.PositiveIntegerField(default=0)
+    field_type = models.CharField("Тип поля", max_length=20, choices=FIELD_TYPES)
+    required = models.BooleanField("Обязательный", default=True)
+    order = models.PositiveIntegerField("Порядок", blank=True, null=True)
+
+    options = models.JSONField(  # <-- вместо ArrayField
+        blank=True,
+        default=list,
+        help_text="Только для select: список вариантов"
+    )
 
     class Meta:
+        verbose_name = "Вопрос"
+        verbose_name_plural = "Вопросы"
         ordering = ['order']
 
+    def save(self, *args, **kwargs):
+        if self.order is None:
+            last = Question.objects.filter(command=self.command).aggregate(
+                models.Max('order')
+            )['order__max'] or 0
+            self.order = last + 1
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.label
+
+
 class Application(models.Model):
-    STATUS_CHOICES = [('pending', 'Ожидает'), ('accepted', 'Принят')]
-    command = models.ForeignKey(Command, on_delete=models.CASCADE, related_name='applications')
-    answers = models.JSONField("Текстовые ответы") # Здесь храним только текст
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
-    created_at = models.DateTimeField(auto_now_add=True)
+    STATUS_CHOICES = [
+        ('pending', 'Ожидает'),
+        ('accepted', 'Принят'),
+    ]
+
+    command = models.ForeignKey(
+        Command,
+        on_delete=models.CASCADE,
+        related_name='applications',
+        verbose_name="Команда"
+    )
+    answers = models.JSONField("Ответы")
+    status = models.CharField(
+        "Статус",
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default='pending'
+    )
+    created_at = models.DateTimeField("Дата подачи", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Заявка"
+        verbose_name_plural = "Заявки"
+
+    def __str__(self):
+        return f"Заявка #{self.id}"
+
+
+def attachment_upload_to(instance, filename):
+    ext = filename.split('.')[-1]  # получаем расширение
+    name = uuid.uuid4().hex          # уникальное имя
+    return f'applications/{instance.application.id}/{name}.{ext}'
 
 class Attachment(models.Model):
-    application = models.ForeignKey(Application, related_name='files', on_delete=models.CASCADE)
-    file = models.FileField(upload_to='applications/%Y/%m/%d/')
-    label = models.CharField(max_length=255) # К какому вопросу файл
+    application = models.ForeignKey(
+        Application,
+        related_name='files',
+        on_delete=models.CASCADE,
+        verbose_name="Заявка"
+    )
+    file = models.FileField("Файл", upload_to=attachment_upload_to)
+    label = models.CharField("Вопрос", max_length=255)
+
+    class Meta:
+        verbose_name = "Файл"
+        verbose_name_plural = "Файлы"
+
+    def __str__(self):
+        return self.label

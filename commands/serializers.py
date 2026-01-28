@@ -4,7 +4,7 @@ from .models import Command, Question, Application, Attachment
 class QuestionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Question
-        fields = ['label', 'field_type']
+        fields = ['id', 'label', 'field_type']
 
 class CommandSerializer(serializers.ModelSerializer):
     questions = QuestionSerializer(many=True, read_only=True)

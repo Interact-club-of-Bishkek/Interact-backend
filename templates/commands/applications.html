@@ -1,302 +1,321 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Interact | Volunteer Portal</title>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        :root { --primary: #00c6ff; --bg: #020408; --glass: rgba(15, 23, 42, 0.85); }
-        
-        body { 
-            background: var(--bg); 
-            font-family: 'Inter', sans-serif; 
-            color: white;
-            background-image: radial-gradient(circle at 50% -20%, #10192e 0%, #020408 100%);
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Анкеты в команды</title>
+<link rel="icon" type="image/png" href="https://i.ibb.co/qFYrFSnD/2105176-1-removebg-preview.png">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
 
-        /* --- ДИЗАЙНЕРСКИЕ КАРТОЧКИ КОМАНД --- */
-        .cmd-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; }
-        
-        .cmd-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 2px solid rgba(255, 255, 255, 0.05);
-            border-radius: 28px;
-            padding: 30px 15px;
-            cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            text-align: center;
-        }
-        .cmd-card:hover { 
-            border-color: var(--primary); 
-            background: rgba(0, 198, 255, 0.08); 
-            transform: translateY(-5px);
-            box-shadow: 0 15px 35px rgba(0, 198, 255, 0.15);
-        }
-        .cmd-card.selected {
-            background: var(--primary);
-            border-color: var(--primary);
-            box-shadow: 0 0 40px rgba(0, 198, 255, 0.4);
-        }
-        .cmd-card.selected span { color: #000; }
+<style>
+body { font-family: 'Inter', sans-serif; background:#020408; color:#fff; margin:0; }
+.cmd-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:16px; }
+.cmd-card { background:rgba(255,255,255,.05); border:2px solid rgba(255,255,255,.08); border-radius:20px; padding:20px; text-align:center; cursor:pointer; transition:.3s; }
+.cmd-card:hover { border-color:#00c6ff; transform:translateY(-3px); }
+.cmd-card.selected { background:#00c6ff; color:#000; border-color:#00c6ff; }
 
-        /* --- КУСТОМНЫЙ СЕЛЕКТ (КАК В CURATOR PRO) --- */
-        .custom-select-wrapper { position: relative; user-select: none; z-index: 50; }
-        .select-trigger {
-            background: rgba(255, 255, 255, 0.03);
-            border: 2px solid rgba(255, 255, 255, 0.08);
-            border-radius: 22px;
-            padding: 1.1rem 1.5rem;
-            cursor: pointer;
-            display: flex; align-items: center; justify-content: space-between;
-            transition: all 0.3s;
-        }
-        .select-trigger:hover { border-color: var(--primary); background: rgba(0, 198, 255, 0.05); }
-        .select-options {
-            position: absolute; top: calc(100% + 10px); left: 0; right: 0;
-            background: rgba(10, 15, 28, 0.98); backdrop-filter: blur(25px);
-            border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px;
-            display: none; z-index: 100; overflow: hidden;
-            box-shadow: 0 25px 50px rgba(0,0,0,0.8);
-        }
-        .select-options.active { display: block; animation: selectSlide 0.3s ease-out; }
-        .option-item {
-            padding: 1.1rem 1.5rem; cursor: pointer; transition: 0.2s;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
-        }
-        .option-item:hover { background: var(--primary); color: #000; }
+.neon-input { width:100%; padding:14px; border-radius:16px; background:rgba(255,255,255,.05); border:2px solid rgba(255,255,255,.08); outline:none; }
+.neon-input:focus { border-color:#00c6ff; }
 
-        /* --- ПОЛЯ ВВОДА --- */
-        .neon-input {
-            background: rgba(255, 255, 255, 0.03);
-            border: 2px solid rgba(255, 255, 255, 0.05);
-            border-radius: 24px;
-            padding: 1.2rem 1.5rem;
-            width: 100%;
-            transition: all 0.3s;
-            outline: none;
-            font-size: 15px;
-        }
-        .neon-input:focus { border-color: var(--primary); background: rgba(0, 198, 255, 0.05); }
+.file-upload-button { position: relative; display: flex; align-items: center; justify-content: center; padding:16px; border:2px dashed rgba(255,255,255,.3); border-radius:16px; cursor:pointer; gap:10px; margin-top:6px; }
+.file-upload-button input { position:absolute; inset:0; opacity:0; cursor:pointer; }
+.file-name { font-size:0.85rem; margin-top:4px; color:#aaa; }
+.file-preview { margin-top:6px; max-height:150px; border-radius:12px; display:none; }
 
-        /* --- ИНФО БАДЖИ --- */
-        .info-badge {
-            background: rgba(0, 198, 255, 0.05);
-            border: 1px solid rgba(0, 198, 255, 0.15);
-            padding: 12px 20px;
-            border-radius: 18px;
-            display: flex; align-items: center; gap: 10px;
-        }
+.btn-action { width:100%; padding:18px; border-radius:22px; background:#00c6ff; color:#000; font-weight:900; cursor:pointer; transition:.3s; }
+.btn-action:hover { background:#00f0ff; }
 
-        .btn-action {
-            background: var(--primary); color: #000;
-            font-weight: 900; text-transform: uppercase; letter-spacing: 2px;
-            padding: 22px; border-radius: 25px; width: 100%;
-            transition: all 0.3s; box-shadow: 0 10px 30px rgba(0, 198, 255, 0.2);
-        }
-        .btn-action:hover { box-shadow: 0 0 45px rgba(0, 198, 255, 0.5); transform: translateY(-3px); background: #fff; }
+.date-block { display:inline-block; padding:6px 12px; background:rgba(255,255,255,.05); border-radius:12px; margin-right:8px; font-size:0.9rem; }
+.date-block span { color:#00c6ff; font-weight:600; }
 
-        /* --- MODAL --- */
-        #successModal {
-            position: fixed; inset: 0; z-index: 9999;
-            background: rgba(0,0,0,0.95); backdrop-filter: blur(20px);
-            display: none; align-items: center; justify-content: center;
-        }
+.fullscreen-message { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; background:#020408; z-index:9999; }
+.hidden { display:none; }
 
-        @keyframes selectSlide { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-up { animation: fadeInUp 0.5s ease-out forwards; }
-        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-    </style>
+/* Кастомный select */
+.select-wrapper { position:relative; }
+.neon-select { padding:14px; border-radius:16px; border:2px solid rgba(255,255,255,.08); background:rgba(255,255,255,.05); cursor:pointer; display:flex; justify-content:space-between; align-items:center; }
+.neon-select:hover { border-color:#00c6ff; }
+.neon-select .selected-text { color:#ccc; }
+.neon-select .options { position:absolute; top:100%; left:0; right:0; background:#020408; border:2px solid #00c6ff; border-radius:16px; max-height:180px; overflow-y:auto; margin-top:4px; z-index:50; display:none; }
+.neon-select .options li { padding:10px 14px; cursor:pointer; transition:0.2s; }
+.neon-select .options li:hover { background:#00c6ff/20; }
+</style>
 </head>
-<body class="p-4 md:p-10">
-    <div class="max-w-4xl mx-auto">
-        <header class="text-center mb-16">
-            <h1 class="font-['Montserrat'] font-black text-5xl md:text-7xl tracking-tighter uppercase italic text-primary leading-none">
-                Interact<span class="text-white">Join</span>
-            </h1>
-            <div class="flex items-center justify-center gap-2 mt-4">
-                <span class="h-[2px] w-12 bg-primary"></span>
-                <p class="text-[10px] text-primary font-bold uppercase tracking-[0.6em]">Aesthetics of Future</p>
-                <span class="h-[2px] w-12 bg-primary"></span>
-            </div>
-        </header>
+<body>
 
-        <section class="mb-14">
-            <label class="block text-center text-[10px] font-black uppercase text-gray-500 mb-8 tracking-[0.3em]">Выберите подразделение</label>
-            <div id="commandGrid" class="cmd-grid"></div>
-        </section>
+<div id="fullscreenMessage" class="fullscreen-message hidden">
+    <div class="text-center">
+        <h1 class="text-4xl font-black mb-4 text-cyan-400"></h1>
+        <p class="text-gray-400 text-lg"></p>
+        <button onclick="hideMessage()" class="btn-action mt-4">Закрыть</button>
+    </div>
+</div>
 
-        <div id="cmdInfo" class="hidden mb-12 animate-up">
-            <div class="bg-white/5 rounded-[40px] p-8 md:p-12 border border-white/10 relative overflow-hidden">
-                <div class="absolute top-0 left-0 w-1 h-full bg-primary"></div>
-                <h2 id="infoTitle" class="font-['Montserrat'] font-black text-4xl uppercase italic mb-4"></h2>
-                <p id="infoDesc" class="text-gray-400 leading-relaxed text-lg mb-10"></p>
-                
-                <div class="flex flex-col md:flex-row gap-4">
-                    <div class="info-badge">
-                        <i class="fas fa-calendar-alt text-primary"></i>
-                        <span class="text-[10px] font-black uppercase text-gray-500">Старт:</span>
-                        <span id="infoStart" class="text-xs font-bold"></span>
-                    </div>
-                    <div class="info-badge" style="border-color: rgba(234, 179, 8, 0.3);">
-                        <i class="fas fa-hourglass-end text-yellow-500"></i>
-                        <span class="text-[10px] font-black uppercase text-gray-500">Дедлайн:</span>
-                        <span id="infoEnd" class="text-xs font-bold text-yellow-500"></span>
-                    </div>
+<div id="appContainer" class="max-w-4xl mx-auto p-6 hidden">
+
+    <h1 class="text-center text-5xl font-black mb-10">
+        Interact <span class="text-cyan-400">Commands</span>
+    </h1>
+
+    <div id="commandGrid" class="cmd-grid mb-10"></div>
+
+    <div id="cmdInfo" class="hidden mb-8 p-6 rounded-2xl bg-white/5 whitespace-pre-line"></div>
+
+    <form id="appForm" class="hidden space-y-6" enctype="multipart/form-data">
+        <div id="questionsContainer" class="space-y-6"></div>
+        <button type="submit" class="btn-action hidden" id="submitBtn">Подать заявку</button>
+    </form>
+</div>
+
+<script>
+const API_CMDS = '/commands/';
+const API_APPS = '/commands-applications/';
+const API_DIRECTIONS = '/api/volunteer-directions/';
+
+let selectedSlug = '';
+let directions = [];
+let directionMap = {};
+
+const app = document.getElementById('appContainer');
+const message = document.getElementById('fullscreenMessage');
+const submitBtn = document.getElementById('submitBtn');
+
+function showMessage(title, text){
+    message.querySelector('h1').textContent = title;
+    message.querySelector('p').textContent = text;
+    message.classList.remove('hidden');
+    app.classList.add('hidden');
+}
+
+function hideMessage(){
+    message.classList.add('hidden');
+    app.classList.remove('hidden');
+}
+
+async function init(){
+    try {
+        const [resCmds, resDirs] = await Promise.all([fetch(API_CMDS), fetch(API_DIRECTIONS)]);
+        const commands = await resCmds.json();
+        directions = await resDirs.json();
+
+        // карта id -> name
+        directions.forEach(d=>directionMap[d.id]=d.name);
+
+        const grid = document.getElementById('commandGrid');
+        commands.forEach(cmd=>{
+            const card = document.createElement('div');
+            card.className = 'cmd-card';
+            card.textContent = cmd.title;
+            card.onclick = ()=>loadCommand(cmd, card);
+            grid.appendChild(card);
+        });
+
+        hideMessage();
+    } catch(e){
+        showMessage('Ошибка', 'Не удалось загрузить команды');
+        console.error(e);
+    }
+}
+
+function formatDate(dt){
+    if(!dt) return '';
+    return new Date(dt).toLocaleString('ru-RU', {day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'});
+}
+
+function loadCommand(cmd, card){
+    document.querySelectorAll('.cmd-card').forEach(c=>c.classList.remove('selected'));
+    card.classList.add('selected');
+
+    const now = new Date();
+    const start = cmd.start_date ? new Date(cmd.start_date) : null;
+    const end = cmd.end_date ? new Date(cmd.end_date) : null;
+
+    if(start && now < start){
+        showMessage('Набор еще не открыт','Ожидайте объявления старта. Мы обязательно сообщим 🤍');
+        return;
+    }
+    if(end && now > end){
+        showMessage('Набор завершён','Прием заявок уже закрыт');
+        return;
+    }
+
+    hideMessage();
+    selectedSlug = cmd.slug;
+
+    const info = document.getElementById('cmdInfo');
+    info.classList.remove('hidden');
+    info.innerHTML = `
+        <h2 class="text-3xl font-black mb-2">${cmd.title}</h2>
+        <p class="text-gray-400 mb-4">${cmd.description || ''}</p>
+        <div class="flex gap-4">
+            <div class="date-block">Начало: <span>${formatDate(cmd.start_date)}</span></div>
+            <div class="date-block">Конец: <span>${formatDate(cmd.end_date)}</span></div>
+        </div>
+    `;
+
+    const qBox = document.getElementById('questionsContainer');
+    qBox.innerHTML = '';
+
+    if(!cmd.questions || cmd.questions.length === 0){
+        submitBtn.classList.add('hidden');
+        return;
+    } else {
+        submitBtn.classList.remove('hidden');
+    }
+
+    cmd.questions.forEach(q=>{
+        const required = q.required ? 'required' : '';
+        const fieldName = `q_${q.id}`;
+        let html = '';
+
+        if(q.field_type === 'photo' || q.field_type === 'video'){
+            html = `
+            <div>
+                <label class="text-xs text-gray-400">${q.label}</label>
+                <label class="file-upload-button">
+                    <span>Выбрать файл</span>
+                    <input type="file" name="${fieldName}" accept="${q.field_type==='photo'?'image/*':'video/*'}" ${required}>
+                </label>
+                <div class="file-name">Файл не выбран</div>
+                <img class="file-preview">
+            </div>`;
+        } else if(q.field_type === 'select'){
+            html = `
+            <div class="select-wrapper" data-fieldname="${fieldName}" ${q.required ? 'data-required="true"' : ''}>
+                <label class="text-xs text-gray-400">${q.label}</label>
+                <div class="neon-select">
+                    <span class="selected-text">Выберите...</span>
+                    <ul class="options"></ul>
                 </div>
-            </div>
-        </div>
-
-        <form id="appForm" class="hidden space-y-8 animate-up pb-20">
-            <div id="questionsContainer" class="grid gap-6"></div>
-            <button type="submit" id="submitBtn" class="btn-action">Подать заявку</button>
-        </form>
-    </div>
-
-    <div id="successModal">
-        <div class="bg-white/5 border border-white/10 p-12 rounded-[50px] max-w-sm text-center shadow-[0_0_100px_rgba(0,198,255,0.2)]">
-            <div class="w-24 h-24 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-8 border border-primary/40">
-                <i class="fas fa-paper-plane text-4xl text-primary"></i>
-            </div>
-            <h2 class="text-4xl font-black uppercase italic mb-4">Готово!</h2>
-            <p class="text-gray-400 mb-10 leading-relaxed uppercase text-[10px] font-bold tracking-widest">Твои данные в системе. Мы скоро свяжемся.</p>
-            <button onclick="location.reload()" class="w-full py-5 bg-white text-black font-black uppercase rounded-2xl hover:bg-primary transition-all">Закрыть</button>
-        </div>
-    </div>
-
-    <script>
-        const API_CMDS = '/commands/';
-        const API_APPS = '/commands-applications/';
-        const API_DIRECTIONS = '/api/volunteer-directions/';
-
-        let directions = [];
-        let selectedSlug = "";
-
-        // Форматирование даты
-        function formatCyberDate(iso) {
-            if (!iso) return "UNLIMITED";
-            const d = new Date(iso);
-            return d.toLocaleString('ru-RU', {
-                day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
-            }).replace('.', '').toUpperCase();
+            </div>`;
+        } else {
+            html = `
+            <div>
+                <label class="text-xs text-gray-400">${q.label}</label>
+                <input class="neon-input mt-2" name="${fieldName}" ${required}>
+            </div>`;
         }
 
-        async function init() {
-            try {
-                const [dRes, cRes] = await Promise.all([fetch(API_DIRECTIONS), fetch(API_CMDS)]);
-                directions = await dRes.json();
-                const commands = await cRes.json();
-                
-                const grid = document.getElementById('commandGrid');
-                commands.forEach(c => {
-                    const card = document.createElement('div');
-                    card.className = 'cmd-card group';
-                    card.innerHTML = `<span class="text-[11px] font-black uppercase tracking-widest transition-all">${c.title}</span>`;
-                    card.onclick = () => {
-                        document.querySelectorAll('.cmd-card').forEach(el => el.classList.remove('selected'));
-                        card.classList.add('selected');
-                        loadCommand(c.slug);
-                    };
-                    grid.appendChild(card);
-                });
-            } catch (e) { console.error(e); }
-        }
+        qBox.insertAdjacentHTML('beforeend', html);
+    });
 
-        async function loadCommand(slug) {
-            selectedSlug = slug;
-            const res = await fetch(`${API_CMDS}${slug}/`);
-            const data = await res.json();
-            
-            document.getElementById('infoTitle').textContent = data.title;
-            document.getElementById('infoDesc').textContent = data.description || "Набор в элитное подразделение Interact. Мы ждем твоих идей и навыков.";
-            document.getElementById('infoStart').textContent = formatCyberDate(data.start_date);
-            document.getElementById('infoEnd').textContent = formatCyberDate(data.end_date);
-            document.getElementById('cmdInfo').classList.remove('hidden');
+    setupFileInputs();
+    setupCustomSelects();
+    document.getElementById('appForm').classList.remove('hidden');
+}
 
-            const container = document.getElementById('questionsContainer');
-            container.innerHTML = '';
-            
-            data.questions.forEach((q, index) => {
-                let inputHtml = '';
-                
-                if (q.field_type === 'select') {
-                    // Создаем дизайнерский селект для каждого вопроса типа select
-                    const selectId = `customSelect_${index}`;
-                    inputHtml = `
-                        <div class="custom-select-wrapper" id="${selectId}">
-                            <div class="select-trigger" onclick="toggleSelect('${selectId}')">
-                                <span class="selected-val text-xs font-black uppercase tracking-widest">Выбрать направление</span>
-                                <i class="fas fa-chevron-down text-[10px] text-primary"></i>
-                            </div>
-                            <div class="select-options">
-                                ${directions.map(d => `<div class="option-item" onclick="selectOption('${selectId}', '${d.name}')">${d.name}</div>`).join('')}
-                            </div>
-                            <input type="hidden" name="TEXT__${q.label}" class="real-input">
-                        </div>`;
-                } else if (q.field_type === 'photo' || q.field_type === 'video') {
-                    inputHtml = `<input type="file" name="FILE__${q.label}" class="neon-input text-xs text-gray-500">`;
-                } else if (q.field_type === 'number') {
-                    inputHtml = `<input type="number" name="TEXT__${q.label}" class="neon-input" placeholder="00">`;
-                } else {
-                    inputHtml = `<input type="text" name="TEXT__${q.label}" class="neon-input" placeholder="Введите данные...">`;
-                }
+// Файлы
+function setupFileInputs(){
+    document.querySelectorAll('input[type=file]').forEach(input=>{
+        const block = input.closest('div');
+        const fileName = block.querySelector('.file-name');
+        const preview = block.querySelector('.file-preview');
 
-                container.innerHTML += `
-                    <div class="space-y-4">
-                        <label class="text-[10px] font-black uppercase text-gray-500 tracking-[0.2em] flex items-center gap-3 italic">
-                            <span class="w-6 h-[2px] bg-primary/30"></span> ${q.label}
-                        </label>
-                        ${inputHtml}
-                    </div>`;
-            });
-
-            document.getElementById('appForm').classList.remove('hidden');
-            window.scrollTo({ top: document.getElementById('cmdInfo').offsetTop - 20, behavior: 'smooth' });
-        }
-
-        // Функции кустомного селекта
-        window.toggleSelect = (id) => {
-            const el = document.getElementById(id);
-            el.querySelector('.select-options').classList.toggle('active');
-        };
-
-        window.selectOption = (selectId, value) => {
-            const wrapper = document.getElementById(selectId);
-            wrapper.querySelector('.selected-val').textContent = value;
-            wrapper.querySelector('.real-input').value = value;
-            wrapper.querySelector('.select-options').classList.remove('active');
-        };
-
-        // Отправка
-        document.getElementById('appForm').onsubmit = async (e) => {
-            e.preventDefault();
-            const btn = document.getElementById('submitBtn');
-            btn.disabled = true; btn.innerHTML = '<i class="fas fa-sync fa-spin"></i> СИНХРОНИЗАЦИЯ...';
-
-            const fd = new FormData();
-            fd.append('command_slug', selectedSlug);
-            const answers = {};
-            
-            const formData = new FormData(e.target);
-            for (let [k, v] of formData) {
-                if (k.startsWith('TEXT__')) answers[k.replace('TEXT__', '')] = v;
-                else if (k.startsWith('FILE__') && v.size > 0) fd.append('uploaded_files', v);
+        input.onchange = ()=>{
+            if(!input.files.length){
+                fileName.textContent='Файл не выбран';
+                preview.style.display='none';
+                return;
             }
-            fd.append('answers', JSON.stringify(answers));
+            const file = input.files[0];
+            fileName.textContent = file.name;
 
-            try {
-                const res = await fetch(API_APPS, { method: 'POST', body: fd });
-                if (res.ok) document.getElementById('successModal').style.display = 'flex';
-                else { btn.disabled = false; btn.textContent = 'ОШИБКА ОТПРАВКИ'; }
-            } catch (e) { btn.disabled = false; }
+            if(file.type.startsWith('image/')){
+                const reader = new FileReader();
+                reader.onload = e => { preview.src = e.target.result; preview.style.display='block'; };
+                reader.readAsDataURL(file);
+            } else { preview.style.display='none'; }
         };
+    });
+}
 
-        init();
-    </script>
+// Кастомный dropdown
+function setupCustomSelects(){
+    document.querySelectorAll('.select-wrapper').forEach(wrapper=>{
+        const selectBox = wrapper.querySelector('.neon-select');
+        const ul = selectBox.querySelector('.options');
+        const selectedText = selectBox.querySelector('.selected-text');
+        const fieldName = wrapper.dataset.fieldname;
+
+        directions.forEach(d=>{
+            const li = document.createElement('li');
+            li.textContent = d.name;
+            li.dataset.id = d.id;
+            li.onclick = ()=>{
+                wrapper.dataset.value = d.id;
+                selectedText.textContent = d.name;
+                ul.style.display = 'none';
+            };
+            ul.appendChild(li);
+        });
+
+        selectBox.onclick = e=>{
+            e.stopPropagation();
+            document.querySelectorAll('.select-wrapper .options').forEach(opt=>{ if(opt!==ul) opt.style.display='none'; });
+            ul.style.display = ul.style.display==='block'?'none':'block';
+        };
+    });
+
+    document.addEventListener('click', ()=>{
+        document.querySelectorAll('.select-wrapper .options').forEach(ul=>ul.style.display='none');
+    });
+}
+
+// Отправка формы
+document.getElementById('appForm').onsubmit = async e=>{
+    e.preventDefault();
+    if(!selectedSlug){ alert('Выберите команду'); return; }
+
+    const fd = new FormData();
+    fd.append('command_slug', selectedSlug);
+
+    let valid = true;
+    const answers = {};
+
+    document.querySelectorAll('#questionsContainer > div').forEach(div=>{
+        const input = div.querySelector('input');
+        if(input){
+            const val = input.type==='file'?input.files[0]:input.value.trim();
+            if(input.type==='file'){
+                if(input.files.length) fd.append(input.name, input.files[0]);
+                else if(input.required) valid=false;
+            } else {
+                answers[input.name] = val;
+                if(input.required && !val) valid=false;
+            }
+        } else if(div.classList.contains('select-wrapper')){
+            const wrapper = div;
+            const val = wrapper.dataset.value;
+            const name = wrapper.dataset.fieldname;
+            answers[name] = directionMap[val] || '';
+            if(wrapper.dataset.required === "true" && !val) valid=false;
+        }
+    });
+
+    if(!valid){ alert('Заполните все обязательные поля'); return; }
+
+    fd.append('answers', JSON.stringify(answers));
+
+    try{
+        const res = await fetch(API_APPS, {method:'POST', body:fd});
+        if(res.ok){
+            showMessage('Заявка отправлена','Спасибо! Ваша заявка успешно отправлена. Мы свяжемся с вами 🤍');
+            document.getElementById('appForm').reset();
+            document.getElementById('questionsContainer').innerHTML='';
+            submitBtn.classList.add('hidden');
+        } else {
+            const err = await res.text();
+            console.error(err);
+            alert('Ошибка при отправке');
+        }
+    } catch(e){
+        console.error(e);
+        alert('Ошибка сети');
+    }
+};
+
+init();
+</script>
 </body>
 </html>

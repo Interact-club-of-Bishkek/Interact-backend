@@ -1,5 +1,7 @@
 import json
 import os
+from django.utils import timezone
+
 from django.shortcuts import render, get_object_or_404
 from rest_framework import generics, status
 from rest_framework.response import Response
@@ -21,12 +23,13 @@ class CommandDetailView(generics.RetrieveAPIView):
     permission_classes = [AllowAny]
 
 # Список и создание заявок
+from django.utils import timezone
+
 class ApplicationListCreateView(generics.ListCreateAPIView):
     serializer_class = ApplicationSerializer
     permission_classes = [AllowAny]
 
     def get_queryset(self):
-        # Используем .all(), чтобы избежать RuntimeError и кеширования
         queryset = Application.objects.all().order_by('-created_at')
         slug = self.request.query_params.get('slug')
         if slug:
@@ -38,30 +41,46 @@ class ApplicationListCreateView(generics.ListCreateAPIView):
             # Получаем команду
             command_slug = request.data.get('command_slug')
             command = get_object_or_404(Command, slug=command_slug)
-            
-            # Парсим ответы
+
+            now = timezone.now()
+
+            # Проверка начала и конца набора
+            if command.start_date and now < command.start_date:
+                return Response(
+                    {"error": "Набор ещё не открыт. Ожидайте, мы скоро объявим!"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if command.end_date and now > command.end_date:
+                return Response(
+                    {"error": "Набор завершён."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Парсим текстовые ответы
             answers_raw = request.data.get('answers', '{}')
             answers = json.loads(answers_raw)
 
-            # 1. Создаем заявку
+            # Создаем заявку
             app = Application.objects.create(
                 command=command,
                 answers=answers
             )
 
-            # 2. Сохраняем файлы с сохранением их оригинальных имен и расширений
-            files = request.FILES.getlist('uploaded_files')
-            for f in files:
-                # Django автоматически обработает f.name, сохраняя расширение
-                Attachment.objects.create(
-                    application=app, 
-                    file=f, 
-                    label=f.name
-                )
+            # Сохраняем все файлы
+            for key in request.FILES:
+                for f in request.FILES.getlist(key):
+                    Attachment.objects.create(
+                        application=app,
+                        file=f,
+                        label=key.replace('TEXT__','')
+                    )
 
             return Response({"status": "success", "id": app.id}, status=status.HTTP_201_CREATED)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
 
 # Обновление статуса
 class ApplicationUpdateStatusView(generics.UpdateAPIView):

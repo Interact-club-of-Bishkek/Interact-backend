@@ -3,58 +3,80 @@ from django.utils.html import format_html
 from django.urls import reverse
 from .models import Command, Question, Application, Attachment
 
-# Позволяет видеть и добавлять вопросы прямо в команде
-class QuestionInline(admin.TabularInline):
+
+class QuestionInline(admin.StackedInline):
     model = Question
     extra = 1
+    fields = ('order', 'label', 'field_type', 'required')
+    ordering = ('order',)
+    verbose_name = "Вопрос"
+    verbose_name_plural = "Вопросы"
 
-# Позволяет видеть загруженные файлы прямо в заявке
-# Замени TabularStackedInline на StackedInline
-class AttachmentInline(admin.StackedInline): 
+
+class AttachmentInline(admin.StackedInline):
     model = Attachment
     extra = 0
-    readonly_fields = ('display_file',)
+    readonly_fields = ('preview',)
+    verbose_name = "Файл"
+    verbose_name_plural = "Файлы"
 
-    def display_file(self, obj):
-        if obj.file:
-            # Если это картинка — показываем превью
-            if obj.file.url.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp')):
-                return format_html('<img src="{}" style="max-height: 300px; border-radius: 10px;"/>', obj.file.url)
-            # Если это видео
-            elif obj.file.url.lower().endswith(('.mp4', '.mov', '.avi')):
-                return format_html('<video src="{}" style="max-height: 300px;" controls></video>', obj.file.url)
-            return format_html('<a href="{}" target="_blank">Открыть файл</a>', obj.file.url)
-        return "Нет файла"
-    display_file.short_description = "Просмотр медиа"
+    def preview(self, obj):
+        if not obj.file:
+            return "—"
+        url = obj.file.url.lower()
+        if url.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp')):
+            return format_html(
+                '<img src="{}" style="max-height:250px;border-radius:10px;">',
+                obj.file.url
+            )
+        if url.endswith(('.mp4', '.mov', '.avi')):
+            return format_html(
+                '<video src="{}" controls style="max-height:250px;"></video>',
+                obj.file.url
+            )
+        return format_html('<a href="{}" target="_blank">Открыть файл</a>', obj.file.url)
+
+    preview.short_description = "Предпросмотр"
+
 
 @admin.register(Command)
 class CommandAdmin(admin.ModelAdmin):
-    list_display = ('title', 'slug', 'start_date', 'end_date', 'get_full_url')
-    prepopulated_fields = {"slug": ("title",)}
+    list_display = ('title', 'start_date', 'end_date', 'api_link')
+    search_fields = ('title',)
     inlines = [QuestionInline]
-    
-    # Ссылка на твой API (как мы делали раньше)
-    def get_full_url(self, obj):
+
+    def api_link(self, obj):
         url = reverse('command-detail', kwargs={'slug': obj.slug})
-        return format_html('<a href="{0}" target="_blank">{0}</a>', url)
-    get_full_url.short_description = "API URL"
+        return format_html('<a href="{}" target="_blank">Открыть API</a>', url)
+
+    api_link.short_description = "API"
+
 
 @admin.register(Application)
 class ApplicationAdmin(admin.ModelAdmin):
     list_display = ('id', 'command', 'status', 'created_at')
     list_filter = ('status', 'command')
-    inlines = [AttachmentInline] # Показываем фото/видео внутри заявки
-    readonly_fields = ('created_at', 'display_answers')
-    
-    # Красивый вывод JSON-ответов в админке
-    def display_answers(self, obj):
+    readonly_fields = ('created_at', 'answers_view')
+    inlines = [AttachmentInline]
+
+    def answers_view(self, obj):
         html = "<ul>"
-        for question, answer in obj.answers.items():
-            html += f"<li><b>{question}:</b> {answer}</li>"
+        for k, v in obj.answers.items():
+            html += f"<li><b>{k}</b>: {v}</li>"
         html += "</ul>"
         return format_html(html)
-    display_answers.short_description = "Ответы пользователя"
+
+    answers_view.short_description = "Ответы"
+
+
+@admin.register(Question)
+class QuestionAdmin(admin.ModelAdmin):
+    list_display = ('label', 'command', 'field_type', 'required', 'order')
+    list_filter = ('command', 'field_type', 'required')
+    list_editable = ('required', 'order')
+    ordering = ('command', 'order')
+
 
 @admin.register(Attachment)
 class AttachmentAdmin(admin.ModelAdmin):
-    list_display = ('id', 'application', 'file', 'label')
+    list_display = ('id', 'application', 'label', 'file')

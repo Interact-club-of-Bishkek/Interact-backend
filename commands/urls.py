@@ -5,8 +5,8 @@ from .views import (
 )
 
 urlpatterns = [
-    path('join/', volunteer_page, name='volunteer-page'),
-    path('dashboard/', curator_page, name='curator-page'),
+    path('join-commands', volunteer_page, name='volunteer-page'),
+    path('dashboard-teamliders', curator_page, name='curator-page'),
 
     path('commands/', CommandListView.as_view(), name='command-list'),
     path('commands/<str:slug>/', CommandDetailView.as_view(), name='command-detail'),
