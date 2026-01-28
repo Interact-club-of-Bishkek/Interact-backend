@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Присоединиться к Interact</title>
+    <link rel="icon" type="image/png" href="https://i.ibb.co/qFYrFSnD/2105176-1-removebg-preview.png">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;800;900&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        :root { --primary: #00c6ff; --bg: #020408; --glass: rgba(15, 23, 42, 0.85); --border: rgba(255, 255, 255, 0.12); }
+        body { background: var(--bg); font-family: 'Inter', sans-serif; color: white; min-height: 100vh; overflow-x: hidden; }
+        #particles-js { position: fixed; inset: 0; z-index: -1; background: radial-gradient(circle at center, #10192e 0%, #000 100%); }
+        
+        .glass-card {
+            background: var(--glass); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border); box-shadow: 0 0 50px rgba(0, 198, 255, 0.1);
+        }
+
+        .neon-input {
+            background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: white;
+            transition: 0.3s; outline: none; width: 100%; padding: 1rem; border-radius: 12px;
+        }
+        .neon-input:focus { border-color: var(--primary); box-shadow: 0 0 15px rgba(0, 198, 255, 0.2); }
+
+        /* Кастомный Селект */
+        .custom-select { position: relative; width: 100%; cursor: pointer; z-index: 20; }
+        .select-trigger {
+            background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+            padding: 1rem; border-radius: 12px; display: flex; justify-content: space-between; align-items: center;
+            transition: 0.3s;
+        }
+        .select-trigger:hover { border-color: var(--primary); }
+        .select-options {
+            position: absolute; top: calc(100% + 10px); left: 0; right: 0;
+            background: #0a1120; border: 1px solid var(--border); border-radius: 12px;
+            display: none; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        }
+        .select-options.active { display: block; animation: slideDown 0.3s ease-out; }
+        .select-item { padding: 14px 16px; transition: 0.2s; color: #a8b8d0; border-bottom: 1px solid rgba(255,255,255,0.03); }
+        .select-item:hover { background: var(--primary); color: #000; font-weight: 700; }
+
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .main-title {
+            font-family: 'Montserrat', sans-serif; font-weight: 900;
+            background: linear-gradient(90deg, #fff, var(--primary), #fff);
+            background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            animation: shine 4s linear infinite;
+        }
+        @keyframes shine { 0% { background-position: -200% center; } 100% { background-position: 200% center; } }
+
+        /* Окно Успеха */
+        .success-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.95); backdrop-filter: blur(10px);
+            display: none; align-items: center; justify-content: center; z-index: 100;
+        }
+        .success-overlay.active { display: flex; }
+        .success-box {
+            background: rgba(15, 23, 42, 0.9); border: 1px solid var(--primary);
+            padding: 40px; border-radius: 30px; text-align: center; max-width: 400px; width: 90%;
+            box-shadow: 0 0 40px rgba(0, 198, 255, 0.15);
+            animation: zoomIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes zoomIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+
+        input[type="file"]::file-selector-button { display: none; }
+    </style>
+</head>
+<body class="flex items-center justify-center py-10 px-4">
+    <div id="particles-js"></div>
+
+    <div class="glass-card w-full max-w-xl rounded-[32px] p-6 md:p-10 relative overflow-hidden">
+        <div class="text-center mb-10">
+            <img class="w-20 mx-auto mb-4 drop-shadow-[0_0_15px_rgba(0,198,255,0.4)]" src="https://i.ibb.co/FbMdgjML/image-removebg-preview.png">
+            <h1 class="main-title text-3xl md:text-4xl uppercase italic mb-2">Анкета Волонтера</h1>
+            <p class="text-primary/40 text-[10px] tracking-[0.4em] font-black uppercase">Service Above Self</p>
+        </div>
+
+        <div class="space-y-6">
+            <div class="relative">
+                <label class="block text-[10px] font-black uppercase text-gray-500 mb-2 ml-1 tracking-widest">Выберите направление</label>
+                <div class="custom-select" id="cmdSelectBox">
+                    <div class="select-trigger" id="selectTrigger">
+                        <span id="selectedVal" class="text-gray-400">Нажмите для выбора...</span>
+                        <i class="fas fa-chevron-down text-primary text-xs"></i>
+                    </div>
+                    <div class="select-options" id="selectOptions"></div>
+                </div>
+            </div>
+
+            <div id="cmdInfo" class="hidden p-5 rounded-2xl bg-primary/5 border border-primary/20">
+                <h2 id="infoTitle" class="text-primary font-black text-lg italic uppercase"></h2>
+                <p id="infoDesc" class="text-gray-400 text-sm mt-1 leading-relaxed"></p>
+                <div class="flex gap-4 mt-4 font-bold text-[10px] uppercase text-gray-400">
+                    <span>Старт: <span id="infoStart" class="text-white"></span></span>
+                    <span>Дедлайн: <span id="infoEnd" class="text-white"></span></span>
+                </div>
+            </div>
+
+            <form id="appForm" class="hidden space-y-6" enctype="multipart/form-data">
+                <div id="questionsContainer" class="space-y-5"></div>
+                <button type="submit" class="w-full py-4 rounded-xl border-2 border-primary text-primary font-black uppercase tracking-widest hover:bg-primary hover:text-black transition-all shadow-[0_0_20px_rgba(0,198,255,0.2)] active:scale-95">
+                    Отправить анкету
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="success-overlay" id="successModal">
+        <div class="success-box">
+            <div class="w-20 h-20 bg-primary/10 border-2 border-primary rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_0_30px_rgba(0,198,255,0.3)]">
+                <i class="fas fa-paper-plane text-3xl text-primary animate-bounce"></i>
+            </div>
+            <h2 class="font-['Montserrat'] font-black text-2xl uppercase mb-3 tracking-tighter text-white">Готово!</h2>
+            <p class="text-gray-400 text-lg italic mb-8">Ваше письмо отправлено</p>
+            <button onclick="location.reload()" class="w-full py-3 bg-primary text-black font-black uppercase rounded-xl tracking-widest hover:shadow-[0_0_20px_rgba(0,198,255,0.5)] transition-all">
+                Закрыть
+            </button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <script>
+        particlesJS("particles-js", {
+            particles: {
+                number: { value: 40 },
+                color: { value: "#00c6ff" },
+                size: { value: 1.5 },
+                line_linked: { enable: true, opacity: .1 },
+                move: { enable: true, speed: 1 }
+            }
+        });
+
+        const API_CMDS = '/commands/';
+        const API_APPS = '/commands-applications/';
+        const API_DIRECTIONS = '/api/volunteer-directions/';
+
+        const trigger = document.getElementById('selectTrigger');
+        const optionsList = document.getElementById('selectOptions');
+        const selectedVal = document.getElementById('selectedVal');
+        const form = document.getElementById('appForm');
+        let selectedSlug = "";
+        let directionsHTML = "";
+
+        async function init() {
+            // Подгружаем направления для внутренних select'ов
+            const dRes = await fetch(API_DIRECTIONS);
+            const dData = await dRes.json();
+            directionsHTML = dData.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+
+            // Подгружаем Команды для главного кастомного селекта
+            const cRes = await fetch(API_CMDS);
+            const cData = await cRes.json();
+            
+            cData.forEach(c => {
+                const item = document.createElement('div');
+                item.className = 'select-item';
+                item.textContent = c.title;
+                item.onclick = (e) => {
+                    e.stopPropagation();
+                    selectCommand(c.slug, c.title);
+                };
+                optionsList.appendChild(item);
+            });
+        }
+
+        trigger.onclick = () => optionsList.classList.toggle('active');
+        window.onclick = (e) => { if(!e.target.closest('#cmdSelectBox')) optionsList.classList.remove('active'); };
+
+        async function selectCommand(slug, title) {
+            selectedSlug = slug;
+            selectedVal.textContent = title;
+            selectedVal.classList.remove('text-gray-400');
+            optionsList.classList.remove('active');
+
+            const res = await fetch(`${API_CMDS}${slug}/`);
+            const data = await res.json();
+            
+            document.getElementById('infoTitle').textContent = data.title;
+            document.getElementById('infoDesc').textContent = data.description;
+            document.getElementById('infoStart').textContent = data.start_date ? new Date(data.start_date).toLocaleDateString() : '-';
+            document.getElementById('infoEnd').textContent = data.end_date ? new Date(data.end_date).toLocaleDateString() : '-';
+            document.getElementById('cmdInfo').classList.remove('hidden');
+
+            const container = document.getElementById('questionsContainer');
+            container.innerHTML = '';
+            data.questions.forEach(q => {
+                let input = '';
+                if (q.field_type === 'select') input = `<select name="TEXT__${q.label}" class="neon-input">${directionsHTML}</select>`;
+                else if (q.field_type === 'photo' || q.field_type === 'video') input = `<div class="relative"><input type="file" name="FILE__${q.label}" class="neon-input opacity-0 absolute inset-0 z-10 cursor-pointer"><div class="neon-input flex justify-between pointer-events-none text-gray-500"><span>Выбрать файл...</span><i class="fas fa-link text-primary"></i></div></div>`;
+                else if (q.field_type === 'long_text') input = `<textarea name="TEXT__${q.label}" class="neon-input h-28" placeholder="..."></textarea>`;
+                else input = `<input type="text" name="TEXT__${q.label}" class="neon-input" placeholder="...">`;
+
+                container.innerHTML += `<div class="animate-fade-in"><label class="block text-[9px] font-black uppercase text-gray-500 mb-1 ml-1 tracking-widest">${q.label}</label>${input}</div>`;
+            });
+
+            // Логика отображения имени файла
+            document.querySelectorAll('input[type="file"]').forEach(input => {
+                input.onchange = (e) => {
+                    const span = e.target.nextElementSibling.querySelector('span');
+                    span.textContent = e.target.files[0] ? e.target.files[0].name : "Выбрать файл...";
+                    span.style.color = "#00c6ff";
+                }
+            });
+
+            form.classList.remove('hidden');
+        }
+
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            const fd = new FormData();
+            fd.append('command_slug', selectedSlug);
+            const answers = {};
+            for (let [k, v] of new FormData(form)) {
+                if (k.startsWith('TEXT__')) answers[k.replace('TEXT__', '')] = v;
+                if (k.startsWith('FILE__') && v.size > 0) fd.append('uploaded_files', v, k.replace('FILE__', ''));
+            }
+            fd.append('answers', JSON.stringify(answers));
+
+            const res = await fetch(API_APPS, { method: 'POST', body: fd });
+            if (res.ok) {
+                document.getElementById('successModal').classList.add('active');
+            }
+        };
+
+        init();
+    </script>
+</body>
+</html>

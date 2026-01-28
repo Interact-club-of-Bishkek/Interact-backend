@@ -45,6 +45,8 @@ urlpatterns = [
     path('', include('projects.urls')),   # Main page, Projects API
     path('', include('teatre.urls')),     # Booking
     path('', include('logs.urls')),       # Logs
+    path('', include('commands.urls')),       # Logs
+
     path('finik/', include('finik.urls')), # Payments
 
     # ------------------ Swagger ------------------
