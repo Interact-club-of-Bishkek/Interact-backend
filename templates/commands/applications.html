@@ -80,6 +80,18 @@ let directionMap = {};
 const app = document.getElementById('appContainer');
 const message = document.getElementById('fullscreenMessage');
 const submitBtn = document.getElementById('submitBtn');
+const appForm = document.getElementById('appForm');
+
+// --- 1. ЗАПРЕТ ОТПРАВКИ ПО ENTER ---
+appForm.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        // Если фокус НЕ на textarea, отменяем стандартное поведение
+        if (e.target.tagName !== 'TEXTAREA') {
+            e.preventDefault();
+            return false;
+        }
+    }
+});
 
 function showMessage(title, text){
     message.querySelector('h1').textContent = title;
@@ -99,22 +111,21 @@ async function init(){
         const commands = await resCmds.json();
         directions = await resDirs.json();
 
-        // карта id -> name
-        directions.forEach(d=>directionMap[d.id]=d.name);
+        directions.forEach(d => directionMap[d.id] = d.name);
 
         const grid = document.getElementById('commandGrid');
-        commands.forEach(cmd=>{
+        grid.innerHTML = '';
+        commands.forEach(cmd => {
             const card = document.createElement('div');
             card.className = 'cmd-card';
             card.textContent = cmd.title;
-            card.onclick = ()=>loadCommand(cmd, card);
+            card.onclick = () => loadCommand(cmd, card);
             grid.appendChild(card);
         });
 
         hideMessage();
     } catch(e){
-        showMessage('Ошибка', 'Не удалось загрузить команды');
-        console.error(e);
+        showMessage('Ошибка', 'Не удалось загрузить данные');
     }
 }
 
@@ -124,7 +135,7 @@ function formatDate(dt){
 }
 
 function loadCommand(cmd, card){
-    document.querySelectorAll('.cmd-card').forEach(c=>c.classList.remove('selected'));
+    document.querySelectorAll('.cmd-card').forEach(c => c.classList.remove('selected'));
     card.classList.add('selected');
 
     const now = new Date();
@@ -132,7 +143,7 @@ function loadCommand(cmd, card){
     const end = cmd.end_date ? new Date(cmd.end_date) : null;
 
     if(start && now < start){
-        showMessage('Набор еще не открыт','Ожидайте объявления старта. Мы обязательно сообщим 🤍');
+        showMessage('Набор еще не открыт','Ожидайте объявления старта 🤍');
         return;
     }
     if(end && now > end){
@@ -148,7 +159,7 @@ function loadCommand(cmd, card){
     info.innerHTML = `
         <h2 class="text-3xl font-black mb-2">${cmd.title}</h2>
         <p class="text-gray-400 mb-4">${cmd.description || ''}</p>
-        <div class="flex gap-4">
+        <div class="flex flex-wrap gap-4">
             <div class="date-block">Начало: <span>${formatDate(cmd.start_date)}</span></div>
             <div class="date-block">Конец: <span>${formatDate(cmd.end_date)}</span></div>
         </div>
@@ -160,40 +171,48 @@ function loadCommand(cmd, card){
     if(!cmd.questions || cmd.questions.length === 0){
         submitBtn.classList.add('hidden');
         return;
-    } else {
-        submitBtn.classList.remove('hidden');
-    }
+    } 
+    submitBtn.classList.remove('hidden');
 
-    cmd.questions.forEach(q=>{
-        const required = q.required ? 'required' : '';
+    cmd.questions.forEach(q => {
+        const isReq = q.required;
+        const requiredAttr = isReq ? 'required' : '';
         const fieldName = `q_${q.id}`;
         let html = '';
 
+        const labelHtml = `<label class="text-xs text-gray-400 mb-2 block">${q.label} ${isReq ? '<span class="text-red-500">*</span>' : ''}</label>`;
+
         if(q.field_type === 'photo' || q.field_type === 'video'){
             html = `
-            <div>
-                <label class="text-xs text-gray-400">${q.label}</label>
+            <div class="field-wrapper">
+                ${labelHtml}
                 <label class="file-upload-button">
                     <span>Выбрать файл</span>
-                    <input type="file" name="${fieldName}" accept="${q.field_type==='photo'?'image/*':'video/*'}" ${required}>
+                    <input type="file" name="${fieldName}" accept="${q.field_type==='photo'?'image/*':'video/*'}" ${requiredAttr}>
                 </label>
                 <div class="file-name">Файл не выбран</div>
                 <img class="file-preview">
             </div>`;
         } else if(q.field_type === 'select'){
             html = `
-            <div class="select-wrapper" data-fieldname="${fieldName}" ${q.required ? 'data-required="true"' : ''}>
-                <label class="text-xs text-gray-400">${q.label}</label>
+            <div class="select-wrapper field-wrapper" data-fieldname="${fieldName}" data-required="${isReq}">
+                ${labelHtml}
                 <div class="neon-select">
-                    <span class="selected-text">Выберите...</span>
+                    <span class="selected-text">Выберите вариант...</span>
                     <ul class="options"></ul>
                 </div>
             </div>`;
+        } else if(q.field_type === 'long_text') {
+            html = `
+            <div class="field-wrapper">
+                ${labelHtml}
+                <textarea class="neon-input mt-2" name="${fieldName}" rows="4" ${requiredAttr} placeholder="Ваш ответ..."></textarea>
+            </div>`;
         } else {
             html = `
-            <div>
-                <label class="text-xs text-gray-400">${q.label}</label>
-                <input class="neon-input mt-2" name="${fieldName}" ${required}>
+            <div class="field-wrapper">
+                ${labelHtml}
+                <input class="neon-input mt-2" name="${fieldName}" type="${q.field_type==='number'?'number':'text'}" ${requiredAttr} placeholder="Ваш ответ...">
             </div>`;
         }
 
@@ -202,18 +221,17 @@ function loadCommand(cmd, card){
 
     setupFileInputs();
     setupCustomSelects();
-    document.getElementById('appForm').classList.remove('hidden');
+    appForm.classList.remove('hidden');
 }
 
-// Файлы
 function setupFileInputs(){
-    document.querySelectorAll('input[type=file]').forEach(input=>{
-        const block = input.closest('div');
+    document.querySelectorAll('input[type=file]').forEach(input => {
+        const block = input.closest('.field-wrapper');
         const fileName = block.querySelector('.file-name');
         const preview = block.querySelector('.file-preview');
 
-        input.onchange = ()=>{
-            if(!input.files.length){
+        input.onchange = () => {
+            if(!input.files.length) {
                 fileName.textContent='Файл не выбран';
                 preview.style.display='none';
                 return;
@@ -230,88 +248,104 @@ function setupFileInputs(){
     });
 }
 
-// Кастомный dropdown
 function setupCustomSelects(){
-    document.querySelectorAll('.select-wrapper').forEach(wrapper=>{
+    document.querySelectorAll('.select-wrapper').forEach(wrapper => {
         const selectBox = wrapper.querySelector('.neon-select');
         const ul = selectBox.querySelector('.options');
         const selectedText = selectBox.querySelector('.selected-text');
-        const fieldName = wrapper.dataset.fieldname;
 
-        directions.forEach(d=>{
+        ul.innerHTML = '';
+        directions.forEach(d => {
             const li = document.createElement('li');
             li.textContent = d.name;
-            li.dataset.id = d.id;
-            li.onclick = ()=>{
+            li.onclick = (e) => {
+                e.stopPropagation();
                 wrapper.dataset.value = d.id;
                 selectedText.textContent = d.name;
+                selectedText.style.color = '#00c6ff';
                 ul.style.display = 'none';
+                selectBox.style.borderColor = ''; // Сброс ошибки
             };
             ul.appendChild(li);
         });
 
-        selectBox.onclick = e=>{
+        selectBox.onclick = e => {
             e.stopPropagation();
-            document.querySelectorAll('.select-wrapper .options').forEach(opt=>{ if(opt!==ul) opt.style.display='none'; });
-            ul.style.display = ul.style.display==='block'?'none':'block';
+            const isVisible = ul.style.display === 'block';
+            document.querySelectorAll('.options').forEach(o => o.style.display = 'none');
+            ul.style.display = isVisible ? 'none' : 'block';
         };
     });
 
-    document.addEventListener('click', ()=>{
-        document.querySelectorAll('.select-wrapper .options').forEach(ul=>ul.style.display='none');
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.options').forEach(u => u.style.display = 'none');
     });
 }
 
-// Отправка формы
-document.getElementById('appForm').onsubmit = async e=>{
+// --- 2. ИСПРАВЛЕННАЯ ОТПРАВКА С ВАЛИДАЦИЕЙ ---
+appForm.onsubmit = async e => {
     e.preventDefault();
-    if(!selectedSlug){ alert('Выберите команду'); return; }
+    
+    // Проверка встроенной валидации браузера (required для обычных input)
+    if (!appForm.checkValidity()) {
+        appForm.reportValidity();
+        return;
+    }
+
+    if(!selectedSlug) return;
 
     const fd = new FormData();
     fd.append('command_slug', selectedSlug);
 
-    let valid = true;
+    let isSelectValid = true;
     const answers = {};
 
-    document.querySelectorAll('#questionsContainer > div').forEach(div=>{
-        const input = div.querySelector('input');
-        if(input){
-            const val = input.type==='file'?input.files[0]:input.value.trim();
-            if(input.type==='file'){
-                if(input.files.length) fd.append(input.name, input.files[0]);
-                else if(input.required) valid=false;
+    // Валидация кастомных селектов и сбор данных
+    document.querySelectorAll('#questionsContainer > .field-wrapper').forEach(div => {
+        const input = div.querySelector('input, textarea');
+        
+        if (div.classList.contains('select-wrapper')) {
+            const val = div.dataset.value;
+            const isReq = div.dataset.required === "true";
+            
+            if (isReq && !val) {
+                isSelectValid = false;
+                div.querySelector('.neon-select').style.borderColor = '#ef4444'; // Подсветка красным
             } else {
-                answers[input.name] = val;
-                if(input.required && !val) valid=false;
+                answers[div.dataset.fieldname] = directionMap[val] || '';
             }
-        } else if(div.classList.contains('select-wrapper')){
-            const wrapper = div;
-            const val = wrapper.dataset.value;
-            const name = wrapper.dataset.fieldname;
-            answers[name] = directionMap[val] || '';
-            if(wrapper.dataset.required === "true" && !val) valid=false;
+        } else if (input) {
+            if (input.type === 'file') {
+                if (input.files.length) fd.append(input.name, input.files[0]);
+            } else {
+                answers[input.name] = input.value.trim();
+            }
         }
     });
 
-    if(!valid){ alert('Заполните все обязательные поля'); return; }
+    if (!isSelectValid) {
+        alert('Пожалуйста, выберите направление в выпадающем списке');
+        return;
+    }
 
     fd.append('answers', JSON.stringify(answers));
 
-    try{
-        const res = await fetch(API_APPS, {method:'POST', body:fd});
-        if(res.ok){
-            showMessage('Заявка отправлена','Спасибо! Ваша заявка успешно отправлена. Мы свяжемся с вами 🤍');
-            document.getElementById('appForm').reset();
-            document.getElementById('questionsContainer').innerHTML='';
-            submitBtn.classList.add('hidden');
+    try {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Отправка...';
+
+        const res = await fetch(API_APPS, { method: 'POST', body: fd });
+        if (res.ok) {
+            showMessage('Успешно!', 'Ваша заявка принята. Ожидайте обратной связи 🤍');
+            appForm.reset();
         } else {
-            const err = await res.text();
-            console.error(err);
-            alert('Ошибка при отправке');
+            alert('Ошибка сервера при сохранении');
         }
-    } catch(e){
-        console.error(e);
+    } catch(e) {
         alert('Ошибка сети');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Подать заявку';
     }
 };
 
