@@ -1,86 +1,68 @@
 from django.contrib import admin
-from django.utils.html import format_html
-from users.models import VolunteerApplication, Volunteer, BotAccessConfig
+from django.db import models
+from .models import (
+    Volunteer, VolunteerApplication, VolunteerArchive, 
+    ActivityTask, ActivitySubmission, BotAccessConfig
+)
+# Направления и Команды НЕ импортируем здесь, если они зарегистрированы в своих приложениях
 
-@admin.register(VolunteerApplication)
-class VolunteerApplicationAdmin(admin.ModelAdmin):
-    list_display = ('full_name', 'email', 'phone_number', 'status', 'photo_tag', 'created_at')
-    list_filter = ('status', 'directions')
-    search_fields = ('full_name', 'email', 'phone_number')
-    # Добавлены поля в readonly_fields, чтобы их можно было включить в fieldsets
-    readonly_fields = ('created_at', 'updated_at', 'photo_tag', 'volunteer_created') 
-
-    fieldsets = (
-        ('Личная информация', {
-            'fields': (
-                'full_name', 'email', 'phone_number', 'photo', 'photo_tag',
-                'date_of_birth', 'place_of_study', 
-            )
-        }),
-        ('Анкетные вопросы', {
-            'fields': (
-                'why_volunteer', 'volunteer_experience', 'hobbies_skills', 'strengths',
-                'why_choose_you', 'choice_motives', 
-                'agree_inactivity_removal', 'agree_terms', 'ready_travel',
-                'ideas_improvements', 'expectations', 'directions', 'weekly_hours', 'attend_meetings'
-            )
-        }),
-        ('Статус', {
-            # Теперь volunteer_created можно включить, т.к. оно в readonly_fields
-            'fields': ('status', 'volunteer', 'volunteer_created') 
-        }),
-    )
-
-    def photo_tag(self, obj):
-        if obj.photo:
-            return format_html('<img src="{}" style="width: 100px; height:auto;" />', obj.photo.url)
-        return "-"
-    photo_tag.short_description = "Фото"
-
-    def save_model(self, request, obj, form, change):
-        creating_volunteer = False
-        if obj.status == 'accepted' and not obj.volunteer_created:
-            creating_volunteer = True
-
-        super().save_model(request, obj, form, change)
-
-        if creating_volunteer:
-            volunteer = Volunteer.objects.create_user(
-                name=obj.full_name,
-                phone_number=obj.phone_number,
-                email=obj.email
-            )
-            volunteer.direction.set(obj.directions.all())
-            volunteer.save()
-            
-            obj.volunteer = volunteer
-            obj.volunteer_created = True
-            # Предотвращение рекурсии
-            obj.save(update_fields=['volunteer', 'volunteer_created'])
-
+class ActivitySubmissionInline(admin.TabularInline):
+    model = ActivitySubmission
+    extra = 0
+    verbose_name = "Выполненное задание"
+    verbose_name_plural = "История заданий"
+    readonly_fields = ('created_at',)
+    fields = ('task', 'status', 'created_at')
 
 @admin.register(Volunteer)
 class VolunteerAdmin(admin.ModelAdmin):
-    list_display = ('name', 'login', 'visible_password', 'phone_number', 'email', 'is_staff', 'is_active')
-    list_filter = ('is_staff', 'is_active', 'direction')
-    search_fields = ('name', 'login', 'phone_number', 'email')
-    readonly_fields = ('visible_password',)
+    list_display = ('name', 'login', 'role', 'point', 'is_active')
+    list_filter = ('role', 'is_active', 'direction', 'commands')
+    search_fields = ('name', 'login', 'phone_number')
+    readonly_fields = ('login', 'visible_password', 'point')
+    filter_horizontal = ('direction', 'commands') 
+    inlines = [ActivitySubmissionInline]
 
+@admin.register(VolunteerApplication)
+class VolunteerApplicationAdmin(admin.ModelAdmin):
+    # Тут используем 'direction' (новое поле)
+    list_display = ('full_name', 'direction', 'status', 'phone_number', 'created_at')
+    list_filter = ('status', 'direction')
+    search_fields = ('full_name', 'phone_number')
+    filter_horizontal = ('commands',)
 
-@admin.register(BotAccessConfig)
-class BotAccessConfigAdmin(admin.ModelAdmin):
-    # Поля, которые будут видны в списке
-    list_display = ('role', 'password')
-    
-    # Поля, которые можно редактировать прямо в списке
-    list_editable = ('password',)
-    
-    # Ограничение: запрещаем создавать более двух записей (куратор и волонтер)
-    def has_add_permission(self, request):
-        if BotAccessConfig.objects.count() >= 2:
-            return False
-        return True
+@admin.register(ActivityTask)
+class ActivityTaskAdmin(admin.ModelAdmin):
+    list_display = ('title', 'points', 'direction', 'command')
+    list_filter = ('direction', 'command')
+    search_fields = ('title',)
 
-    # Запрещаем удалять записи, чтобы бот не "сломался"
-    def has_delete_permission(self, request, obj=None):
-        return False
+@admin.register(ActivitySubmission)
+class ActivitySubmissionAdmin(admin.ModelAdmin):
+    list_display = ('volunteer', 'task', 'status', 'created_at')
+    list_filter = ('status', 'task__direction', 'task__command')
+    search_fields = ('volunteer__name', 'task__title')
+    actions = ['approve_selected', 'reject_selected']
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser or request.user.role == 'admin':
+            return qs
+        from django.db.models import Q
+        return qs.filter(
+            Q(task__direction__responsible=request.user) | 
+            Q(task__command__leader=request.user)
+        ).distinct()
+
+    @admin.action(description="✅ Одобрить и начислить баллы")
+    def approve_selected(self, request, queryset):
+        for obj in queryset.filter(status='pending'):
+            obj.status = 'approved'
+            obj.save()
+
+    @admin.action(description="❌ Отклонить выбранные")
+    def reject_selected(self, request, queryset):
+        queryset.filter(status='pending').update(status='rejected')
+
+admin.site.register(BotAccessConfig)
+admin.site.register(VolunteerArchive)

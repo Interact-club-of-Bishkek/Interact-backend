@@ -17,6 +17,16 @@ class Command(models.Model):
     start_date = models.DateTimeField("Начало набора", null=True, blank=True)
     end_date = models.DateTimeField("Конец набора", null=True, blank=True)
 
+
+    leader = models.ForeignKey(
+            'users.Volunteer',
+            on_delete=models.SET_NULL,
+            null=True,
+            blank=True,
+            verbose_name="Лидер/Куратор команды",
+            related_name="led_commands"
+        )
+
     class Meta:
         verbose_name = "Команда"
         verbose_name_plural = "Команды"
