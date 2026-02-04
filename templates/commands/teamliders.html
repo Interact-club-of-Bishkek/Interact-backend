@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Teamliders</title>
+<title>Teamliders - Admin Panel</title>
 <link rel="icon" type="image/png" href="https://i.ibb.co/qFYrFSnD/2105176-1-removebg-preview.png">
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
@@ -75,10 +75,38 @@ body {
     transition: all 0.3s;
 }
 .btn-primary:hover { box-shadow: 0 0 35px rgba(0, 198, 255, 0.5); transform: translateY(-2px); background: #fff; }
+.btn-disabled { background: gray; cursor: not-allowed; box-shadow: none; opacity: 0.5; }
 .media-container { border-radius: 24px; overflow: hidden; border: 2px solid rgba(255,255,255,0.05); background: #000; }
 .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* Styles for navigation buttons */
+.nav-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3.5rem;
+    height: 3.5rem;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    z-index: 60;
+    color: white;
+}
+.nav-btn:hover { background: var(--primary); color: black; box-shadow: 0 0 20px rgba(0, 198, 255, 0.4); }
+.nav-btn.prev { left: -5rem; }
+.nav-btn.next { right: -5rem; }
+@media (max-width: 1024px) {
+    .nav-btn { position: fixed; bottom: 20px; top: auto; transform: none; background: #000; border-color: var(--primary); }
+    .nav-btn.prev { left: 20px; }
+    .nav-btn.next { right: 20px; }
+}
 </style>
 </head>
 <body class="p-4 md:p-10">
@@ -106,27 +134,32 @@ body {
         </div>
     </header>
 
-    <!-- Мобильный переключатель -->
     <div class="flex flex-col md:flex-row gap-4 mb-8 md:mb-16">
-        <button id="tabPending" class="flex-1 py-3 md:py-4 font-black uppercase tracking-widest text-sm md:text-base rounded-lg transition-colors bg-orange-500/10 text-orange-500 border border-orange-500/20">В ожидании</button>
-        <button id="tabAccepted" class="flex-1 py-3 md:py-4 font-black uppercase tracking-widest text-sm md:text-base rounded-lg transition-colors bg-green-500/10 text-green-500 border border-green-500/20">Одобрено</button>
+        <button id="tabPending" class="flex-1 py-3 md:py-4 font-black uppercase tracking-widest text-sm md:text-base rounded-lg transition-colors bg-orange-500/10 text-orange-500 border border-orange-500/20">В ожидании (<span id="pCountGlobal">0</span>)</button>
+        <button id="tabAccepted" class="flex-1 py-3 md:py-4 font-black uppercase tracking-widest text-sm md:text-base rounded-lg transition-colors bg-green-500/10 text-green-500 border border-green-500/20">Одобрено (<span id="aCountGlobal">0</span>)</button>
     </div>
 
-    <div id="pendingContainer" class="space-y-4"></div>
-    <div id="acceptedContainer" class="space-y-4 hidden"></div>
+    <div id="cardsContainer" class="space-y-4"></div>
 </div>
 
 <div id="modal" class="hidden fixed inset-0 bg-black/98 backdrop-blur-3xl flex items-center justify-center p-2 md:p-6 z-[200]">
-    <div class="modal-inner glass-card w-full max-w-4xl rounded-[45px] p-6 md:p-12 max-h-[94vh] overflow-y-auto relative border-white/10 shadow-[0_0_100px_rgba(0,0,0,1)]">
-        <button onclick="closeModal()" class="sticky top-0 float-right bg-white/5 hover:bg-white/15 w-14 h-14 rounded-full flex items-center justify-center border border-white/10 transition-all z-50 group">
-            <i class="fas fa-times text-xl group-hover:rotate-90 transition-transform"></i>
-        </button>
-        <div id="modalContent" class="animate-fade-in"></div>
-        <div class="mt-12 flex flex-col md:flex-row gap-4 border-t border-white/10 pt-10">
-            <button id="approveBtn" class="btn-primary flex-[2] py-6 font-black uppercase rounded-[25px] text-lg flex items-center justify-center gap-4">
-                <i class="fas fa-check-double"></i> Подтвердить Кандидата
+    <div class="relative w-full max-w-4xl">
+        <button class="nav-btn prev" onclick="navigate(-1)"><i class="fas fa-chevron-left text-xl"></i></button>
+        <button class="nav-btn next" onclick="navigate(1)"><i class="fas fa-chevron-right text-xl"></i></button>
+
+        <div class="modal-inner glass-card w-full rounded-[45px] p-6 md:p-12 max-h-[94vh] overflow-y-auto relative border-white/10 shadow-[0_0_100px_rgba(0,0,0,1)]">
+            <button onclick="closeModal()" class="sticky top-0 float-right bg-white/5 hover:bg-white/15 w-14 h-14 rounded-full flex items-center justify-center border border-white/10 transition-all z-50 group">
+                <i class="fas fa-times text-xl group-hover:rotate-90 transition-transform"></i>
             </button>
-            <button onclick="closeModal()" class="flex-1 py-6 bg-white/5 hover:bg-white/10 text-gray-400 font-bold uppercase rounded-[25px] transition-all">Назад</button>
+            <div id="modalContent" class="animate-fade-in"></div>
+            
+            <div class="mt-12 flex flex-col md:flex-row gap-4 border-t border-white/10 pt-10">
+                <button id="approveBtn" class="btn-primary flex-[2] py-6 font-black uppercase rounded-[25px] text-lg flex items-center justify-center gap-4 group">
+                    <i class="fas fa-check-double group-hover:scale-110 transition-transform"></i> 
+                    <span>Подтвердить Кандидата</span>
+                </button>
+                <button onclick="closeModal()" class="flex-1 py-6 bg-white/5 hover:bg-white/10 text-gray-400 font-bold uppercase rounded-[25px] transition-all">Закрыть</button>
+            </div>
         </div>
     </div>
 </div>
@@ -135,88 +168,274 @@ body {
 const API_APPS = '/commands-applications/';
 const API_CMDS = '/commands/';
 
+// Глобальные переменные для навигации
+let allApps = []; // Все загруженные заявки
+let currentViewApps = []; // Отфильтрованные заявки текущей вкладки (массив объектов)
+let currentAppIndex = 0; // Индекс текущей открытой заявки в currentViewApps
+let currentTab = 'pending'; // 'pending' или 'accepted'
+let currentCommandSlug = "";
+let questionMap = {}; 
+
 const trigger = document.getElementById('selectTrigger');
 const optionsContainer = document.getElementById('selectOptions');
 const selectedLabel = document.getElementById('selectedLabel');
-let currentSlug = "";
-let questionMap = {};  // id -> label
+const container = document.getElementById('cardsContainer');
+const modal = document.getElementById('modal');
 
-const tabPending = document.getElementById('tabPending');
-const tabAccepted = document.getElementById('tabAccepted');
-const pBox = document.getElementById('pendingContainer');
-const aBox = document.getElementById('acceptedContainer');
-
-// Drop-down
-trigger.onclick = () => {
+// Drop-down Logic
+trigger.onclick = (e) => {
+    e.stopPropagation();
     trigger.classList.toggle('active');
     optionsContainer.classList.toggle('active');
 };
-window.onclick = (e) => {
-    if (!trigger.contains(e.target)) {
-        trigger.classList.remove('active');
-        optionsContainer.classList.remove('active');
+window.onclick = () => {
+    trigger.classList.remove('active');
+    optionsContainer.classList.remove('active');
+};
+
+// Tabs Logic
+const tabPending = document.getElementById('tabPending');
+const tabAccepted = document.getElementById('tabAccepted');
+
+tabPending.onclick = () => switchTab('pending');
+tabAccepted.onclick = () => switchTab('accepted');
+
+function switchTab(status) {
+    currentTab = status;
+    updateTabStyles();
+    renderList();
+}
+
+function updateTabStyles() {
+    if(currentTab === 'pending') {
+        tabPending.classList.add('bg-orange-500/20', 'border-orange-500');
+        tabAccepted.classList.remove('bg-green-500/20', 'border-green-500');
+    } else {
+        tabAccepted.classList.add('bg-green-500/20', 'border-green-500');
+        tabPending.classList.remove('bg-orange-500/20', 'border-orange-500');
     }
-};
+}
 
-// Таб переключения
-tabPending.onclick = () => {
-    pBox.classList.remove('hidden');
-    aBox.classList.add('hidden');
-    tabPending.classList.add('bg-orange-500/20');
-    tabAccepted.classList.remove('bg-green-500/20');
-};
-tabAccepted.onclick = () => {
-    aBox.classList.remove('hidden');
-    pBox.classList.add('hidden');
-    tabAccepted.classList.add('bg-green-500/20');
-    tabPending.classList.remove('bg-orange-500/20');
-};
-
-// Load apps and questions
-async function loadApps() {
+// MAIN DATA FUNCTION
+async function loadApps(isBackground = false) {
     try {
+        // Если это фоновое обновление и модалка открыта - не обновляем список жестко, чтобы не сбить индекс
+        // Но обновляем счетчики и массивы
         const [cmdRes, appsRes] = await Promise.all([fetch(API_CMDS), fetch(API_APPS)]);
         const commands = await cmdRes.json();
         const apps = await appsRes.json();
 
         questionMap = {};
         commands.forEach(cmd => cmd.questions.forEach(q => questionMap[`q_${q.id}`] = q.label));
-        updateFilters(apps, commands);
+        
+        allApps = apps;
+        
+        // Обновляем фильтры один раз или при изменении
+        if(!isBackground) updateFilters(apps, commands);
+        
+        // Обновляем счетчики
+        const pCount = apps.filter(a => a.status === 'pending').length;
+        const aCount = apps.filter(a => a.status === 'accepted').length;
+        document.getElementById('pCountGlobal').textContent = pCount;
+        document.getElementById('aCountGlobal').textContent = aCount;
 
-        pBox.innerHTML = '';
-        aBox.innerHTML = '';
-        let pNum = 0, aNum = 0;
-
-        const filteredApps = currentSlug ? apps.filter(a => a.command_slug === currentSlug) : apps;
-
-        filteredApps.forEach(app => {
-            const card = document.createElement('div');
-            card.className = "glass-card p-5 md:p-7 rounded-2xl cursor-pointer group animate-fade-in";
-            card.onclick = () => showDetails(app);
-
-            // только первый ответ без названия вопроса
-            const firstKey = Object.keys(app.answers)[0];
-            const firstAnswer = firstKey ? app.answers[firstKey] : 'Нет данных';
-
-            card.innerHTML = `
-                <div class="flex justify-between items-start mb-3 md:mb-5">
-                    <span class="px-3 py-1 rounded-lg bg-primary/10 text-primary text-[10px] font-black uppercase border border-primary/20">${app.command_title}</span>
-                    <span class="text-[9px] font-mono text-gray-600">ID-${app.id}</span>
-                </div>
-                <h3 class="text-lg font-bold text-gray-200 group-hover:text-white italic uppercase line-clamp-2">${firstAnswer}</h3>
-            `;
-
-            if (app.status === 'pending') { pBox.appendChild(card); pNum++; }
-            else { aBox.appendChild(card); aNum++; }
-        });
-
-        document.getElementById('pCountGlobal').textContent = pNum;
-        document.getElementById('aCountGlobal').textContent = aNum;
+        // Если модальное окно закрыто, можно безопасно перерисовать список
+        if(modal.classList.contains('hidden')) {
+            renderList();
+        } else {
+            // Если модалка открыта, обновляем currentViewApps "тихо", чтобы навигация работала с новыми данными
+            // Но нужно быть осторожным, чтобы текущий индекс не стал указывать на другой элемент
+            // Для упрощения: в режиме модалки фоновое обновление не перестраивает currentViewApps
+        }
 
     } catch(e) { console.error(e); }
 }
 
-// Update Filters
+// Render the list of cards
+function renderList() {
+    container.innerHTML = '';
+    
+    // Фильтрация по статусу (таб) и по направлению (дропдаун)
+    currentViewApps = allApps.filter(app => {
+        const statusMatch = app.status === currentTab;
+        const commandMatch = currentCommandSlug ? app.command_slug === currentCommandSlug : true;
+        return statusMatch && commandMatch;
+    });
+
+    if(currentViewApps.length === 0) {
+        container.innerHTML = `<div class="text-center py-20 text-gray-500 font-mono uppercase">Список пуст</div>`;
+        return;
+    }
+
+    currentViewApps.forEach((app, index) => {
+        const card = document.createElement('div');
+        card.className = "glass-card p-5 md:p-7 rounded-2xl cursor-pointer group animate-fade-in mb-4";
+        card.onclick = () => openModal(index);
+
+        const firstKey = Object.keys(app.answers)[0];
+        const firstAnswer = firstKey ? app.answers[firstKey] : 'Нет данных';
+
+        card.innerHTML = `
+            <div class="flex justify-between items-start mb-3 md:mb-5">
+                <span class="px-3 py-1 rounded-lg bg-primary/10 text-primary text-[10px] font-black uppercase border border-primary/20">${app.command_title}</span>
+                <span class="text-[9px] font-mono text-gray-600">ID-${app.id}</span>
+            </div>
+            <h3 class="text-lg font-bold text-gray-200 group-hover:text-white italic uppercase line-clamp-2">${firstAnswer}</h3>
+        `;
+        container.appendChild(card);
+    });
+}
+
+// OPEN MODAL at specific index
+function openModal(index) {
+    currentAppIndex = index;
+    updateModalContent();
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+// NAVIGATION Logic
+function navigate(direction) {
+    const newIndex = currentAppIndex + direction;
+    if(newIndex >= 0 && newIndex < currentViewApps.length) {
+        currentAppIndex = newIndex;
+        updateModalContent();
+    }
+}
+
+// UPDATE MODAL UI
+function updateModalContent() {
+    const app = currentViewApps[currentAppIndex];
+    if(!app) return closeModal();
+
+    // Управление видимостью кнопок навигации
+    const prevBtn = document.querySelector('.nav-btn.prev');
+    const nextBtn = document.querySelector('.nav-btn.next');
+    
+    prevBtn.style.opacity = currentAppIndex > 0 ? '1' : '0.3';
+    prevBtn.style.pointerEvents = currentAppIndex > 0 ? 'auto' : 'none';
+    
+    nextBtn.style.opacity = currentAppIndex < currentViewApps.length - 1 ? '1' : '0.3';
+    nextBtn.style.pointerEvents = currentAppIndex < currentViewApps.length - 1 ? 'auto' : 'none';
+
+    // Рендер контента
+    const content = document.getElementById('modalContent');
+    let html = `<div class="mb-8 pb-8 border-b border-white/10 animate-fade-in">
+        <div class="flex justify-between items-start">
+            <div>
+                <span class="text-primary font-black text-sm uppercase tracking-[0.4em]">${app.command_title}</span>
+                <h2 class="font-['Montserrat'] font-black text-4xl md:text-5xl uppercase italic text-white mt-2 leading-none">Анкета <span class="text-primary text-outline">Волонтера</span></h2>
+            </div>
+            <div class="text-right text-xs font-mono text-gray-500">
+                ${currentAppIndex + 1} / ${currentViewApps.length}
+            </div>
+        </div>
+    </div><div class="grid gap-6 animate-fade-in">`;
+
+    Object.entries(app.answers).forEach(([q, a]) => {
+        const label = questionMap[q] || q;
+        html += `<div class="space-y-2">
+            <label class="text-[10px] font-black uppercase text-gray-500 tracking-[0.2em] flex items-center gap-2 italic">
+                <span class="w-4 h-[2px] bg-primary/30"></span> ${label}
+            </label>
+            <div class="bg-white/5 p-5 rounded-2xl border border-white/5 text-lg font-medium text-gray-100 leading-relaxed">${a}</div>
+        </div>`;
+    });
+
+    if(app.files && app.files.length) {
+        html += `<div class="mt-8 pt-8 border-t border-white/10 space-y-8">`;
+        app.files.forEach(f => {
+            const fileUrl = f.file.startsWith('http') ? f.file : `/media/${f.file}`;
+            const isImg = fileUrl.match(/\.(jpg|jpeg|png|webp|gif)$/i);
+            const isVid = fileUrl.match(/\.(mp4|mov|webm)$/i);
+
+            html += `<div class="space-y-4">
+                <label class="text-[11px] font-black uppercase text-primary tracking-widest italic flex items-center gap-2">
+                    <i class="fas fa-paperclip rotate-45"></i> ${f.label}
+                </label>
+                <div class="media-container">
+                    ${isImg ? `<img src="${fileUrl}" class="w-full">` : 
+                      isVid ? `<video controls class="w-full bg-black"><source src="${fileUrl}"></video>` :
+                      `<div class="p-16 text-center text-gray-500">File: ${fileUrl.split('/').pop()}</div>`}
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <a href="${fileUrl}" download class="btn-primary py-3 text-center font-black text-xs uppercase rounded-xl hover:text-black">Download</a>
+                    <a href="${fileUrl}" target="_blank" class="bg-white/5 hover:bg-white/10 py-3 text-center font-black text-xs uppercase rounded-xl transition-all">Open Link</a>
+                </div>
+            </div>`;
+        });
+        html += `</div>`;
+    }
+    content.innerHTML = html + `</div>`;
+
+    // Кнопка подтверждения
+    const approveBtn = document.getElementById('approveBtn');
+    
+    // Если мы во вкладке "Одобрено", скрываем кнопку или меняем текст
+    if (app.status === 'accepted') {
+        approveBtn.style.display = 'none';
+    } else {
+        approveBtn.style.display = 'flex';
+        approveBtn.disabled = false;
+        approveBtn.className = "btn-primary flex-[2] py-6 font-black uppercase rounded-[25px] text-lg flex items-center justify-center gap-4 group";
+        approveBtn.innerHTML = '<i class="fas fa-check-double group-hover:scale-110 transition-transform"></i> <span>Подтвердить Кандидата</span>';
+        
+        approveBtn.onclick = async () => {
+            await approveApp(app.id);
+        };
+    }
+}
+
+// APPROVE LOGIC (Auto-Next)
+async function approveApp(id) {
+    const btn = document.getElementById('approveBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-sync fa-spin"></i> Сохранение...';
+
+    try {
+        await fetch(`${API_APPS}${id}/accept/`, { method: 'PATCH' });
+        
+        // 1. Обновляем статус в глобальном массиве, чтобы не ждать loadApps
+        const appInGlobal = allApps.find(a => a.id === id);
+        if(appInGlobal) appInGlobal.status = 'accepted';
+
+        // 2. Удаляем из текущего массива просмотра (так как он был pending, а стал accepted)
+        // Мы не меняем currentAppIndex, так как следующий элемент сам "сдвинется" на место текущего
+        currentViewApps.splice(currentAppIndex, 1);
+
+        // 3. Обновляем счетчики
+        document.getElementById('pCountGlobal').textContent = parseInt(document.getElementById('pCountGlobal').textContent) - 1;
+        document.getElementById('aCountGlobal').textContent = parseInt(document.getElementById('aCountGlobal').textContent) + 1;
+
+        // 4. Логика перехода
+        if (currentViewApps.length === 0) {
+            closeModal();
+            renderList(); // Покажет "Список пуст"
+        } else {
+            // Если мы были на последнем элементе, нужно сместиться назад
+            if (currentAppIndex >= currentViewApps.length) {
+                currentAppIndex = currentViewApps.length - 1;
+            }
+            // Рендерим следующий элемент, который теперь занял позицию currentAppIndex
+            updateModalContent();
+            
+            // Обновляем список на фоне
+            renderList();
+        }
+
+    } catch (error) {
+        console.error("Ошибка при одобрении:", error);
+        btn.innerHTML = 'Ошибка';
+        setTimeout(() => btn.disabled = false, 2000);
+    }
+}
+
+function closeModal() {
+    modal.classList.add('hidden');
+    document.body.style.overflow = 'auto';
+    renderList(); // Обновляем список при закрытии
+}
+
 function updateFilters(allApps, commands) {
     let html = `<div class="option-item" onclick="applyFilter('', 'Все направления')">
         <span class="text-[11px] font-black uppercase tracking-widest">⚡ Все направления</span>
@@ -233,78 +452,17 @@ function updateFilters(allApps, commands) {
 }
 
 function applyFilter(slug, title) {
-    currentSlug = slug;
+    currentCommandSlug = slug;
     selectedLabel.textContent = title;
-    loadApps();
+    renderList();
 }
 
-// Show Modal
-function showDetails(app) {
-    const content = document.getElementById('modalContent');
-    let html = `<div class="mb-12 pb-10 border-b border-white/10">
-        <span class="text-primary font-black text-sm uppercase tracking-[0.4em]">${app.command_title}</span>
-        <h2 class="font-['Montserrat'] font-black text-5xl md:text-6xl uppercase italic text-white mt-4 leading-none">Анкета <span class="text-primary text-outline">Волонтера</span></h2>
-    </div><div class="grid gap-8">`;
-
-    Object.entries(app.answers).forEach(([q, a]) => {
-        const label = questionMap[q] || q;
-        html += `<div class="space-y-4">
-            <label class="text-[10px] font-black uppercase text-gray-500 tracking-[0.2em] flex items-center gap-3 italic">
-                <span class="w-6 h-[2px] bg-primary/30"></span> ${label}
-            </label>
-            <div class="bg-white/5 p-7 rounded-3xl border border-white/5 text-xl font-medium text-gray-100 leading-relaxed shadow-inner">${a}</div>
-        </div>`;
-    });
-
-    if(app.files && app.files.length) {
-        html += `<div class="mt-12 pt-12 border-t border-white/10 space-y-12">`;
-        app.files.forEach(f => {
-            const fileUrl = f.file.startsWith('http') ? f.file : `/media/${f.file}`;
-            const isImg = fileUrl.match(/\.(jpg|jpeg|png|webp|gif)$/i);
-            const isVid = fileUrl.match(/\.(mp4|mov|webm)$/i);
-
-            html += `<div class="space-y-5">
-                <label class="text-[11px] font-black uppercase text-primary tracking-widest italic flex items-center gap-2">
-                    <i class="fas fa-paperclip rotate-45"></i> ${f.label}
-                </label>
-                <div class="media-container">
-                    ${isImg ? `<img src="${fileUrl}" class="w-full">` : 
-                      isVid ? `<video controls class="w-full bg-black"><source src="${fileUrl}"></video>` :
-                      `<div class="p-16 text-center text-gray-500">Document: ${fileUrl.split('/').pop()}</div>`}
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <a href="${fileUrl}" download class="btn-primary py-5 text-center font-black text-xs uppercase rounded-2xl">Download</a>
-                    <a href="${fileUrl}" target="_blank" class="bg-white/5 hover:bg-white/10 py-5 text-center font-black text-xs uppercase rounded-2xl transition-all">Open Link</a>
-                </div>
-            </div>`;
-        });
-        html += `</div>`;
-    }
-
-    content.innerHTML = html + `</div>`;
-
-    const btn = document.getElementById('approveBtn');
-    btn.style.display = app.status === 'pending' ? 'flex' : 'none';
-    btn.onclick = async () => {
-        btn.disabled = true; 
-        btn.innerHTML = '<i class="fas fa-sync fa-spin"></i> SYNC...';
-        await fetch(`${API_APPS}${app.id}/accept/`, { method: 'PATCH' });
-        closeModal(); 
-        loadApps();
-    };
-
-    document.getElementById('modal').classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
-}
-
-function closeModal() {
-    document.getElementById('modal').classList.add('hidden');
-    document.body.style.overflow = 'auto';
-}
-
-// INIT
+// Initial Load
+updateTabStyles();
 loadApps();
-setInterval(loadApps, 30000);
+// Фоновое обновление каждые 30 сек
+setInterval(() => loadApps(true), 30000);
+
 </script>
 </body>
 </html>
