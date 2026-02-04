@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Мой Кабинет | Волонтер</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <style>
+        :root { --primary: #00c6ff; --bg: #020408; }
+        body { background: var(--bg); color: white; font-family: 'Inter', sans-serif; background-image: radial-gradient(circle at 50% -20%, #10192e 0%, #020408 100%); min-height: 100vh; padding: 40px; }
+        .glass-card { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 30px; }
+        .input-field { background: rgba(0, 198, 255, 0.05); border: 1px solid rgba(0, 198, 255, 0.2); border-radius: 12px; padding: 12px; width: 100%; color: white; outline: none; margin-bottom: 15px; }
+        .btn-send { background: var(--primary); color: black; font-weight: 900; width: 100%; padding: 12px; border-radius: 12px; text-transform: uppercase; transition: 0.3s; }
+        .btn-send:hover { opacity: 0.8; transform: translateY(-2px); }
+    </style>
+</head>
+<body>
+    <div class="max-w-6xl mx-auto">
+        <header class="flex justify-between items-center mb-10">
+            <div>
+                <h1 id="vName" class="text-4xl font-black italic uppercase">Загрузка...</h1>
+                <p class="text-primary text-[10px] font-bold tracking-[0.4em] uppercase">Личный кабинет волонтера</p>
+            </div>
+            <div class="glass-card flex items-center gap-10 py-4 px-10 border-primary/20">
+                <div class="text-center">
+                    <p class="text-[10px] text-gray-500 font-bold uppercase">Твои баллы</p>
+                    <p id="vPoints" class="text-4xl font-black text-primary italic">0</p>
+                </div>
+                <button onclick="logout()" class="text-gray-500 hover:text-white transition-colors"><i class="fas fa-sign-out-alt text-xl"></i></button>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-1 glass-card">
+                <h3 class="font-black italic uppercase text-primary mb-6 text-xl">Отправить отчет</h3>
+                
+                <label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Выбери категорию</label>
+                <select id="catSelect" class="input-field" onchange="updateTasks()">
+                    <option value="">Загрузка...</option>
+                </select>
+
+                <label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Выбери задание</label>
+                <select id="taskSelect" class="input-field">
+                    <option value="">Сначала выбери категорию</option>
+                </select>
+
+                <label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Что было сделано?</label>
+                <textarea id="taskComm" class="input-field h-24" placeholder="Краткое описание..."></textarea>
+
+                <button onclick="sendReport()" class="btn-send">Подать заявку</button>
+            </div>
+
+            <div class="lg:col-span-2 glass-card">
+                <h3 class="font-black italic uppercase mb-6 text-xl text-white/50">История отчетов</h3>
+                <div id="historyList" class="divide-y divide-white/5 max-h-[500px] overflow-y-auto pr-2">
+                    <p class="text-gray-600 italic py-4">История пуста...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('access');
+        let discoveryData = {};
+
+        function logout() {
+            localStorage.clear();
+            location.href = '/login';
+        }
+
+        async function init() {
+            if(!token) { 
+                console.warn("Токен отсутствует, редирект на логин");
+                location.href = '/login'; 
+                return; 
+            }
+
+            try {
+                const uRes = await fetch('/api/profile/', { 
+                    headers: {'Authorization': `Bearer ${token}`} 
+                });
+
+                if (uRes.status === 401) {
+                    console.error("Токен невалиден или просрочен");
+                    localStorage.clear();
+                    location.href = '/login';
+                    return;
+                }
+
+                const u = await uRes.json();
+                document.getElementById('vName').innerText = u.name || u.login;
+                document.getElementById('vPoints').innerText = u.point;
+
+                // Только если профиль загрузился, грузим остальное
+                const dRes = await fetch('/api/discovery/', { headers: {'Authorization': `Bearer ${token}`} });
+                discoveryData = await dRes.json();
+                
+                const cat = document.getElementById('catSelect');
+                cat.innerHTML = '<option value="">Выбрать категорию...</option>';
+                
+                if (discoveryData.directions) {
+                    discoveryData.directions.forEach(d => {
+                        cat.innerHTML += `<option value="d_${d.id}">Направление: ${d.name}</option>`;
+                    });
+                }
+                
+                loadHistory();
+            } catch (err) {
+                console.error("Ошибка инициализации:", err);
+            }
+        }
+
+        function updateTasks() {
+            const val = document.getElementById('catSelect').value;
+            const tSel = document.getElementById('taskSelect');
+            
+            tSel.innerHTML = '<option value="">Выберите задание...</option>';
+            
+            if (!val || !discoveryData.available_tasks) return;
+
+            const targetId = parseInt(val.split('_')[1]);
+            const isDir = val.startsWith('d_');
+
+            const filtered = discoveryData.available_tasks.filter(t => {
+                // Преобразуем ID задания в число для точного сравнения
+                const taskDirId = t.direction ? parseInt(t.direction) : null;
+                const taskCmdId = t.command ? parseInt(t.command) : null;
+                
+                return isDir ? (taskDirId === targetId) : (taskCmdId === targetId);
+            });
+
+            if (filtered.length === 0) {
+                tSel.innerHTML = '<option value="">В этой категории нет заданий</option>';
+            } else {
+                filtered.forEach(t => {
+                    tSel.innerHTML += `<option value="${t.id}">${t.title} (${t.points} б.)</option>`;
+                });
+            }
+        }
+
+        async function loadHistory() {
+            try {
+                const hRes = await fetch('/api/activities/', { headers: {'Authorization': `Bearer ${token}`} });
+                if (hRes.ok) {
+                    const subs = await hRes.json();
+                    if (subs.length === 0) return;
+                    
+                    document.getElementById('historyList').innerHTML = subs.map(s => `
+                        <div class="py-5 flex justify-between items-center">
+                            <div>
+                                <p class="font-bold text-lg">${s.task_details ? s.task_details.title : 'Задание'}</p>
+                                <p class="text-[10px] text-gray-500 uppercase italic font-bold">${new Date(s.created_at).toLocaleDateString()}</p>
+                            </div>
+                            <span class="px-4 py-1 rounded-lg text-[10px] font-black uppercase ${s.status === 'approved' ? 'bg-green-500/10 text-green-500' : 'bg-orange-500/10 text-orange-500'}">
+                                ${s.status_display || s.status}
+                            </span>
+                        </div>
+                    `).join('');
+                }
+            } catch (err) { console.error("Ошибка истории:", err); }
+        }
+
+        async function sendReport() {
+            const taskId = document.getElementById('taskSelect').value;
+            const comment = document.getElementById('taskComm').value;
+
+            if (!taskId) { alert("Выбери задание!"); return; }
+
+            const res = await fetch('/api/activities/', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Authorization': `Bearer ${token}` 
+                },
+                body: JSON.stringify({
+                    task: taskId,
+                    description: comment
+                })
+            });
+
+            if(res.ok) { 
+                alert("Отчет успешно отправлен!"); 
+                location.reload(); 
+            } else {
+                const errData = await res.json();
+                alert("Ошибка: " + JSON.stringify(errData));
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

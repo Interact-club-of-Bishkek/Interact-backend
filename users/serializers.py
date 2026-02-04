@@ -1,104 +1,99 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from .models import Volunteer, VolunteerApplication, VolunteerArchive
-from directions.models import VolunteerDirection 
+from .models import Volunteer, VolunteerApplication, ActivityTask, ActivitySubmission
+from directions.models import VolunteerDirection
+from commands.models import Command
 
-# --------- Сериализатор для Направлений ---------
+# --- Регистрация ---
+class VolunteerRegisterSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True)
+
+    class Meta:
+        model = Volunteer
+        fields = ['login', 'password']
+
+    def create(self, validated_data):
+        # Используем встроенный метод для корректного хеширования пароля
+        return Volunteer.objects.create_user(**validated_data)
+
+# --- Справочники ---
 class VolunteerDirectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = VolunteerDirection
         fields = ['id', 'name']
-        ref_name = 'UserVolunteerDirection'
 
+class CommandSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Command
+        fields = ['id', 'title', 'slug']
 
-# --------- Сериализатор Волонтёра (User) ---------
+# --- Система Активностей ---
+class ActivityTaskSerializer(serializers.ModelSerializer):
+    direction_name = serializers.ReadOnlyField(source='direction.name')
+    command_name = serializers.ReadOnlyField(source='command.title')
+
+    class Meta:
+        model = ActivityTask
+        fields = ['id', 'title', 'description', 'points', 'direction', 'direction_name', 'command', 'command_name']
+
+class ActivitySubmissionSerializer(serializers.ModelSerializer):
+    task_details = ActivityTaskSerializer(source='task', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    volunteer_name = serializers.ReadOnlyField(source='volunteer.name')
+
+    class Meta:
+        model = ActivitySubmission
+        fields = ['id', 'task', 'task_details', 'volunteer_name', 'status', 'status_display', 'created_at']
+        read_only_fields = ['status', 'created_at']
+
+# --- Профиль Волонтера ---
 class VolunteerSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField(read_only=True)
-    # Используем правильное имя сериализатора
     direction = VolunteerDirectionSerializer(many=True, read_only=True)
+    commands = CommandSerializer(many=True, read_only=True)
+    role_display = serializers.CharField(source='get_role_display', read_only=True)
 
     class Meta:
         model = Volunteer
         fields = [
-            'id', 'login', 'name', 'phone_number', 'email', 'image_url',
-            'telegram_username', 'telegram_id', 'board', 'direction',
+            'id', 'login', 'name', 'phone_number', 'email', 'image_url', # email оставляем в полях, но он может быть пуст
+            'role', 'role_display', 'direction', 'commands', 
             'point', 'yellow_card'
         ]
-        ref_name = 'UserVolunteer'
+        read_only_fields = ['point', 'yellow_card', 'role', 'login']
 
     def get_image_url(self, obj):
         if obj.image:
             request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.image.url)
-            return obj.image.url
+            return request.build_absolute_uri(obj.image.url) if request else obj.image.url
         return None
 
-
-# --------- Сериализатор Авторизации ---------
-class VolunteerLoginSerializer(serializers.Serializer):
-    login = serializers.CharField()
-    password = serializers.CharField(write_only=True)
-    volunteer = serializers.HiddenField(default=None)
-
-    def validate(self, attrs):
-        login = attrs.get('login')
-        password = attrs.get('password')
-        volunteer = authenticate(login=login, password=password)
-        if not volunteer:
-            raise serializers.ValidationError("Неправильный логин или пароль")
-        attrs['volunteer'] = volunteer
-        return attrs
-
-
-# --------- Сериализатор Заявки (ИСПРАВЛЕННЫЙ) ---------
+# --- Анкета (Шаг 2) ---
 class VolunteerApplicationSerializer(serializers.ModelSerializer):
-    # Поле для записи (принимает ID)
-    directions = serializers.PrimaryKeyRelatedField(
-        queryset=VolunteerDirection.objects.all(), 
-        many=True
-    )
-
-    status_display = serializers.CharField(source='get_status_display', read_only=True)
-    photo_url = serializers.SerializerMethodField(read_only=True)
+    # Указываем явно для обработки ID
+    direction = serializers.PrimaryKeyRelatedField(queryset=VolunteerDirection.objects.all(), required=False)
+    commands = serializers.PrimaryKeyRelatedField(many=True, queryset=Command.objects.all(), required=False)
 
     class Meta:
         model = VolunteerApplication
-        fields = '__all__' # Можно использовать all для краткости, или перечислить поля как у вас
-        read_only_fields = ('photo_url', 'status_display', 'created_at', 'updated_at')
+        fields = ['id', 'full_name', 'phone_number', 'direction', 'commands', 'status']
+# --- Остальное ---
+class VolunteerLoginSerializer(serializers.Serializer):
+    login = serializers.CharField()
+    password = serializers.CharField(write_only=True)
 
-    # !!! ГЛАВНОЕ ИСПРАВЛЕНИЕ !!!
-    # Этот метод подменяет ID на полные объекты при отправке данных на фронт
-    def to_representation(self, instance):
-        representation = super().to_representation(instance)
-        # Заменяем список ID на список объектов {id, name}
-        representation['directions'] = VolunteerDirectionSerializer(instance.directions.all(), many=True).data
-        return representation
+    def validate(self, attrs):
+        user = authenticate(login=attrs['login'], password=attrs['password'])
+        if not user:
+            raise serializers.ValidationError("Неверные данные")
+        attrs['user'] = user
+        return attrs
 
-    def get_photo_url(self, obj):
-        if obj.photo:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.photo.url)
-            return obj.photo.url
-        return None
-
-
-# --------- Обновление статуса ---------
 class VolunteerApplicationStatusUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = VolunteerApplication
         fields = ['status']
 
-
-# --------- Для отображения колонок ---------
-class VolunteerColumnsSerializer(serializers.Serializer):
-    # Используем ApplicationSerializer везде, чтобы данные были одинаковыми
-    submitted = VolunteerApplicationSerializer(many=True, read_only=True)
-    interview = VolunteerApplicationSerializer(many=True, read_only=True)
-    accepted = VolunteerApplicationSerializer(many=True, read_only=True)
-
-
 class BotAuthSerializer(serializers.Serializer):
-    access_type = serializers.ChoiceField(choices=['commands', 'add_project'])
+    access_type = serializers.ChoiceField(choices=[('volunteer', 'volunteer'), ('curator', 'curator'), ('commands', 'commands')])
     password = serializers.CharField()

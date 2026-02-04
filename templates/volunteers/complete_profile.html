@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Заполнение анкеты</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@900&family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root { --primary: #00c6ff; --bg: #020408; }
+        body { background: var(--bg); font-family: 'Inter', sans-serif; color: white; background-image: radial-gradient(circle at 50% -20%, #10192e 0%, #020408 100%); min-height: 100vh; }
+        .glass-card { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); border-radius: 30px; }
+        .input-field { background: rgba(0, 198, 255, 0.05); border: 2px solid rgba(0, 198, 255, 0.2); border-radius: 15px; padding: 0.8rem 1.2rem; color: white; width: 100%; transition: all 0.3s; margin-bottom: 1rem; }
+        .btn-primary { background: var(--primary); color: #000; font-weight: 900; text-transform: uppercase; border-radius: 15px; padding: 1rem; width: 100%; transition: 0.3s; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0, 198, 255, 0.4); }
+        .checkbox-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); padding: 10px; border-radius: 12px; cursor: pointer; transition: 0.2s; }
+        .checkbox-card.active { border-color: var(--primary); background: rgba(0, 198, 255, 0.1); }
+    </style>
+</head>
+<body class="p-6">
+    <div class="max-w-xl mx-auto glass-card p-8 md:p-12">
+        <header class="text-center mb-8">
+            <h1 class="font-['Montserrat'] font-black text-3xl uppercase italic text-primary">Шаг 2: <span class="text-white">Анкета</span></h1>
+            <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-2">Расскажите о себе</p>
+        </header>
+
+        <form id="appForm" class="space-y-4">
+            <div>
+                <label class="text-[10px] font-bold uppercase text-primary ml-2">Полное ФИО</label>
+                <input type="text" id="full_name" class="input-field" placeholder="Иванов Иван Иванович" required>
+            </div>
+            
+            <div>
+                <label class="text-[10px] font-bold uppercase text-primary ml-2">Номер телефона</label>
+                <input type="text" id="phone_number" class="input-field" placeholder="+996 --- -- -- --" required>
+            </div>
+
+            <div>
+                <label class="text-[10px] font-bold uppercase text-primary ml-2">Выбор направлений</label>
+                <div id="directionsList" class="grid grid-cols-2 gap-2 mt-2">
+                    </div>
+            </div>
+
+            <button type="submit" class="btn-primary mt-6">Завершить регистрацию</button>
+        </form>
+    </div>
+
+    <script>
+        // 1. Грузим направления при входе
+        async function fetchDirs() {
+            const token = localStorage.getItem('access');
+            const res = await fetch('/api/discovery/', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            const container = document.getElementById('directionsList');
+            data.directions.forEach(d => {
+                container.innerHTML += `
+                    <label class="checkbox-card flex items-center gap-2">
+                        <input type="checkbox" name="directions" value="${d.id}" class="accent-cyan-500">
+                        <span class="text-xs uppercase font-bold">${d.name}</span>
+                    </label>
+                `;
+            });
+        }
+
+        // 2. Отправка анкеты
+        document.getElementById('appForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const token = localStorage.getItem('access');
+            const selectedDirs = Array.from(document.querySelectorAll('input[name="directions"]:checked')).map(cb => cb.value);
+
+            const payload = {
+                full_name: document.getElementById('full_name').value,
+                phone_number: document.getElementById('phone_number').value,
+                directions: selectedDirs,
+                why_volunteer: "Первичная анкета", // Заглушка, если поле обязательно в модели
+                volunteer_experience: "Нет",
+                hobbies_skills: "Нет",
+                strengths: "Нет",
+                why_choose_you: "Хочу помогать",
+                expectations: "Опыт",
+                weekly_hours: "5-10"
+            };
+
+            const res = await fetch('/api/applications/', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                alert("Профиль успешно создан!");
+                window.location.href = '/cabinet/';
+            } else {
+                const err = await res.json();
+                alert("Ошибка: " + JSON.stringify(err));
+            }
+        };
+
+        fetchDirs();
+    </script>
+</body>
+</html>

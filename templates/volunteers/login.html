@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Interact Club — Вход</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #020617; color: white; font-family: sans-serif; }
+        .glass { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(10px); border: 1px solid rgba(59, 130, 246, 0.2); }
+        .input-field { background: #1e293b; border: 1px solid #334155; padding: 12px; border-radius: 8px; width: 100%; margin-bottom: 12px; color: white; }
+        .btn { background: #3b82f6; width: 100%; padding: 12px; border-radius: 8px; font-weight: bold; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen">
+
+    <div class="glass p-8 rounded-2xl w-full max-w-md">
+        <div id="authSection">
+            <h2 class="text-2xl font-bold mb-6 text-center" id="title">Вход</h2>
+            <form id="authForm">
+                <input type="text" id="userLogin" class="input-field" placeholder="Логин" required>
+                <input type="password" id="userPass" class="input-field" placeholder="Пароль" required>
+                <button type="submit" class="btn">Продолжить</button>
+            </form>
+            <button onclick="toggleAuth()" id="toggleBtn" class="w-full mt-4 text-sm text-blue-400">Нет аккаунта? Регистрация</button>
+        </div>
+
+        <div id="appSection" class="hidden">
+            <h2 class="text-xl font-bold mb-4 text-blue-400">Заполни анкету</h2>
+            <form id="appForm">
+                <input type="text" id="fullName" class="input-field" placeholder="ФИО" required>
+                <input type="text" id="phone" class="input-field" placeholder="Телефон" required>
+                
+                <p class="text-xs font-bold mb-2 uppercase">Направление (Одно):</p>
+                <select id="dirSelect" class="input-field" required>
+                    <option value="">Загрузка...</option>
+                </select>
+
+                <p class="text-xs font-bold mb-2 uppercase">Команды (Несколько):</p>
+                <div id="cmdWrapper" class="space-y-2 mb-4 max-h-32 overflow-y-auto p-2 bg-black/20 rounded">
+                    </div>
+
+                <button type="submit" class="btn">Сохранить и войти</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let isLogin = true;
+        const token = () => localStorage.getItem('access');
+
+        function toggleAuth() {
+            isLogin = !isLogin;
+            document.getElementById('title').innerText = isLogin ? 'Вход' : 'Регистрация';
+            document.getElementById('toggleBtn').innerText = isLogin ? 'Нет аккаунта? Регистрация' : 'Уже есть аккаунт? Вход';
+        }
+
+        document.getElementById('authForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const path = isLogin ? '/api/login/' : '/api/register/';
+            const res = await fetch(path, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    login: document.getElementById('userLogin').value,
+                    password: document.getElementById('userPass').value
+                })
+            });
+            const data = await res.json();
+            if(res.ok) {
+                localStorage.setItem('access', data.access);
+                if(data.role === 'curator' || data.role === 'admin') location.href = '/curator-panel/';
+                else if(data.is_assigned) location.href = '/cabinet/';
+                else showApp();
+            } else { alert("Ошибка!"); }
+        };
+
+        async function showApp() {
+            document.getElementById('authSection').classList.add('hidden');
+            document.getElementById('appSection').classList.remove('hidden');
+            
+            const res = await fetch('/api/discovery/', { headers: {'Authorization': `Bearer ${token()}`} });
+            const data = await res.json();
+            
+            // Направления (Select)
+            const ds = document.getElementById('dirSelect');
+            ds.innerHTML = '<option value="">Выбери направление...</option>';
+            data.directions.forEach(d => ds.innerHTML += `<option value="${d.id}">${d.name}</option>`);
+
+            // Команды (Checkboxes)
+            const cw = document.getElementById('cmdWrapper');
+            cw.innerHTML = '';
+            data.commands.forEach(c => cw.innerHTML += `
+                <label class="flex items-center gap-2 text-sm">
+                    <input type="checkbox" name="cmd" value="${c.id}"> ${c.title}
+                </label>
+            `);
+        }
+
+        document.getElementById('appForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const cmdIds = Array.from(document.querySelectorAll('input[name="cmd"]:checked')).map(i => i.value);
+            
+            const res = await fetch('/api/applications/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token()}`
+                },
+                body: JSON.stringify({
+                    full_name: document.getElementById('fullName').value,
+                    phone_number: document.getElementById('phone').value,
+                    direction: document.getElementById('dirSelect').value, // Одно ID
+                    commands: cmdIds // Массив ID
+                })
+            });
+            if(res.ok) location.href = '/cabinet/';
+        };
+    </script>
+</body>
+</html>
