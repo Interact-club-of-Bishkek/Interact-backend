@@ -11,9 +11,9 @@ class CommandSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Command
-        # ОБЯЗАТЕЛЬНО добавляем эти поля сюда:
-        fields = ['id', 'title', 'slug', 'description', 'start_date', 'end_date', 'questions']
-
+        # Добавляем 'direction', чтобы куратор мог найти свои команды по ID направления
+        fields = ['id', 'title', 'slug', 'description', 'start_date', 'end_date', 'questions', 'leader', 'direction']
+        
 class AttachmentSerializer(serializers.ModelSerializer):
     file = serializers.SerializerMethodField()
 

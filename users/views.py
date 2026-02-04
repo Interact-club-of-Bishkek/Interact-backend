@@ -2,17 +2,25 @@ import io
 import os
 from django.db import transaction
 from django.conf import settings
+# УДАЛИЛИ: from django.forms import DecimalField  <-- ЭТО БЫЛА ОШИБКА
 from django.http import FileResponse
 from django.views.generic import TemplateView
-from django.db.models import Q
+
+# ИЗМЕНЕНИЕ: Добавили DecimalField сюда
+from django.db.models import Sum, Value, Q, DecimalField 
+from django.db.models.functions import Coalesce
 from django.db import models
+
 from rest_framework import viewsets, generics, status
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from rest_framework_simplejwt.tokens import RefreshToken
 from directions.models import VolunteerDirection
+from rest_framework_simplejwt.tokens import RefreshToken
+from commands.models import Command
+from rest_framework import permissions
+
 # ReportLab для генерации PDF
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -28,7 +36,8 @@ from .models import (
 from .serializers import (
     VolunteerSerializer, VolunteerLoginSerializer, VolunteerRegisterSerializer,
     VolunteerApplicationSerializer, ActivityTaskSerializer, 
-    ActivitySubmissionSerializer, VolunteerDirectionSerializer, CommandSerializer
+    ActivitySubmissionSerializer, VolunteerDirectionSerializer, CommandSerializer,
+    VolunteerListSerializer
 )
 
 # ---------------- АВТОРИЗАЦИЯ И ПРОФИЛЬ ----------------
@@ -49,8 +58,13 @@ class VolunteerLoginView(APIView):
         is_leader = Command.objects.filter(leader=volunteer).exists()
         
         if is_responsible or is_leader:
-            if volunteer.role != 'curator':
+            # ИСПРАВЛЕНИЕ: меняем на куратора только если текущая роль — волонтер
+            if volunteer.role == 'volunteer':
                 volunteer.role = 'curator'
+                volunteer.is_staff = True
+                volunteer.save()
+            # Если роль уже выше (напр. тимлид), просто проверяем доступ в админку
+            elif not volunteer.is_staff:
                 volunteer.is_staff = True
                 volunteer.save()
         # -------------------------------------
@@ -61,10 +75,13 @@ class VolunteerLoginView(APIView):
         return Response({
             'access': str(refresh.access_token),
             'refresh': str(refresh),
-            'role': volunteer.role,  
+            'role': volunteer.role,
             'name': volunteer.name or volunteer.login,
-            'is_assigned': is_assigned
+            'is_assigned': is_assigned,
+            'is_team_leader': is_leader,
+            'is_direction_curator': is_responsible
         })
+
 
 class VolunteerRegisterView(APIView):
     permission_classes = [AllowAny]
@@ -106,98 +123,172 @@ class VolunteerActivityViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(volunteer=self.request.user)
 
-# users/views.py
 
 class DiscoveryListView(APIView):
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
         user = request.user
-        # Явно импортируем модели
-        from directions.models import VolunteerDirection
-        from commands.models import Command
 
-        # 1. Получаем ВСЕ направления для выпадающего списка
+        # 1. Справочники
         all_directions = VolunteerDirection.objects.all()
-        
-        # 2. Получаем только ТЕ команды, в которых состоит юзер
         user_commands = user.commands.all()
+        user_directions = user.direction.all()
 
-        # 3. Фильтруем задания (те, что подходят юзеру)
+        # 2. Логика задач (Общие + Командные)
         tasks = ActivityTask.objects.filter(
-            Q(direction__in=user.direction.all()) | 
-            Q(command__in=user.commands.all())
+            Q(command__isnull=True) |   # Общие задачи
+            Q(command__in=user_commands) # Задачи моих команд
         ).distinct()
 
         return Response({
-            "directions": VolunteerDirectionSerializer(all_directions, many=True).data,
-            "commands": CommandSerializer(user_commands, many=True).data,
+            "all_directions": VolunteerDirectionSerializer(all_directions, many=True).data,
+            "my_direction": VolunteerDirectionSerializer(user_directions, many=True).data,
+            "my_commands": CommandSerializer(user_commands, many=True).data,
             "available_tasks": ActivityTaskSerializer(tasks, many=True).data
         })
+
 # ---------------- ПАНЕЛЬ КУРАТОРА ----------------
 
 class CuratorSubmissionViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated] # Убедись, что тут нет IsAdminUser
+    permission_classes = [IsAuthenticated]
     serializer_class = ActivitySubmissionSerializer
 
     def get_queryset(self):
         user = self.request.user
-        # Если не админ и не куратор — пустой список
-        if user.role not in ['curator', 'admin'] and not user.is_superuser:
-            return ActivitySubmission.objects.none()
-            
         if user.is_superuser or user.role == 'admin':
             return ActivitySubmission.objects.all().order_by('-created_at')
             
-        # Для куратора — только его направления
+        # Логика Куратора:
+        # (А) Это задача его СПЕЦ. КОМАНДЫ (где он лидер)
+        # ИЛИ
+        # (Б) Заявку подал волонтер из ЕГО НАПРАВЛЕНИЯ (даже если задача общая)
+        
         return ActivitySubmission.objects.filter(
-            models.Q(task__direction__responsible=user) | 
-            models.Q(task__command__leader=user)
+            Q(task__command__leader=user) | 
+            Q(volunteer__direction__responsible=user)
         ).distinct().order_by('-created_at')
 
 # ---------------- АНКЕТЫ И КАНБАН ----------------
 
 class VolunteerApplicationViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated]
     serializer_class = VolunteerApplicationSerializer
     queryset = VolunteerApplication.objects.all()
 
+    def get_queryset(self):
+        user = self.request.user
+
+        if user.is_superuser or user.role == 'admin':
+            return VolunteerApplication.objects.all()
+
+        return VolunteerApplication.objects.filter(
+            commands__leader=user
+        ).distinct()
+
     def perform_create(self, serializer):
-        # Извлекаем команды из данных, так как их нельзя передать в create напрямую
         validated_data = serializer.validated_data
-        commands_data = validated_data.pop('commands', [])
         
+        # 1. Извлекаем команды. 
+        commands_data = validated_data.pop('commands', None)
+        
+        print(f"DEBUG: User={self.request.user}, Commands Data={commands_data}")
+
         with transaction.atomic():
-            # 1. Создаем или обновляем анкету БЕЗ команд
+            # 2. Создаем/Обновляем анкету (БЕЗ поля commands)
             application, created = VolunteerApplication.objects.update_or_create(
                 volunteer=self.request.user,
                 defaults=validated_data
             )
             
-            # 2. Теперь используем .set(), чтобы привязать команды
-            if commands_data:
+            # 3. Привязываем команды к АНКЕТЕ
+            if commands_data is not None:
                 application.commands.set(commands_data)
             
-            # 3. Синхронизируем данные с профилем волонтера
+            # 4. СИНХРОНИЗАЦИЯ С ПРОФИЛЕМ ВОЛОНТЕРА
             user = self.request.user
-            user.name = application.full_name
-            user.phone_number = application.phone_number
             
-            # Привязываем одно направление к юзеру
+            if application.full_name:
+                user.name = application.full_name
+            if application.phone_number:
+                user.phone_number = application.phone_number
+            
             if application.direction:
                 user.direction.set([application.direction])
             
-            # Привязываем команды к юзеру
-            if commands_data:
+            if commands_data is not None:
                 user.commands.set(commands_data)
             
             # Проверяем роль куратора
             from directions.models import VolunteerDirection
-            if VolunteerDirection.objects.filter(responsible=user).exists():
+            from commands.models import Command 
+            
+            is_responsible = VolunteerDirection.objects.filter(responsible=user).exists()
+            is_leader = Command.objects.filter(leader=user).exists() if hasattr(Command, 'leader') else False
+
+            if is_responsible or is_leader:
                 user.role = 'curator'
                 user.is_staff = True
             
             user.save()
+
+class VolunteerListView(generics.ListAPIView):
+    serializer_class = VolunteerListSerializer  
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+
+        # 1. Если Админ — показываем всех
+        if user.is_superuser or user.role == 'admin':
+            return Volunteer.objects.all().annotate(
+                local_points=Coalesce(
+                    'point', 
+                    Value(0),
+                    output_field=DecimalField() # Теперь работает (берется из models)
+                )
+            )
+
+        # 2. Логика Куратора
+        my_directions = user.responsible_for_directions.all()
+        my_commands = Command.objects.filter(leader=user)
+
+        # 3. Фильтр списка людей
+        queryset = Volunteer.objects.filter(
+            Q(direction__in=my_directions) | 
+            Q(commands__in=my_commands)
+        ).distinct()
+
+        # 4. СЧИТАЕМ БАЛЛЫ (local_points)
+        queryset = queryset.annotate(
+            local_points=Coalesce(
+                Sum(
+                    'submissions__task__points', 
+                    filter=Q(submissions__status='approved') & (
+                        Q(submissions__task__command__in=my_commands) |
+                        Q(submissions__task__command__isnull=True)
+                    )
+                ),
+                Value(0),
+                output_field=DecimalField() # Теперь работает (берется из models)
+            )
+        )
+
+        return queryset.exclude(id=user.id)
+
+class VolunteerViewSet(viewsets.ModelViewSet):
+    serializer_class = VolunteerSerializer
+    permission_classes = [IsAuthenticated]
+    queryset = Volunteer.objects.none()
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.role in ['curator', 'admin']:
+            return Volunteer.objects.filter(
+                Q(direction__in=user.direction.all()) | Q(commands__in=user.commands.all())
+            ).distinct().order_by('-point')
+        return Volunteer.objects.filter(id=user.id)
+
 
 # ---------------- PDF ГЕНЕРАЦИЯ (С кириллицей) ----------------
 
@@ -243,19 +334,6 @@ class DownloadAcceptedNamesView(DownloadPDFBase):
         return self.get_pdf_response(vols, "Принятые волонтеры", "Accepted.pdf")
 
 # ---------------- HTML VIEWS ----------------
-
-class VolunteerViewSet(viewsets.ModelViewSet):
-    serializer_class = VolunteerSerializer
-    permission_classes = [IsAuthenticated]
-    queryset = Volunteer.objects.none()
-    
-    def get_queryset(self):
-        user = self.request.user
-        if user.role in ['curator', 'admin']:
-            return Volunteer.objects.filter(
-                Q(direction__in=user.direction.all()) | Q(commands__in=user.commands.all())
-            ).distinct().order_by('-point')
-        return Volunteer.objects.filter(id=user.id)
 
 class VolunteerColumnsView(APIView):
     permission_classes = [IsAuthenticated]

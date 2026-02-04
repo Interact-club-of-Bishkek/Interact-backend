@@ -2,6 +2,7 @@ from django.db import models
 from django.utils.text import slugify
 import uuid
 import os
+from directions.models import VolunteerDirection  # Импортируй модель направлений
 
 class Command(models.Model):
     title = models.CharField("Название команды", max_length=255)
@@ -17,6 +18,14 @@ class Command(models.Model):
     start_date = models.DateTimeField("Начало набора", null=True, blank=True)
     end_date = models.DateTimeField("Конец набора", null=True, blank=True)
 
+    direction = models.ForeignKey(
+            VolunteerDirection, 
+            on_delete=models.CASCADE, 
+            related_name="commands", 
+            verbose_name="Направление",
+            null=True, # Временно разрешим null, чтобы миграция прошла успешно
+            blank=True
+        )
 
     leader = models.ForeignKey(
             'users.Volunteer',

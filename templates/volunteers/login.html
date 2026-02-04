@@ -2,45 +2,134 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Interact Club — Вход</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
     <style>
-        body { background: #020617; color: white; font-family: sans-serif; }
-        .glass { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(10px); border: 1px solid rgba(59, 130, 246, 0.2); }
-        .input-field { background: #1e293b; border: 1px solid #334155; padding: 12px; border-radius: 8px; width: 100%; margin-bottom: 12px; color: white; }
-        .btn { background: #3b82f6; width: 100%; padding: 12px; border-radius: 8px; font-weight: bold; }
+        :root { --primary: #00c6ff; --bg: #020408; --glass: rgba(15, 23, 42, 0.75); }
+        body { 
+            background: var(--bg); color: white; font-family: 'Inter', sans-serif; 
+            background-image: radial-gradient(circle at 50% 0%, #10192e 0%, #020408 100%); 
+            min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; 
+        }
+        
+        .glass-card { background: var(--glass); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 32px; width: 100%; max-width: 400px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        
+        .input-group { margin-bottom: 16px; position: relative; }
+        .input-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #64748b; transition: 0.3s; z-index: 10; }
+        .input-field { background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 14px 14px 14px 44px; width: 100%; color: white; outline: none; font-size: 14px; transition: all 0.3s; }
+        .input-field:focus { border-color: var(--primary); background: rgba(0, 198, 255, 0.05); }
+        .input-field:focus + .input-icon { color: var(--primary); }
+        
+        .btn-primary { background: var(--primary); color: black; font-weight: 800; width: 100%; padding: 16px; border-radius: 16px; text-transform: uppercase; letter-spacing: 0.05em; transition: 0.3s; box-shadow: 0 4px 15px rgba(0, 198, 255, 0.2); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-primary:active { transform: scale(0.98); }
+        .btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }
+
+        .link-text { color: #94a3b8; font-size: 12px; font-weight: 600; text-align: center; margin-top: 20px; cursor: pointer; transition: 0.3s; }
+        .link-text:hover { color: var(--primary); }
+
         .hidden { display: none; }
+        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Custom Dropdown Styles */
+        .select-options-container {
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.8);
+            animation: dropDown 0.3s ease-out forwards;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.1) transparent;
+        }
+        @keyframes dropDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .option-item { padding: 12px 16px; border-radius: 12px; font-size: 14px; cursor: pointer; transition: 0.2s; margin-bottom: 4px; color: #94a3b8; }
+        .option-item:hover { background: rgba(0, 198, 255, 0.1); color: var(--primary); padding-left: 20px; }
+        .option-item.active { background: var(--primary); color: black; font-weight: 700; }
+
+        /* Toast Notifications */
+        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 10px; width: 90%; max-width: 350px; }
+        .toast { padding: 16px; border-radius: 16px; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); border-left: 4px solid var(--primary); color: white; box-shadow: 0 10px 30px rgba(0,0,0,0.5); transform: translateX(110%); transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: flex; align-items: center; gap: 12px; }
+        .toast.show { transform: translateX(0); }
+        .toast.error { border-color: #ef4444; }
+        .toast.success { border-color: #22c55e; }
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen">
+<body>
+    
+    <div id="toast-container"></div>
 
-    <div class="glass p-8 rounded-2xl w-full max-w-md">
+    <div class="glass-card fade-in">
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-black italic uppercase text-white tracking-tighter">Interact</h1>
+            <p class="text-[10px] font-bold text-primary uppercase tracking-[0.4em] mt-1">Volunteer Club</p>
+        </div>
+
         <div id="authSection">
-            <h2 class="text-2xl font-bold mb-6 text-center" id="title">Вход</h2>
-            <form id="authForm">
-                <input type="text" id="userLogin" class="input-field" placeholder="Логин" required>
-                <input type="password" id="userPass" class="input-field" placeholder="Пароль" required>
-                <button type="submit" class="btn">Продолжить</button>
+            <h2 class="text-lg font-bold text-white mb-6 text-center" id="title">Вход в систему</h2>
+            
+            <form id="authForm" onsubmit="handleAuth(event)">
+                <div class="input-group">
+                    <input type="text" id="userLogin" class="input-field" placeholder="Логин" required>
+                    <i class="fas fa-user input-icon"></i>
+                </div>
+                <div class="input-group">
+                    <input type="password" id="userPass" class="input-field" placeholder="Пароль" required>
+                    <i class="fas fa-lock input-icon"></i>
+                </div>
+                
+                <button type="submit" id="authBtn" class="btn-primary">
+                    <span>Войти</span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
             </form>
-            <button onclick="toggleAuth()" id="toggleBtn" class="w-full mt-4 text-sm text-blue-400">Нет аккаунта? Регистрация</button>
+            
+            <p onclick="toggleAuth()" id="toggleBtn" class="link-text">Нет аккаунта? <span class="text-primary underline">Зарегистрироваться</span></p>
         </div>
 
         <div id="appSection" class="hidden">
-            <h2 class="text-xl font-bold mb-4 text-blue-400">Заполни анкету</h2>
-            <form id="appForm">
-                <input type="text" id="fullName" class="input-field" placeholder="ФИО" required>
-                <input type="text" id="phone" class="input-field" placeholder="Телефон" required>
+            <div class="flex items-center gap-2 mb-6">
+                <button onclick="backToAuth()" class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 text-gray-400">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <h2 class="text-lg font-bold text-white">Почти готово</h2>
+            </div>
+
+            <form id="appForm" onsubmit="handleApplication(event)">
+                <div class="input-group">
+                    <input type="text" id="fullName" class="input-field" placeholder="Ваше ФИО" required>
+                    <i class="fas fa-id-card input-icon"></i>
+                </div>
                 
-                <p class="text-xs font-bold mb-2 uppercase">Направление (Одно):</p>
-                <select id="dirSelect" class="input-field" required>
-                    <option value="">Загрузка...</option>
-                </select>
+                <div class="input-group">
+                    <input type="tel" id="phone" class="input-field" placeholder="Телефон" required>
+                    <i class="fas fa-phone input-icon"></i>
+                </div>
+                
+                <div class="mb-6 relative">
+                    <label class="text-[10px] font-bold text-gray-500 uppercase ml-2 mb-2 block tracking-widest">Направление</label>
+                    <div class="relative" id="dirSelectContainer">
+                        <div class="input-field flex items-center justify-between cursor-pointer pr-4" onclick="toggleDropdown()">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-compass text-gray-500" id="selectIcon"></i>
+                                <span id="selectedOptionLabel" class="text-gray-400">Выберите из списка...</span>
+                            </div>
+                            <i class="fas fa-chevron-down text-[10px] transition-transform duration-300" id="selectChevron"></i>
+                        </div>
 
-                <p class="text-xs font-bold mb-2 uppercase">Команды (Несколько):</p>
-                <div id="cmdWrapper" class="space-y-2 mb-4 max-h-32 overflow-y-auto p-2 bg-black/20 rounded">
+                        <div class="select-options-container hidden absolute left-0 right-0 mt-2 p-2 glass-card border-white/10 z-50 max-h-60 overflow-y-auto bg-[#0f172a]" id="optionsList">
+                            <div class="flex justify-center py-4"><i class="fas fa-circle-notch fa-spin text-primary"></i></div>
+                        </div>
                     </div>
+                    <input type="hidden" id="dirSelectValue" required>
+                </div>
 
-                <button type="submit" class="btn">Сохранить и войти</button>
+                <button type="submit" id="appBtn" class="btn-primary">
+                    <span>Завершить</span>
+                    <i class="fas fa-check"></i>
+                </button>
             </form>
         </div>
     </div>
@@ -49,73 +138,196 @@
         let isLogin = true;
         const token = () => localStorage.getItem('access');
 
+        // --- УВЕДОМЛЕНИЯ ---
+        function showToast(message, type = 'error') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle';
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<i class="fas ${icon}"></i> <span class="text-sm font-semibold">${message}</span>`;
+            container.appendChild(toast);
+            requestAnimationFrame(() => toast.classList.add('show'));
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function setLoading(btnId, isLoading) {
+            const btn = document.getElementById(btnId);
+            if (isLoading) {
+                btn.dataset.original = btn.innerHTML;
+                btn.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i>`;
+                btn.disabled = true;
+            } else {
+                btn.innerHTML = btn.dataset.original;
+                btn.disabled = false;
+            }
+        }
+
+        // --- ЛОГИКА ВЫПАДАЮЩЕГО СПИСКА ---
+        function toggleDropdown() {
+            const list = document.getElementById('optionsList');
+            const chevron = document.getElementById('selectChevron');
+            const isOpen = !list.classList.contains('hidden');
+            if (isOpen) {
+                list.classList.add('hidden');
+                chevron.style.transform = 'rotate(0deg)';
+            } else {
+                list.classList.remove('hidden');
+                chevron.style.transform = 'rotate(180deg)';
+            }
+        }
+
+        function selectOption(id, name) {
+            document.getElementById('dirSelectValue').value = id;
+            const label = document.getElementById('selectedOptionLabel');
+            label.innerText = name;
+            label.classList.replace('text-gray-400', 'text-white');
+            document.getElementById('selectIcon').classList.replace('text-gray-500', 'text-primary');
+            toggleDropdown();
+        }
+
+        // Закрытие при клике мимо
+        document.addEventListener('click', (e) => {
+            const container = document.getElementById('dirSelectContainer');
+            if (container && !container.contains(e.target)) {
+                document.getElementById('optionsList').classList.add('hidden');
+                document.getElementById('selectChevron').style.transform = 'rotate(0deg)';
+            }
+        });
+
+        // --- НАВИГАЦИЯ ---
         function toggleAuth() {
             isLogin = !isLogin;
-            document.getElementById('title').innerText = isLogin ? 'Вход' : 'Регистрация';
-            document.getElementById('toggleBtn').innerText = isLogin ? 'Нет аккаунта? Регистрация' : 'Уже есть аккаунт? Вход';
+            const title = document.getElementById('title');
+            const btnText = document.querySelector('#authBtn span');
+            const toggleText = document.getElementById('toggleBtn');
+            
+            if (isLogin) {
+                title.innerText = 'Вход в систему';
+                btnText.innerText = 'Войти';
+                toggleText.innerHTML = 'Нет аккаунта? <span class="text-primary underline">Зарегистрироваться</span>';
+            } else {
+                title.innerText = 'Регистрация';
+                btnText.innerText = 'Продолжить';
+                toggleText.innerHTML = 'Уже есть аккаунт? <span class="text-primary underline">Войти</span>';
+            }
         }
 
-        document.getElementById('authForm').onsubmit = async (e) => {
-            e.preventDefault();
-            const path = isLogin ? '/api/login/' : '/api/register/';
-            const res = await fetch(path, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    login: document.getElementById('userLogin').value,
-                    password: document.getElementById('userPass').value
-                })
-            });
-            const data = await res.json();
-            if(res.ok) {
-                localStorage.setItem('access', data.access);
-                if(data.role === 'curator' || data.role === 'admin') location.href = '/curator-panel/';
-                else if(data.is_assigned) location.href = '/cabinet/';
-                else showApp();
-            } else { alert("Ошибка!"); }
-        };
+        function backToAuth() {
+            document.getElementById('appSection').classList.add('hidden');
+            document.getElementById('authSection').classList.remove('hidden');
+            localStorage.clear();
+        }
 
+        // --- API: ВХОД / РЕГИСТРАЦИЯ ---
+        async function handleAuth(e) {
+            e.preventDefault();
+            setLoading('authBtn', true);
+            const path = isLogin ? '/api/login/' : '/api/register/';
+            
+            try {
+                const res = await fetch(path, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        login: document.getElementById('userLogin').value,
+                        password: document.getElementById('userPass').value
+                    })
+                });
+                const data = await res.json();
+                
+                if (res.ok) {
+                    localStorage.setItem('access', data.access);
+                    showToast("Авторизация...", "success");
+                    
+                    setTimeout(() => {
+                        if (['curator', 'admin', 'teamlead'].includes(data.role)) {
+                            location.href = '/curator-panel/';
+                        } else if (data.is_assigned) {
+                            location.href = '/cabinet/';
+                        } else {
+                            showApp();
+                        }
+                    }, 800);
+                } else { 
+                    const msg = data.detail || data.error || "Ошибка доступа";
+                    showToast(msg, "error");
+                    setLoading('authBtn', false);
+                }
+            } catch (err) {
+                showToast("Сервер недоступен", "error");
+                setLoading('authBtn', false);
+            }
+        }
+
+        // --- API: ЗАГРУЗКА НАПРАВЛЕНИЙ ---
         async function showApp() {
             document.getElementById('authSection').classList.add('hidden');
-            document.getElementById('appSection').classList.remove('hidden');
-            
-            const res = await fetch('/api/discovery/', { headers: {'Authorization': `Bearer ${token()}`} });
-            const data = await res.json();
-            
-            // Направления (Select)
-            const ds = document.getElementById('dirSelect');
-            ds.innerHTML = '<option value="">Выбери направление...</option>';
-            data.directions.forEach(d => ds.innerHTML += `<option value="${d.id}">${d.name}</option>`);
+            const appSection = document.getElementById('appSection');
+            appSection.classList.remove('hidden');
+            appSection.classList.add('fade-in');
 
-            // Команды (Checkboxes)
-            const cw = document.getElementById('cmdWrapper');
-            cw.innerHTML = '';
-            data.commands.forEach(c => cw.innerHTML += `
-                <label class="flex items-center gap-2 text-sm">
-                    <input type="checkbox" name="cmd" value="${c.id}"> ${c.title}
-                </label>
-            `);
+            try {
+                const res = await fetch('/api/discovery/', { 
+                    headers: {'Authorization': `Bearer ${token()}`} 
+                });
+                const data = await res.json();
+                const optionsList = document.getElementById('optionsList');
+                optionsList.innerHTML = '';
+                
+                const list = data.all_directions || data.directions || [];
+                if(list.length === 0) {
+                    optionsList.innerHTML = '<div class="text-center p-4 text-gray-500">Нет данных</div>';
+                    return;
+                }
+
+                list.forEach(d => {
+                    const item = document.createElement('div');
+                    item.className = 'option-item';
+                    item.innerText = d.name;
+                    item.onclick = () => selectOption(d.id, d.name);
+                    optionsList.appendChild(item);
+                });
+            } catch (e) {
+                showToast("Ошибка загрузки данных", "error");
+            }
         }
 
-        document.getElementById('appForm').onsubmit = async (e) => {
+        // --- API: СОХРАНЕНИЕ АНКЕТЫ ---
+        async function handleApplication(e) {
             e.preventDefault();
-            const cmdIds = Array.from(document.querySelectorAll('input[name="cmd"]:checked')).map(i => i.value);
-            
-            const res = await fetch('/api/applications/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token()}`
-                },
-                body: JSON.stringify({
-                    full_name: document.getElementById('fullName').value,
-                    phone_number: document.getElementById('phone').value,
-                    direction: document.getElementById('dirSelect').value, // Одно ID
-                    commands: cmdIds // Массив ID
-                })
-            });
-            if(res.ok) location.href = '/cabinet/';
-        };
+            const dirId = document.getElementById('dirSelectValue').value;
+            if(!dirId) return showToast("Выберите направление!");
+
+            setLoading('appBtn', true);
+            try {
+                const res = await fetch('/api/applications/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token()}`
+                    },
+                    body: JSON.stringify({
+                        full_name: document.getElementById('fullName').value,
+                        phone_number: document.getElementById('phone').value,
+                        direction: dirId
+                    })
+                });
+                
+                if (res.ok) {
+                    showToast("Анкета сохранена!", "success");
+                    setTimeout(() => location.href = '/cabinet/', 1000);
+                } else {
+                    showToast("Ошибка сохранения", "error");
+                    setLoading('appBtn', false);
+                }
+            } catch (err) {
+                showToast("Ошибка сети", "error");
+                setLoading('appBtn', false);
+            }
+        }
     </script>
 </body>
 </html>

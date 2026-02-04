@@ -3,6 +3,7 @@ from django.contrib.auth import authenticate
 from .models import Volunteer, VolunteerApplication, ActivityTask, ActivitySubmission
 from directions.models import VolunteerDirection
 from commands.models import Command
+from commands.serializers import QuestionSerializer
 
 # --- Регистрация ---
 class VolunteerRegisterSerializer(serializers.ModelSerializer):
@@ -13,7 +14,6 @@ class VolunteerRegisterSerializer(serializers.ModelSerializer):
         fields = ['login', 'password']
 
     def create(self, validated_data):
-        # Используем встроенный метод для корректного хеширования пароля
         return Volunteer.objects.create_user(**validated_data)
 
 # --- Справочники ---
@@ -23,42 +23,28 @@ class VolunteerDirectionSerializer(serializers.ModelSerializer):
         fields = ['id', 'name']
 
 class CommandSerializer(serializers.ModelSerializer):
+    questions = QuestionSerializer(many=True, read_only=True)
+    
     class Meta:
         model = Command
-        fields = ['id', 'title', 'slug']
+        # ВАЖНО: Убедись, что 'direction' и 'leader' здесь есть
+        fields = ['id', 'title', 'slug', 'leader', 'direction', 'questions']
 
-# --- Система Активностей ---
-class ActivityTaskSerializer(serializers.ModelSerializer):
-    direction_name = serializers.ReadOnlyField(source='direction.name')
-    command_name = serializers.ReadOnlyField(source='command.title')
-
-    class Meta:
-        model = ActivityTask
-        fields = ['id', 'title', 'description', 'points', 'direction', 'direction_name', 'command', 'command_name']
-
-class ActivitySubmissionSerializer(serializers.ModelSerializer):
-    task_details = ActivityTaskSerializer(source='task', read_only=True)
-    status_display = serializers.CharField(source='get_status_display', read_only=True)
-    volunteer_name = serializers.ReadOnlyField(source='volunteer.name')
-
-    class Meta:
-        model = ActivitySubmission
-        fields = ['id', 'task', 'task_details', 'volunteer_name', 'status', 'status_display', 'created_at']
-        read_only_fields = ['status', 'created_at']
-
-# --- Профиль Волонтера ---
 class VolunteerSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField(read_only=True)
     direction = VolunteerDirectionSerializer(many=True, read_only=True)
     commands = CommandSerializer(many=True, read_only=True)
     role_display = serializers.CharField(source='get_role_display', read_only=True)
+    
+    # НОВОЕ: Флаг тимлида, который нужен фронтенду
+    is_team_leader = serializers.SerializerMethodField()
 
     class Meta:
         model = Volunteer
         fields = [
-            'id', 'login', 'name', 'phone_number', 'email', 'image_url', # email оставляем в полях, но он может быть пуст
+            'id', 'login', 'name', 'phone_number', 'email', 'image_url',
             'role', 'role_display', 'direction', 'commands', 
-            'point', 'yellow_card'
+            'point', 'yellow_card', 'is_team_leader' # Добавили поле сюда
         ]
         read_only_fields = ['point', 'yellow_card', 'role', 'login']
 
@@ -68,16 +54,69 @@ class VolunteerSerializer(serializers.ModelSerializer):
             return request.build_absolute_uri(obj.image.url) if request else obj.image.url
         return None
 
-# --- Анкета (Шаг 2) ---
+    # Логика определения: является ли волонтер лидером хотя бы одной команды
+    def get_is_team_leader(self, obj):
+        return Command.objects.filter(leader=obj).exists()
+    
+# --- Система Активностей ---
+# --- Команды ---
+
+
+# --- Задачи (для баллов) ---
+class ActivityTaskSerializer(serializers.ModelSerializer):
+    command_name = serializers.ReadOnlyField(source='command.title')
+    command_id = serializers.ReadOnlyField(source='command.id')
+    direction_id = serializers.ReadOnlyField(source='command.direction.id')  # если нужен ID направления команды
+
+    class Meta:
+        model = ActivityTask
+        fields = [
+            'id',
+            'title',
+            'points',
+            'command_id',
+            'command_name',
+            'direction_id'
+        ]
+
+
+class ActivitySubmissionSerializer(serializers.ModelSerializer):
+    task_details = ActivityTaskSerializer(source='task', read_only=True)
+    volunteer_name = serializers.ReadOnlyField(source='volunteer.name')
+    volunteer_id = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = ActivitySubmission
+        fields = [
+            'id',
+            'task',
+            'task_details',
+            'volunteer_id',
+            'volunteer_name',
+            'status',
+            'created_at',
+            'description'
+        ]
+
+
+# --- Список для Куратора (VolunteerListView) ---
+class VolunteerListSerializer(serializers.ModelSerializer):
+    direction = VolunteerDirectionSerializer(many=True, read_only=True)
+    local_points = serializers.IntegerField(read_only=True) # Добавили в прошлом шаге
+
+    class Meta:
+        model = Volunteer
+        fields = ['id', 'name', 'login', 'direction', 'point', 'local_points', 'yellow_card']
+
+# --- Анкета ---
 class VolunteerApplicationSerializer(serializers.ModelSerializer):
-    # Указываем явно для обработки ID
     direction = serializers.PrimaryKeyRelatedField(queryset=VolunteerDirection.objects.all(), required=False)
-    commands = serializers.PrimaryKeyRelatedField(many=True, queryset=Command.objects.all(), required=False)
 
     class Meta:
         model = VolunteerApplication
-        fields = ['id', 'full_name', 'phone_number', 'direction', 'commands', 'status']
-# --- Остальное ---
+        fields = ['id', 'full_name', 'phone_number', 'direction', 'status']
+
+# --- Вспомогательные ---
 class VolunteerLoginSerializer(serializers.Serializer):
     login = serializers.CharField()
     password = serializers.CharField(write_only=True)
@@ -88,11 +127,6 @@ class VolunteerLoginSerializer(serializers.Serializer):
             raise serializers.ValidationError("Неверные данные")
         attrs['user'] = user
         return attrs
-
-class VolunteerApplicationStatusUpdateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = VolunteerApplication
-        fields = ['status']
 
 class BotAuthSerializer(serializers.Serializer):
     access_type = serializers.ChoiceField(choices=[('volunteer', 'volunteer'), ('curator', 'curator'), ('commands', 'commands')])

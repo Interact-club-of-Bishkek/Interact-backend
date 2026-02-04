@@ -2,186 +2,366 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Curator Hub | Управление</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@800;900&family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
     <style>
-        :root { --primary: #00c6ff; --bg: #020408; }
-        body { background: var(--bg); color: white; font-family: 'Inter', sans-serif; background-image: radial-gradient(circle at 50% 120%, #10192e 0%, #020408 100%); min-height: 100vh; padding: 40px; }
-        .glass-card { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 25px; }
-        .tab-btn { padding: 15px 30px; font-weight: 900; text-transform: uppercase; font-size: 12px; letter-spacing: 2px; border-bottom: 3px solid transparent; transition: 0.3s; color: #444; }
-        .tab-btn.active { color: var(--primary); border-color: var(--primary); }
-        .loader { border-top-color: var(--primary); animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        :root { --primary: #00c6ff; --bg: #020408; --glass: rgba(15, 23, 42, 0.95); }
+        body { 
+            background: var(--bg); color: white; font-family: 'Inter', sans-serif; 
+            background-image: radial-gradient(circle at 50% 120%, #10192e 0%, #020408 100%); 
+            min-height: 100vh; padding: 20px; padding-bottom: 80px; 
+        }
+        .glass-card { background: var(--glass); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 24px; }
+        .btn-glass { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: #94a3b8; transition: all 0.3s ease; border-radius: 14px; }
+        .btn-glass:hover { background: rgba(255, 255, 255, 0.1); color: white; border-color: rgba(255, 255, 255, 0.3); }
+        .tab-btn { padding: 12px 24px; font-weight: 800; text-transform: uppercase; font-size: 11px; letter-spacing: 0.1em; border-radius: 12px; transition: all 0.3s; color: #64748b; border: 1px solid transparent; white-space: nowrap; }
+        .tab-btn:hover:not(.active) { color: white; background: rgba(255,255,255,0.05); }
+        .tab-btn.active { background: rgba(0, 198, 255, 0.1); color: var(--primary); border-color: rgba(0, 198, 255, 0.3); box-shadow: 0 0 20px rgba(0, 198, 255, 0.15); }
+        .custom-table { width: 100%; border-collapse: separate; border-spacing: 0 8px; }
+        .custom-table th { padding: 0 16px; text-align: left; font-size: 10px; text-transform: uppercase; color: #4b5563; font-weight: 900; }
+        .custom-table td { padding: 16px; background: rgba(255,255,255,0.03); font-size: 13px; vertical-align: middle; }
+        .custom-table td:first-child { border-radius: 16px 0 0 16px; }
+        .custom-table td:last-child { border-radius: 0 16px 16px 0; }
+        .score-badge { background: rgba(0, 198, 255, 0.15); color: var(--primary); padding: 4px 10px; border-radius: 8px; font-weight: 900; font-family: 'Montserrat'; }
+        .score-total { color: #4b5563; font-weight: 700; font-size: 11px; margin-left: 8px; }
+        .loader-spin { animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 10px; }
+        .toast { padding: 16px 24px; border-radius: 16px; background: rgba(15, 23, 42, 0.95); border-left: 4px solid var(--primary); color: white; transform: translateX(110%); transition: 0.3s; display: flex; align-items: center; gap: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .toast.show { transform: translateX(0); }
     </style>
 </head>
 <body>
-    <div id="app" class="max-w-7xl mx-auto hidden">
-        <header class="flex justify-between items-start mb-12">
+    <div id="toast-container"></div>
+
+    <div id="app" class="max-w-7xl mx-auto hidden animate-fade-in">
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-6">
             <div>
-                <h1 class="text-5xl font-black italic uppercase text-primary">Curator <span class="text-white">Panel</span></h1>
-                <p class="text-gray-500 font-bold text-xs mt-2 tracking-[0.5em] uppercase">Control & Management System</p>
+                <p id="cName" class="text-gray-400 text-sm font-bold uppercase tracking-widest mb-1 pl-1">...</p>
+                <h1 class="text-4xl md:text-5xl font-black italic uppercase text-white leading-none">
+                    Curator <span class="text-primary">Panel</span>
+                </h1>
+                <div class="flex items-center gap-3 mt-3">
+                    <span class="w-8 h-[2px] bg-primary"></span>
+                    <p id="cRole" class="text-primary font-bold text-[10px] tracking-[0.3em] uppercase">...</p>
+                </div>
             </div>
-            <div class="flex gap-4">
-                <button onclick="location.href='/cabinet/'" class="glass-card hover:text-primary transition-all text-xs font-bold uppercase">В кабинет волонтера</button>
-                <button onclick="logout()" class="glass-card hover:text-red-500 transition-all"><i class="fas fa-power-off"></i></button>
+            <div class="flex items-center gap-4">
+                <div class="text-right hidden md:block">
+                    <p class="text-[9px] text-gray-500 uppercase font-black">Управление</p>
+                    <p id="managedTeamsLabel" class="text-white font-bold text-sm italic uppercase">Загрузка...</p>
+                </div>
+                <button onclick="logout()" class="btn-glass py-3 px-6 text-xs font-bold uppercase"><i class="fas fa-power-off mr-2"></i>Выход</button>
             </div>
         </header>
         
-        <div class="flex gap-10 mb-10 border-b border-white/5">
-            <button onclick="switchTab('req')" id="t1" class="tab-btn active">Новые Заявки</button>
-            <button onclick="switchTab('vols')" id="t2" class="tab-btn">База Волонтеров</button>
+        <div class="flex gap-3 mb-8 overflow-x-auto pb-2 scrollbar-hide">
+            <button onclick="switchTab('req')" id="tab_req" class="tab-btn active"><i class="fas fa-inbox mr-2"></i>Заявки на баллы</button>
+            <button onclick="switchTab('apps')" id="tab_apps" class="tab-btn"><i class="fas fa-rocket mr-2"></i>Набор в команды</button>
+            <button onclick="switchTab('vols')" id="tab_vols" class="tab-btn"><i class="fas fa-users mr-2"></i>База Волонтеров</button>
         </div>
 
-        <div id="secReq" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div class="col-span-full flex justify-center py-20"><div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12"></div></div>
+        <div id="secReq" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 section-view">
+            <div class="col-span-full flex justify-center py-20"><i class="fas fa-circle-notch loader-spin text-4xl text-primary/50"></i></div>
         </div>
         
-        <div id="secVols" class="hidden glass-card overflow-hidden p-0">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left">
-                    <thead class="bg-white/5 text-[10px] font-black uppercase text-primary tracking-widest">
-                        <tr><th class="p-6">Волонтер</th><th class="p-6">Направления</th><th class="p-6">Баллы</th><th class="p-6 text-right">Действия</th></tr>
-                    </thead>
-                    <tbody id="vTable" class="divide-y divide-white/5"></tbody>
-                </table>
+        <div id="secApps" class="hidden section-view">
+            <div class="flex flex-col md:flex-row justify-between gap-6 mb-8">
+                <div class="flex gap-2 bg-white/5 p-1 rounded-xl border border-white/5">
+                    <button id="subTabPending" onclick="switchAppSubTab('pending')" class="px-6 py-2.5 rounded-lg text-[10px] font-black uppercase transition-all bg-sky-400/10 text-sky-400">Ожидают (<span id="cntPending">0</span>)</button>
+                    <button id="subTabAccepted" onclick="switchAppSubTab('accepted')" class="px-6 py-2.5 rounded-lg text-[10px] font-black uppercase transition-all text-gray-500">Приняты (<span id="cntAccepted">0</span>)</button>
+                </div>
+            </div>
+            <div id="appsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        </div>
+
+        <div id="secVols" class="hidden section-view">
+            <div class="glass-card overflow-hidden p-0 border-white/5">
+                <div class="overflow-x-auto p-4">
+                    <table class="custom-table w-full">
+                        <thead>
+                            <tr>
+                                <th>Волонтер</th>
+                                <th>Направления</th>
+                                <th>Баллы (В зоне / Всего)</th>
+                                <th class="text-right">Нарушения</th>
+                            </tr>
+                        </thead>
+                        <tbody id="vTable"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 
-    <script>
-        const token = localStorage.getItem('access');
+    <div id="modal" class="hidden fixed inset-0 bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 z-[200]">
+        <div class="glass-card w-full max-w-2xl max-h-[90vh] overflow-y-auto relative border-white/10 shadow-2xl">
+            <button onclick="closeModal()" class="absolute top-6 right-6 text-gray-500 hover:text-white transition"><i class="fas fa-times text-xl"></i></button>
+            <div id="modalContent"></div>
+            <div class="mt-8 pt-8 border-t border-white/10 flex gap-4">
+                <button id="approveAppBtn" class="flex-1 py-4 bg-primary text-black font-black uppercase rounded-2xl hover:bg-white transition flex items-center justify-center gap-2 shadow-lg shadow-primary/20">
+                    <i class="fas fa-check-double"></i> Принять в команду
+                </button>
+            </div>
+        </div>
+    </div>
 
-        function logout() {
-            localStorage.clear();
-            location.href = '/login-page/';
+<script>
+const token = localStorage.getItem('access');
+const API = {
+    profile: '/api/profile/',
+    submissions: '/api/curator/submissions/',
+    volunteers: '/api/list/',
+    commands: '/commands/',
+    apps: '/commands-applications/'
+};
+
+let state = {
+    user: null,
+    submissions: [],
+    volunteers: [],
+    apps: [],
+    commands: [],
+    myManagedTeams: [],
+    myLeadingTeams: [],
+    appsView: [],
+    appSubTab: 'pending'
+};
+
+let questionMap = {};
+
+async function init() {
+    if (!token) return location.href = '/login/';
+    try {
+        const res = await fetch(API.profile, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (res.status === 401) return logout();
+        state.user = await res.json();
+        
+        document.getElementById('cName').innerText = state.user.name || state.user.login;
+        document.getElementById('cRole').innerText = state.user.role_display;
+        document.getElementById('app').classList.remove('hidden');
+
+        await loadAllData();
+    } catch (e) { console.error(e); }
+}
+
+async function loadAllData() {
+    try {
+        const h = { 'Authorization': `Bearer ${token}` };
+        const [sub, vol, cmd, app] = await Promise.all([
+            fetch(API.submissions, { headers: h }).then(r => r.json()),
+            fetch(API.volunteers, { headers: h }).then(r => r.json()),
+            fetch(API.commands, { headers: h }).then(r => r.json()),
+            fetch(API.apps, { headers: h }).then(r => r.json())
+        ]);
+
+        state.submissions = sub;
+        state.volunteers = vol;
+        state.commands = cmd;
+        state.apps = app;
+
+        const userId = String(state.user.id);
+        let dbTeams = [], leadTeams = [];
+
+        if (state.user.role === 'admin') {
+            dbTeams = cmd; leadTeams = cmd;
+        } else if (state.user.role === 'curator') {
+            const myDirIds = state.user.direction?.map(d => String(d.id)) || [];
+            dbTeams = cmd.filter(c => myDirIds.includes(String(c.direction)));
+            leadTeams = cmd.filter(c => String(c.leader) === userId);
+        } else if (state.user.role === 'teamlead') {
+            const myTeams = cmd.filter(c => String(c.leader) === userId);
+            dbTeams = myTeams; leadTeams = myTeams;
         }
 
-        async function init() {
-            if (!token) { location.href = '/login-page/'; return; }
+        state.myManagedTeams = dbTeams;
+        state.myLeadingTeams = leadTeams;
 
-            try {
-                // 1. Проверяем реальную роль через API
-                const profRes = await fetch('/api/profile/', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                
-                if (!profRes.ok) throw new Error("Auth failed");
-                
-                const user = await profRes.json();
-                
-                // Проверка прав: админ или куратор
-                if (user.role !== 'curator' && user.role !== 'admin') {
-                    alert("Доступ запрещен! Ваша роль: " + user.role);
-                    location.href = '/cabinet/';
-                    return;
-                }
+        document.getElementById('managedTeamsLabel').innerText = dbTeams.length > 0 ? dbTeams.map(t => t.title).join(' / ') : "—";
 
-                // Показываем интерфейс, если проверка пройдена
-                document.getElementById('app').classList.remove('hidden');
-                loadData();
+        state.commands.forEach(c => c.questions?.forEach(q => questionMap[`q_${q.id}`] = q.label));
 
-            } catch (err) {
-                console.error(err);
-                logout();
-            }
-        }
+        renderSubmissions();
+        renderVolunteers();
+        filterAndRenderApps();
+    } catch (e) { console.error(e); }
+}
 
-        async function loadData() {
-            try {
-                // Загружаем заявки на баллы
-                const rRes = await fetch('/api/curator/submissions/', { 
-                    headers: {'Authorization': `Bearer ${token}`} 
-                });
-                const subs = await rRes.json();
-                renderSubmissions(subs);
+function renderSubmissions() {
+    const container = document.getElementById('secReq');
+    const pending = state.submissions.filter(s => {
+        const isPending = s.status === 'pending';
+        const isMyZone = state.user.role === 'admin' ||
+            state.myManagedTeams.some(t => 
+                String(t.id) === String(s.task_details?.command) ||
+                String(t.id) === String(s.task_details?.direction)
+            );
+        return isPending && isMyZone;
+    });
 
-                // Загружаем список волонтеров
-                const vRes = await fetch('/api/list/', { 
-                    headers: {'Authorization': `Bearer ${token}`} 
-                });
-                const vols = await vRes.json();
-                renderVolunteers(vols);
+    if (pending.length === 0) {
+        container.innerHTML = `<div class="col-span-full py-20 text-center text-gray-600 font-black uppercase text-xs italic tracking-widest">Все заявки обработаны</div>`;
+        return;
+    }
 
-            } catch (err) {
-                console.error("Ошибка загрузки данных:", err);
-            }
-        }
-
-        function renderSubmissions(subs) {
-            const reqCont = document.getElementById('secReq');
-            const pending = Array.isArray(subs) ? subs.filter(s => s.status === 'pending') : [];
-            
-            if (pending.length === 0) {
-                reqCont.innerHTML = '<div class="col-span-full text-center py-10 text-gray-500 italic font-bold">Новых заявок пока нет...</div>';
-                return;
-            }
-
-            reqCont.innerHTML = pending.map(s => `
-                <div class="glass-card border-t-2 border-primary hover:scale-[1.02] transition-all">
-                    <div class="flex justify-between items-start mb-4">
-                        <span class="text-primary font-black italic text-xl">+${s.task_details?.points || 0}</span>
-                        <span class="text-[9px] text-gray-500 font-bold uppercase">${new Date(s.created_at).toLocaleDateString()}</span>
-                    </div>
-                    <h4 class="font-black text-lg uppercase mb-1">${s.volunteer_name || 'Аноним'}</h4>
-                    <p class="text-[10px] text-primary/60 font-bold uppercase mb-2">${s.task_details?.title || 'Задание'}</p>
-                    <p class="text-sm text-gray-400 mb-6 italic">"${s.description || 'Без комментария'}"</p>
-                    <div class="flex gap-2">
-                        <button onclick="updateStatus(${s.id}, 'approved')" class="flex-1 bg-primary text-black font-black py-3 rounded-xl uppercase text-xs hover:opacity-80 transition-all">Принять</button>
-                        <button onclick="updateStatus(${s.id}, 'rejected')" class="bg-red-500/10 text-red-500 border border-red-500/20 px-4 rounded-xl hover:bg-red-500 hover:text-white transition-all"><i class="fas fa-times"></i></button>
-                    </div>
+    container.innerHTML = pending.map(s => `
+        <div class="glass-card flex flex-col h-full border-white/5 hover:border-primary/20 transition" id="sub-${s.id}">
+            <div class="flex justify-between items-start mb-4">
+                <span class="px-2 py-1 bg-primary/10 text-primary text-[8px] font-black uppercase rounded">${s.task_details?.command_name || 'Команда'}</span>
+                <span class="text-[10px] text-gray-600 font-mono tracking-tighter">${new Date(s.created_at).toLocaleDateString()}</span>
+            </div>
+            <div class="mb-6 flex-grow">
+                <h4 class="font-black text-lg italic uppercase leading-tight text-white">${s.volunteer_name}</h4>
+                <p class="text-[10px] text-gray-400 font-bold uppercase mt-1 mb-3">${s.task_details?.title}</p>
+                <div class="bg-black/40 p-3 rounded-xl text-sm italic text-gray-500 border border-white/5">"${s.description || 'Без комментария'}"</div>
+            </div>
+            <div class="flex items-center gap-3 mt-auto">
+                <div class="score-badge text-lg">+${parseFloat(s.task_details?.points || 0)}</div>
+                <div class="flex-grow grid grid-cols-2 gap-2">
+                    <button onclick="decideSub(${s.id}, 'approved')" class="py-3 bg-primary text-black rounded-xl font-black uppercase text-[10px] hover:bg-white transition">Принять</button>
+                    <button onclick="decideSub(${s.id}, 'rejected')" class="py-3 bg-white/5 text-gray-500 rounded-xl font-black uppercase text-[10px] hover:text-red-500 transition">Отказ</button>
                 </div>
-            `).join('');
+            </div>
+        </div>`).join('');
+}
+
+async function decideSub(id, status) {
+    try {
+        const res = await fetch(`${API.submissions}${id}/`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status })
+        });
+        if (res.ok) {
+            document.getElementById(`sub-${id}`)?.remove();
+            showToast(status === 'approved' ? 'Баллы начислены' : 'Заявка отклонена');
+            await loadAllData();
+        }
+    } catch(e) { console.error(e); }
+}
+
+function renderVolunteers() {
+    const table = document.getElementById('vTable');
+    const myTeamIds = state.myManagedTeams.map(t => String(t.id));
+
+    table.innerHTML = state.volunteers.map(v => {
+        const scopePoints = state.submissions.reduce((sum, s) => {
+            const isHis = String(s.volunteer_id || s.volunteer) === String(v.id);
+            const isAppr = s.status === 'approved';
+            const taskCommandId = s.task_details ? String(s.task_details.command) : null;
+            const inMyZone = myTeamIds.includes(taskCommandId);
+            if (isHis && isAppr && inMyZone) return sum + (parseFloat(s.task_details?.points) || 0);
+            return sum;
+        }, 0);
+
+        let pointsHTML = '';
+        if (state.user.role === 'curator') {
+            pointsHTML = `<div class="flex items-center"><span class="score-badge">${scopePoints.toFixed(1)}</span><span class="text-[9px] text-gray-500 uppercase font-bold ml-2 italic">в направлении</span></div>`;
+        } else {
+            pointsHTML = `<div class="flex items-center"><span class="score-badge">${parseFloat(v.point || 0).toFixed(1)}</span><span class="score-total">/ ${scopePoints.toFixed(1)}</span></div>`;
         }
 
-        function renderVolunteers(vols) {
-            const table = document.getElementById('vTable');
-            if (!Array.isArray(vols)) return;
+        return `
+        <tr class="hover:bg-white/5 transition">
+            <td>
+                <div class="font-black uppercase text-sm italic text-white leading-none">${v.name || '---'}</div>
+                <div class="text-[10px] text-gray-500 font-mono mt-1">${v.login}</div>
+            </td>
+            <td>
+                <div class="flex flex-wrap gap-1">
+                    ${v.direction?.map(d => `<span class="bg-white/5 text-gray-400 text-[8px] px-2 py-0.5 rounded font-black uppercase">${d.name}</span>`).join('')}
+                </div>
+            </td>
+            <td>${pointsHTML}</td>
+            <td class="text-right text-red-400 font-black">${v.violations || 0}</td>
+        </tr>`;
+    }).join('');
+}
 
-            table.innerHTML = vols.map(v => `
-                <tr class="hover:bg-white/5 transition-all">
-                    <td class="p-6">
-                        <p class="font-bold text-lg">${v.name || 'Не указано'}</p>
-                        <p class="text-[10px] text-gray-600 font-bold uppercase tracking-widest">${v.login}</p>
-                    </td>
-                    <td class="p-6 text-xs text-gray-400">
-                        ${v.direction?.map(d => `<span class="text-primary/80">#${d.name}</span>`).join(' ') || 'Нет'}
-                    </td>
-                    <td class="p-6 font-black text-primary text-2xl italic">${v.point}</td>
-                    <td class="p-6 text-right">
-                        <span class="bg-orange-500/10 text-orange-500 text-[10px] px-3 py-1 rounded-full font-black uppercase">
-                            Карточки: ${v.yellow_card}
-                        </span>
-                    </td>
-                </tr>
-            `).join('');
+function filterAndRenderApps() {
+    const subTab = state.appSubTab;
+    const myTeamIds = state.myManagedTeams.map(t => String(t.id));
+    const appsGrid = document.getElementById('appsGrid');
+
+    state.appsView = state.apps.filter(app => {
+        const statusMatch = subTab === 'pending' ? app.status === 'pending' : app.status === 'accepted';
+        const inMyTeam = myTeamIds.includes(String(app.command));
+        return statusMatch && inMyTeam;
+    });
+
+    document.getElementById('cntPending').innerText = state.apps.filter(a => a.status==='pending' && myTeamIds.includes(String(a.command))).length;
+    document.getElementById('cntAccepted').innerText = state.apps.filter(a => a.status==='accepted' && myTeamIds.includes(String(a.command))).length;
+
+    if (state.appsView.length === 0) {
+        appsGrid.innerHTML = `<div class="col-span-full py-20 text-center text-gray-600 font-black uppercase text-xs italic tracking-widest">Нет заявок</div>`;
+        return;
+    }
+
+    appsGrid.innerHTML = state.appsView.map(a => `
+        <div class="glass-card p-6 flex flex-col hover:border-primary/20 cursor-pointer" onclick="openAppModal(${a.id})">
+            <h4 class="font-black text-white uppercase italic">${a.volunteer_name}</h4>
+            <p class="text-[10px] text-gray-400 mt-1">${a.comment || ''}</p>
+            <span class="mt-3 px-2 py-1 bg-primary/10 text-primary text-[8px] font-black uppercase rounded">${a.command_name}</span>
+        </div>`).join('');
+}
+
+function switchAppSubTab(tab) {
+    state.appSubTab = tab;
+    document.getElementById('subTabPending').classList.toggle('bg-sky-400/10', tab==='pending');
+    document.getElementById('subTabPending').classList.toggle('text-sky-400', tab==='pending');
+    document.getElementById('subTabAccepted').classList.toggle('bg-sky-400/10', tab==='accepted');
+    document.getElementById('subTabAccepted').classList.toggle('text-sky-400', tab==='accepted');
+    filterAndRenderApps();
+}
+
+function switchTab(tab) {
+    document.querySelectorAll('.section-view').forEach(s => s.classList.add('hidden'));
+    document.getElementById(`sec${tab.charAt(0).toUpperCase()+tab.slice(1)}`).classList.remove('hidden');
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(`tab_${tab}`).classList.add('active');
+}
+
+function openAppModal(id) {
+    const app = state.apps.find(a => a.id === id);
+    if (!app) return;
+    document.getElementById('modalContent').innerHTML = `
+        <h3 class="text-xl font-black text-white uppercase">${app.volunteer_name}</h3>
+        <p class="mt-2 text-gray-400 italic">${app.comment || 'Без комментария'}</p>
+    `;
+    document.getElementById('approveAppBtn').onclick = () => acceptApp(id);
+    document.getElementById('modal').classList.remove('hidden');
+}
+
+async function acceptApp(id) {
+    try {
+        const res = await fetch(`${API.apps}${id}/`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'accepted' })
+        });
+        if (res.ok) {
+            showToast('Заявка принята в команду');
+            closeModal();
+            await loadAllData();
         }
+    } catch(e){ console.error(e); }
+}
 
-        async function updateStatus(id, newStatus) {
-            try {
-                const res = await fetch(`/api/curator/submissions/${id}/`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ status: newStatus })
-                });
-                if (res.ok) loadData();
-                else alert("Ошибка при обновлении статуса");
-            } catch (err) {
-                console.error(err);
-            }
-        }
+function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+function logout() { localStorage.removeItem('access'); location.href='/login/'; }
 
-        function switchTab(t) {
-            document.getElementById('secReq').classList.toggle('hidden', t === 'vols');
-            document.getElementById('secVols').classList.toggle('hidden', t === 'req');
-            document.getElementById('t1').classList.toggle('active', t === 'req');
-            document.getElementById('t2').classList.toggle('active', t === 'vols');
-        }
+function showToast(msg) {
+    const toast = document.createElement('div');
+    toast.className = 'toast show';
+    toast.innerText = msg;
+    document.getElementById('toast-container').appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
 
-        init();
-    </script>
+init();
+</script>
 </body>
 </html>

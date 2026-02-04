@@ -7,10 +7,10 @@ from projects.models import Project
 class VolunteerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Volunteer
+        # Убрали telegram_username и telegram_id, так как их нет в модели
         fields = [
             'id', 'login', 'name', 'phone_number', 'email', 'image',
-            'telegram_username', 'telegram_id', 'board', 'direction',
-            'point', 'yellow_card'
+            'direction', 'point', 'yellow_card'
         ]
         ref_name = 'DirectionVolunteer'
 
@@ -36,5 +36,4 @@ class ProjectDirectionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProjectDirection
-        fields = ['id', 'name', 'projects']
-    
+        fields = ['id', 'name', 'projects'] 
