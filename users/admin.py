@@ -1,6 +1,8 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from users.models import VolunteerApplication, Volunteer, BotAccessConfig
+from users.models import VolunteerApplication, Volunteer, BotAccessConfig, VolunteerArchive
+
+admin.site.register(VolunteerArchive)
 
 @admin.register(VolunteerApplication)
 class VolunteerApplicationAdmin(admin.ModelAdmin):
