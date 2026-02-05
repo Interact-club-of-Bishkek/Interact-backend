@@ -47,7 +47,7 @@ class Volunteer(AbstractBaseUser, PermissionsMixin):
     name = models.CharField("ФИО", max_length=255, blank=True, null=True)
     phone_number = models.CharField("Телефон", max_length=100, blank=True, null=True) 
     email = models.EmailField("Email", blank=True, null=True)    
-    visible_password = models.CharField("Пароль (видимый)", max_length=100, blank=True, editable=False)
+    visible_password = models.CharField("Пароль (видимый)", max_length=100, blank=True)
     image = models.ImageField("Фото", upload_to="users/", blank=True)
     
     role = models.CharField("Роль (Статус)", max_length=20, choices=ROLE_CHOICES, default='volunteer')
