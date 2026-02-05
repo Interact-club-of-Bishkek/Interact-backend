@@ -1,12 +1,13 @@
 from django.contrib import admin
 from django.db import models
 from django.db.models import Q
+from django.utils.html import format_html  # КРИТИЧЕСКИЙ ИМПОРТ (без него будет 500)
 from .models import (
     Volunteer, VolunteerApplication, VolunteerArchive, 
     ActivityTask, ActivitySubmission, BotAccessConfig
 )
 
-# Inline для просмотра заданий внутри профиля волонтера
+# --- INLINES ---
 class ActivitySubmissionInline(admin.TabularInline):
     model = ActivitySubmission
     extra = 0
@@ -19,9 +20,10 @@ class ActivitySubmissionInline(admin.TabularInline):
     def has_add_permission(self, request, obj):
         return False
 
+# --- VOLUNTEER ---
 @admin.register(Volunteer)
 class VolunteerAdmin(admin.ModelAdmin):
-    # Теперь колонка 'display_password' будет работать
+    # Добавили display_password в список
     list_display = ('name', 'login', 'display_password', 'role', 'point', 'yellow_card', 'is_active')
     list_filter = ('role', 'is_active', 'direction', 'commands')
     search_fields = ('name', 'login', 'phone_number')
@@ -31,7 +33,6 @@ class VolunteerAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Учетные данные', {
-            # Скобки ( ... ) вокруг логина и пароля ставят их на ОДНУ строку
             'fields': (('login', 'visible_password'), 'role', 'is_active')
         }),
         ('Личные данные', {
@@ -45,7 +46,7 @@ class VolunteerAdmin(admin.ModelAdmin):
         }),
     )
 
-    # Добавляем этот метод внутрь класса!
+    # Метод для красивого вывода пароля
     def display_password(self, obj):
         if obj.visible_password:
             return format_html(
@@ -55,6 +56,7 @@ class VolunteerAdmin(admin.ModelAdmin):
         return format_html('<span style="color: #999;">Изменен</span>')
     display_password.short_description = "Пароль (авто)"
 
+# --- APPLICATIONS ---
 @admin.register(VolunteerApplication)
 class VolunteerApplicationAdmin(admin.ModelAdmin):
     list_display = ('full_name', 'direction_name', 'status', 'phone_number', 'created_at')
@@ -66,24 +68,23 @@ class VolunteerApplicationAdmin(admin.ModelAdmin):
         return obj.direction.name if obj.direction else "-"
     direction_name.short_description = "Направление"
 
+# --- TASKS ---
 @admin.register(ActivityTask)
 class ActivityTaskAdmin(admin.ModelAdmin):
-    # ИСПРАВЛЕНИЕ: Убрали direction, так как его нет в модели
     list_display = ('title', 'points', 'get_visibility')
     list_filter = ('command',) 
     search_fields = ('title',)
 
-    # Кастомная колонка для удобства
     def get_visibility(self, obj):
         if obj.command:
             return f"🔒 Только команда: {obj.command.title}"
         return "🌍 ОБЩЕЕ (Видно всем)"
     get_visibility.short_description = "Видимость"
 
+# --- SUBMISSIONS ---
 @admin.register(ActivitySubmission)
 class ActivitySubmissionAdmin(admin.ModelAdmin):
     list_display = ('volunteer', 'task', 'status', 'created_at')
-    # ИСПРАВЛЕНИЕ: Фильтруем по статусу и команде задачи (direction у задачи нет)
     list_filter = ('status', 'task__command')
     search_fields = ('volunteer__name', 'task__title')
     actions = ['approve_selected', 'reject_selected']
@@ -92,10 +93,6 @@ class ActivitySubmissionAdmin(admin.ModelAdmin):
         qs = super().get_queryset(request)
         if request.user.is_superuser or request.user.role == 'admin':
             return qs
-        
-        # ЛОГИКА ВИДИМОСТИ ДЛЯ КУРАТОРА:
-        # 1. Куратор видит задачи, привязанные к ЕГО команде (где он лидер).
-        # 2. Куратор видит задачи, выполненные волонтерами ИЗ ЕГО направления (даже если задача общая).
         return qs.filter(
             Q(task__command__leader=request.user) | 
             Q(volunteer__direction__responsible=request.user)
@@ -105,16 +102,14 @@ class ActivitySubmissionAdmin(admin.ModelAdmin):
     def approve_selected(self, request, queryset):
         for obj in queryset.filter(status='pending'):
             obj.status = 'approved'
-            obj.save() # Вызовет метод save() модели и начислит баллы
+            obj.save()
 
     @admin.action(description="❌ Отклонить выбранные")
     def reject_selected(self, request, queryset):
-        # Тут используем цикл, чтобы сработал save() и снялись баллы (если вдруг они были начислены)
-        # Или просто update, если мы уверены, что снимать не надо.
-        # Для безопасности лучше через цикл, если логика сложная:
         for obj in queryset.filter(status='pending'):
             obj.status = 'rejected'
             obj.save()
 
+# --- OTHER ---
 admin.site.register(BotAccessConfig)
 admin.site.register(VolunteerArchive)
