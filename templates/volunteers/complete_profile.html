@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Заполнение анкеты</title>
+    <link rel="icon" type="image/png" href="https://i.ibb.co/qFYrFSnD/2105176-1-removebg-preview.png">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@900&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root { --primary: #00c6ff; --bg: #020408; }
+        body { background: var(--bg); font-family: 'Inter', sans-serif; color: white; background-image: radial-gradient(circle at 50% -20%, #10192e 0%, #020408 100%); min-height: 100vh; }
+        .glass-card { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); border-radius: 30px; }
+        .input-field { background: rgba(0, 198, 255, 0.05); border: 2px solid rgba(0, 198, 255, 0.2); border-radius: 15px; padding: 0.8rem 1.2rem; color: white; width: 100%; transition: all 0.3s; margin-bottom: 1rem; }
+        .input-field:focus { border-color: var(--primary); box-shadow: 0 0 15px rgba(0, 198, 255, 0.3); outline: none; }
+        .btn-primary { background: var(--primary); color: #000; font-weight: 900; text-transform: uppercase; border-radius: 15px; padding: 1rem; width: 100%; transition: 0.3s; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0, 198, 255, 0.4); }
+        
+        /* Стили для карточек команд */
+        .command-card { 
+            background: rgba(255,255,255,0.03); 
+            border: 1px solid rgba(255,255,255,0.08); 
+            padding: 12px; 
+            border-radius: 12px; 
+            cursor: pointer; 
+            transition: 0.2s; 
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .command-card:hover { background: rgba(255,255,255,0.08); }
+        /* Когда чекбокс активен */
+        .command-card:has(input:checked) { 
+            border-color: var(--primary); 
+            background: rgba(0, 198, 255, 0.15); 
+        }
+        .dir-title {
+            font-family: 'Montserrat', sans-serif;
+            color: var(--primary);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-top: 1.5rem;
+            margin-bottom: 0.5rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 5px;
+        }
+    </style>
+</head>
+<body class="p-6">
+    <div class="max-w-xl mx-auto glass-card p-8 md:p-12">
+        <header class="text-center mb-8">
+            <h1 class="font-['Montserrat'] font-black text-3xl uppercase italic text-primary">Шаг 2: <span class="text-white">Анкета</span></h1>
+            <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-2">Расскажите о себе и выберите команды</p>
+        </header>
+
+        <form id="appForm" class="space-y-4">
+            <div>
+                <label class="text-[10px] font-bold uppercase text-primary ml-2">Полное ФИО</label>
+                <input type="text" id="full_name" class="input-field" placeholder="Иванов Иван Иванович" required>
+            </div>
+            
+            <div>
+                <label class="text-[10px] font-bold uppercase text-primary ml-2">Номер телефона</label>
+                <input type="text" id="phone_number" class="input-field" placeholder="+996 --- -- -- --" required>
+            </div>
+
+            <div>
+                <label class="text-[10px] font-bold uppercase text-primary ml-2 mb-2 block">Выберите команды</label>
+                <div id="commandsContainer" class="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scroll">
+                    <div class="text-center text-gray-500 text-sm py-4">Загрузка направлений...</div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-primary mt-6">Завершить регистрацию</button>
+        </form>
+    </div>
+
+    <script>
+        // 1. Грузим данные (Направления + Команды внутри)
+        async function fetchDiscovery() {
+            try {
+                // Если у вас нет токена в localStorage, закомментируйте header Authorization для теста
+                const token = localStorage.getItem('access');
+                
+                const res = await fetch('/api/discovery/', {
+                    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                });
+                
+                if (!res.ok) throw new Error('Ошибка загрузки данных');
+                
+                const data = await res.json();
+                renderCommands(data.directions || []); // Предполагаем, что бэкенд возвращает { directions: [...] }
+            } catch (e) {
+                console.error(e);
+                document.getElementById('commandsContainer').innerHTML = `<p class="text-red-500 text-center">Не удалось загрузить списки команд</p>`;
+            }
+        }
+
+        // Рендер списка: Направление (Заголовок) -> Команды (Чекбоксы)
+        function renderCommands(directions) {
+            const container = document.getElementById('commandsContainer');
+            container.innerHTML = '';
+
+            if (directions.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-center">Нет доступных команд</p>';
+                return;
+            }
+
+            directions.forEach(dir => {
+                // Пропускаем направления без команд, если нужно
+                if (!dir.commands || dir.commands.length === 0) return;
+
+                // 1. Заголовок направления
+                const dirTitle = document.createElement('div');
+                dirTitle.className = 'dir-title';
+                dirTitle.innerText = dir.name; // Название направления (IT, HR и т.д.)
+                container.appendChild(dirTitle);
+
+                // 2. Сетка команд для этого направления
+                const grid = document.createElement('div');
+                grid.className = 'grid grid-cols-1 sm:grid-cols-2 gap-3';
+
+                dir.commands.forEach(cmd => {
+                    grid.innerHTML += `
+                        <label class="command-card group">
+                            <input type="checkbox" name="selected_commands" value="${cmd.id}" class="accent-cyan-400 w-4 h-4">
+                            <div class="flex flex-col">
+                                <span class="text-xs font-bold text-gray-200 group-hover:text-white">${cmd.title}</span>
+                            </div>
+                        </label>
+                    `;
+                });
+                container.appendChild(grid);
+            });
+        }
+
+        // 2. Отправка анкеты
+        document.getElementById('appForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const token = localStorage.getItem('access');
+
+            // Собираем ID выбранных команд
+            const selectedCommands = Array.from(document.querySelectorAll('input[name="selected_commands"]:checked'))
+                                          .map(cb => parseInt(cb.value));
+
+            if (selectedCommands.length === 0) {
+                alert("Пожалуйста, выберите хотя бы одну команду!");
+                return;
+            }
+
+            const payload = {
+                full_name: document.getElementById('full_name').value,
+                phone_number: document.getElementById('phone_number').value,
+                // Важно: отправляем ID команд, а не направлений
+                command_ids: selectedCommands, 
+                
+                // Заглушки для обязательных полей (если они есть в модели)
+                why_volunteer: "Первичная регистрация",
+                volunteer_experience: "Нет",
+                hobbies_skills: "Нет",
+                strengths: "Нет",
+                why_choose_you: "Мотивация",
+                expectations: "Опыт",
+                weekly_hours: "5-10"
+            };
+
+            try {
+                const res = await fetch('/api/applications/', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.ok) {
+                    alert("Профиль успешно создан! Добро пожаловать.");
+                    window.location.href = '/cabinet/'; // Переход в личный кабинет
+                } else {
+                    const err = await res.json();
+                    console.log(err);
+                    alert("Ошибка при сохранении: " + JSON.stringify(err));
+                }
+            } catch (e) {
+                alert("Ошибка соединения с сервером");
+            }
+        };
+
+        // Запуск
+        fetchDiscovery();
+    </script>
+</body>
+</html>

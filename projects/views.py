@@ -59,3 +59,4 @@ def promotion_page(request):
 
 def custom_page_not_found(request, exception):
     return render(request, 'error/404.html', status=404)
+

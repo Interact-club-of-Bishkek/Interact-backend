@@ -2,218 +2,241 @@ import random
 import string
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
-# Проверяем, что VolunteerDirection импортирован корректно
 from directions.models import VolunteerDirection 
+from commands.models import Command
 
-
-# --- Менеджер для кастомного пользователя (Volunteer) ---
+# --- МЕНЕДЖЕР ПОЛЬЗОВАТЕЛЕЙ (Без изменений) ---
 class VolunteerManager(BaseUserManager):
-    """Кастомный менеджер для модели Volunteer."""
-
     def create_user(self, login=None, password=None, **extra_fields):
-        # Если login не передан, он будет сгенерирован в методе save() модели Volunteer
-        
-        # Защита от создания без обязательных полей
-        if 'name' not in extra_fields:
-            raise ValueError('The Name field must be set')
-        
+        if not login:
+            raise ValueError('Поле Логин должно быть заполнено')
         user = self.model(login=login, **extra_fields)
-
-        # Логика генерации пароля перенесена сюда, чтобы убедиться, что visible_password 
-        # и password (hashed) установлены при создании через Manager.
         if password is None:
             raw_password = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
             user.visible_password = raw_password
             user.set_password(raw_password)
         else:
             user.set_password(password)
-            # Если пароль передан, visible_password обычно не устанавливается, 
-            # но для админки его можно оставить пустым или установить переданный пароль, 
-            # если это необходимо для логирования (но это небезопасно). Оставляем как есть.
-            
         user.save(using=self._db)
         return user
-
+    
     def create_superuser(self, login, password, **extra_fields):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
-        
-        if extra_fields.get('is_staff') is not True:
-            raise ValueError('Superuser must have is_staff=True.')
-        if extra_fields.get('is_superuser') is not True:
-            raise ValueError('Superuser must have is_superuser=True.')
-
         return self.create_user(login, password, **extra_fields)
 
 
-# --- Модель Заявки кандидата ---
-class VolunteerApplication(models.Model):
-    STATUS_CHOICES = [
-        ('submitted', 'Отправлено'),
-        ('interview', 'На собеседовании'),
-        ('accepted', 'Принят'),
-        ('rejected', 'Отказ'),
+# --- МОДЕЛЬ ВОЛОНТЕРА (ПОЛЬЗОВАТЕЛЬ) ---
+class Volunteer(AbstractBaseUser, PermissionsMixin):
+    ROLE_CHOICES = [
+        ('volunteer', 'Волонтер'),
+        ('teamlead', 'Тимлидер'),
+        ('curator', 'Куратор'),
+        ('president', 'Президент'),
+        ('bailiff_base', 'Пристав (База)'),
+        ('bailiff_activity', 'Пристав (Активности)'),
+        ('equity_officer', 'Эквити-офицер'),
+        ('admin', 'Администратор'),
     ]
 
-    full_name = models.CharField(max_length=200, verbose_name="ФИО")
-    email = models.EmailField(verbose_name='Email', blank=True, null=True)
-    phone_number = models.CharField(max_length=50, verbose_name="Телефон")
-    photo = models.ImageField(upload_to='volunteers_photos/', verbose_name="Фото", null=True, blank=True)
+    login = models.CharField("Логин", max_length=100, unique=True, blank=True)
+    name = models.CharField("ФИО", max_length=255, blank=True, null=True)
+    phone_number = models.CharField("Телефон", max_length=100, blank=True, null=True) 
+    email = models.EmailField("Email", blank=True, null=True)    
+    visible_password = models.CharField("Пароль (видимый)", max_length=100, blank=True, editable=False)
+    image = models.ImageField("Фото", upload_to="users/", blank=True)
     
-    # --- ИСПРАВЛЕННЫЕ И ДОБАВЛЕННЫЕ ПОЛЯ ---
-    date_of_birth = models.DateField(verbose_name="Дата рождения", null=True, blank=True)
-    place_of_study = models.CharField(max_length=255, verbose_name="Место учебы/работы", blank=True)
-    choice_motives = models.TextField(verbose_name="Мотивы выбора направлений", blank=True)
-    # ----------------------------------------
-
-    why_volunteer = models.TextField(verbose_name="Почему Вы хотите стать волонтером?")
-    volunteer_experience = models.TextField(verbose_name="Опыт волонтёрства")
-    hobbies_skills = models.TextField(verbose_name="Навыки и хобби")
-    strengths = models.TextField(verbose_name="Сильные качества")
-    why_choose_you = models.TextField(verbose_name="Почему выбрать Вас?")
-
-    agree_inactivity_removal = models.BooleanField(verbose_name="Согласны с удалением при низкой активности?")
-    agree_terms = models.BooleanField(verbose_name="Согласны с условиями клуба?")
-    ready_travel = models.BooleanField(verbose_name="Готовы к выездам?")
-    ideas_improvements = models.TextField(verbose_name="Идеи и улучшения", blank=True) # Добавлено blank=True на всякий случай
-    expectations = models.TextField(verbose_name="Ожидания")
-
-    directions = models.ManyToManyField(VolunteerDirection, verbose_name="Выбранные направления", blank=True)
-    weekly_hours = models.CharField(max_length=50, verbose_name="Время в неделю")
-    attend_meetings = models.BooleanField(verbose_name="Будете присутствовать на собраниях?")
+    role = models.CharField("Роль (Статус)", max_length=20, choices=ROLE_CHOICES, default='volunteer')
     
-    feedback = models.TextField(verbose_name="Фидбэк (отзыв об анкете)", blank=True, null=True) # Добавлено поле для фидбэка из бота
+    # Связи
+    direction = models.ManyToManyField(VolunteerDirection, verbose_name="Направления", related_name="volunteers", blank=True)
+    commands = models.ManyToManyField(Command, verbose_name="Команды", related_name="volunteers", blank=True)
 
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='submitted')
+    # Баллы и нарушения
+    point = models.DecimalField("Баллы", max_digits=10, decimal_places=1, default=0)
+    yellow_card = models.IntegerField("Желтые карточки", default=0)
+
+    # Статусы
+    is_staff = models.BooleanField("Доступ в админку", default=False)
+    is_active = models.BooleanField("Активен", default=True)
+
+    objects = VolunteerManager()
+
+    USERNAME_FIELD = 'login'
+    REQUIRED_FIELDS = []
+
+    def generate_unique_login(self, base_name):
+        # Очистка имени для логина (убираем пробелы, меняем ё)
+        base_login = base_name.lower().replace(" ", "").replace("ё", "e")
+        while True:
+            random_suffix = ''.join(random.choices(string.digits, k=4))
+            login_candidate = f"user_{random_suffix}"
+            if not Volunteer.objects.filter(login=login_candidate).exists():
+                return login_candidate
+
+    def save(self, *args, **kwargs):
+        # 1. Логика для новых записей
+        if not self.pk:
+            if not self.login:
+                base = self.name if self.name else "volunteer"
+                self.login = self.generate_unique_login(base)
+            if not self.password:
+                raw_password = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+                self.visible_password = raw_password
+                self.set_password(raw_password)
+
+        # 2. Проверка лидерства и ответсвенности
+        # Импорт внутри, чтобы избежать циклической зависимости
+        from directions.models import VolunteerDirection
+        from commands.models import Command
+
+        # Если объект уже существует в БД
+        if self.pk:
+            is_responsible = VolunteerDirection.objects.filter(responsible=self).exists()
+            is_leader = Command.objects.filter(leader=self).exists()
+
+            if is_responsible or is_leader:
+                # АВТО-ПОВЫШЕНИЕ: только если текущая роль - 'volunteer'
+                if self.role == 'volunteer':
+                    self.role = 'curator'
+                
+                # Доступ в админку обязателен для всех лидеров и кураторов
+                self.is_staff = True
+
+        # 3. ЕДИНСТВЕННЫЙ вызов super().save()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.name or self.login} ({self.get_role_display()})"
+
+    class Meta:
+        verbose_name = "Волонтер"
+        verbose_name_plural = "Волонтеры"
+
+# --- СИСТЕМА ЗАДАНИЙ И БАЛЛОВ ---
+
+class ActivityTask(models.Model):
+    title = models.CharField("Название задания", max_length=255)
+    description = models.TextField("Описание", blank=True)
+    
+    # ИЗМЕНЕНИЕ: Плавающее число баллов
+    points = models.DecimalField("Баллы за выполнение", max_digits=6, decimal_places=1, default=0)
+    
+    # ИЗМЕНЕНИЕ: Убрали direction, так как задачи общие для всех.
+    # Оставили только command. Если command заполнено - задача видна ТОЛЬКО этой команде.
+    # Если command пустое - задача видна ВСЕМ (как общее задание).
+    command = models.ForeignKey(Command, on_delete=models.CASCADE, verbose_name="Спец. Команда (опционально)", null=True, blank=True, help_text="Если выбрать команду, задание будет видно ТОЛЬКО участникам этой команды. Если оставить пустым — видно ВСЕМ.")
+
+    def __str__(self):
+        dest = self.command.title if self.command else "ОБЩЕЕ (Для всех)"
+        return f"[{dest}] {self.title} ({self.points} б.)"
+
+    class Meta:
+        verbose_name = "Справочник заданий"
+        verbose_name_plural = "Справочник заданий"
+
+
+class ActivitySubmission(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'На проверке'),
+        ('approved', 'Принято'),
+        ('rejected', 'Отклонено'),
+    ]
+
+    volunteer = models.ForeignKey(Volunteer, on_delete=models.CASCADE, verbose_name="Волонтер", related_name="submissions")
+    task = models.ForeignKey(ActivityTask, on_delete=models.CASCADE, verbose_name="Задание")
+    status = models.CharField("Статус", max_length=20, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField("Дата подачи", auto_now_add=True)
+    description = models.TextField("Комментарий/Отчет", blank=True, null=True) 
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            old_instance = ActivitySubmission.objects.get(pk=self.pk)
+            # Логика начисления/снятия баллов
+            if old_instance.status != 'approved' and self.status == 'approved':
+                self.volunteer.point += self.task.points
+                self.volunteer.save()
+            elif old_instance.status == 'approved' and self.status != 'approved':
+                self.volunteer.point -= self.task.points
+                self.volunteer.save()
+                
+        super().save(*args, **kwargs)
+
+    class Meta:
+        verbose_name = "Заявка на баллы"
+        verbose_name_plural = "Заявки на баллы"
+
+
+# --- АНКЕТЫ (Остаются почти без изменений, только связи) ---
+
+class VolunteerApplication(models.Model):
+    full_name = models.CharField("ФИО", max_length=200)
+    phone_number = models.CharField("Телефон", max_length=50)
+    email = models.EmailField("Email", blank=True, null=True)
+    photo = models.ImageField("Фото", upload_to='volunteers_photos/', null=True, blank=True)
+    date_of_birth = models.DateField("Дата рождения", null=True, blank=True)
+    place_of_study = models.CharField("Место учебы/работы", max_length=255, blank=True)
+    
+    choice_motives = models.TextField("Мотивы", blank=True)
+    why_volunteer = models.TextField("Почему волонтер?", blank=True)
+    volunteer_experience = models.TextField("Опыт", blank=True)
+    hobbies_skills = models.TextField("Хобби", blank=True)
+    strengths = models.TextField("Качества", blank=True)
+    why_choose_you = models.TextField("Почему вы?", blank=True)
+    ideas_improvements = models.TextField("Идеи", blank=True)
+    expectations = models.TextField("Ожидания", blank=True)
+    feedback = models.TextField("Фидбэк", blank=True, null=True)
+    
+    agree_inactivity_removal = models.BooleanField(default=False)
+    agree_terms = models.BooleanField(default=False)
+    ready_travel = models.BooleanField(default=False)
+    attend_meetings = models.BooleanField(default=False)
+    
+    weekly_hours = models.CharField("Время в неделю", max_length=50, blank=True)
+
+    status = models.CharField("Статус", max_length=20, choices=[('submitted', 'Отправлено'), ('interview', 'На собеседовании'), ('accepted', 'Принят'), ('rejected', 'Отказ')], default='submitted')
     volunteer_created = models.BooleanField(default=False, editable=False)
-    volunteer = models.OneToOneField(
-        'Volunteer',
-        verbose_name='Созданный волонтёр',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='application'
-    )
-
+    volunteer = models.OneToOneField(Volunteer, on_delete=models.SET_NULL, null=True, blank=True, related_name="application_profile")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def __str__(self):
-        return self.full_name
+    direction = models.ForeignKey(
+        'directions.VolunteerDirection', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=False,
+        related_name='volunteer_applications'
+    )
+
+    commands = models.ManyToManyField(
+        'commands.Command', 
+        blank=True,
+        related_name='volunteer_applications'
+    )
 
     class Meta:
         verbose_name = "Анкета кандидата"
         verbose_name_plural = "Анкеты кандидатов"
 
-
-# --- Модель Волонтёра (Кастомный пользователь) ---
-class Volunteer(AbstractBaseUser, PermissionsMixin):
-    login = models.CharField(verbose_name='Логин', max_length=100, unique=True, blank=True)
-    visible_password = models.CharField(max_length=100, blank=True, editable=False, verbose_name='Пароль (видимый)')
-    name = models.CharField(verbose_name='ФИО', max_length=100)
-    phone_number = models.CharField(verbose_name='Телефон', max_length=100)
-    email = models.EmailField(verbose_name='Email', blank=True)
-    image = models.ImageField(verbose_name='Фото', upload_to="users/", blank=True)
-    telegram_username = models.CharField(verbose_name='Telegram @username', max_length=100, blank=True)
-    telegram_id = models.BigIntegerField(verbose_name='Telegram ID', blank=True, null=True)
-    board = models.BooleanField(default=False)
-    direction = models.ManyToManyField(
-        VolunteerDirection,
-        verbose_name='Направление',
-        related_name='volunteers',
-        blank=True
-    )    
-    point = models.IntegerField(verbose_name='Баллы', blank=True, null=True, default=0)
-    yellow_card = models.IntegerField(verbose_name='Желтая карточка', blank=True, null=True, default=0)
-
-    is_staff = models.BooleanField(default=False)
-    is_active = models.BooleanField(default=True)
-
-    objects = VolunteerManager()
-
-    USERNAME_FIELD = 'login'
-    REQUIRED_FIELDS = ['name', 'phone_number']
-
-    def generate_unique_login(self, base_name):
-        base_login = base_name.lower().replace(" ", "").replace("ё", "е")
-        while True:
-            random_suffix = ''.join(random.choices(string.digits, k=4))
-            login_candidate = f"{base_login[:96]}{random_suffix}" # Ограничение длины
-            if not Volunteer.objects.filter(login=login_candidate).exists():
-                return login_candidate
-
-    def save(self, *args, **kwargs):
-            if not self.pk:
-                # Если логин пустой, генерируем его
-                if not self.login:
-                    self.login = self.generate_unique_login(self.name)
-                
-                # Если пароля нет (даже захешированного), создаем его
-                if not self.password:
-                    raw_password = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
-                    self.visible_password = raw_password
-                    self.set_password(raw_password)
-            
-            # Важно: вызываем родительский метод
-            super().save(*args, **kwargs)
-
-    def __str__(self):
-        return self.name
-
-    class Meta:
-        verbose_name = 'Волонтёр'
-        verbose_name_plural = 'Волонтёры'
-
-
-# --- Модель Архива волонтёра ---
+# Архив и Бот
 class VolunteerArchive(models.Model):
-    # Я добавил поля, которых не было в архиве, но которые были в заявке
-    full_name = models.CharField(max_length=200)
-    email = models.EmailField(verbose_name='Email', blank=True, null=True)
-    phone_number = models.CharField(max_length=50)
+    full_name = models.CharField("ФИО", max_length=200)
+    email = models.EmailField("Email", blank=True, null=True)
+    phone_number = models.CharField("Телефон", max_length=50)
     photo = models.ImageField(upload_to='volunteers_archive_photos/', null=True, blank=True)
-    
-    # --- ДОБАВЛЕННЫЕ ПОЛЯ В АРХИВ ---
-    date_of_birth = models.DateField(verbose_name="Дата рождения", null=True, blank=True)
-    place_of_study = models.CharField(max_length=255, verbose_name="Место учебы/работы", blank=True)
-    choice_motives = models.TextField(verbose_name="Мотивы выбора направлений", blank=True)
-    # --------------------------------
-    
-    why_volunteer = models.TextField()
-    volunteer_experience = models.TextField()
-    hobbies_skills = models.TextField()
-    strengths = models.TextField()
-    why_choose_you = models.TextField(blank=True) # Добавил blank=True
-    
-    weekly_hours = models.CharField(max_length=50, blank=True)
-    attend_meetings = models.BooleanField(default=False)
-
+    date_of_birth = models.DateField(null=True, blank=True)
+    why_volunteer = models.TextField(blank=True)
     directions = models.ManyToManyField(VolunteerDirection, blank=True)
-    
     created_at = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self):
-        return self.full_name
-
     class Meta:
-        verbose_name = "Архив волонтёра"
-        verbose_name_plural = "Архив волонтёров"
-
-
-from django.db import models
+        verbose_name = "Архив волонтера"
+        verbose_name_plural = "Архив волонтеров"
 
 class BotAccessConfig(models.Model):
-    ROLE_CHOICES = [
-        ('volunteer', 'Волонтер (Только команды)'),
-        ('curator', 'Куратор (Полный доступ)'),
-    ]
-
-    role = models.CharField("Роль", max_length=20, choices=ROLE_CHOICES, unique=True)
+    role = models.CharField("Роль доступа", max_length=20, choices=[('volunteer', 'Волонтер'), ('curator', 'Куратор')], unique=True)
     password = models.CharField("Пароль доступа", max_length=128)
 
     class Meta:
-        verbose_name = "Доступ бота"
-        verbose_name_plural = "Доступы бота"
-
-    def __str__(self):
-        return self.get_role_display()
+        verbose_name = "Настройка доступа бота"
+        verbose_name_plural = "Настройки доступа бота"

@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Борд кабинет</title>
+    <link rel="icon" type="image/png" href="https://i.ibb.co/qFYrFSnD/2105176-1-removebg-preview.png">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@800;900&family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #00c6ff; --bg: #020408; --glass: rgba(15, 23, 42, 0.95); }
+        body { 
+            background: var(--bg); color: white; font-family: 'Inter', sans-serif; 
+            background-image: radial-gradient(circle at 50% 120%, #10192e 0%, #020408 100%); 
+            min-height: 100vh; padding: 20px; padding-bottom: 80px; 
+        }
+        .glass-card { background: var(--glass); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 24px; }
+        .btn-glass { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: #94a3b8; transition: all 0.3s ease; border-radius: 14px; }
+        .btn-glass:hover { background: rgba(255, 255, 255, 0.1); color: white; border-color: rgba(255, 255, 255, 0.3); }
+        
+        .tab-btn { padding: 12px 24px; font-weight: 800; text-transform: uppercase; font-size: 11px; letter-spacing: 0.1em; border-radius: 12px; transition: all 0.3s; color: #64748b; border: 1px solid transparent; white-space: nowrap; }
+        .tab-btn:hover:not(.active) { color: white; background: rgba(255,255,255,0.05); }
+        .tab-btn.active { background: rgba(0, 198, 255, 0.1); color: var(--primary); border-color: rgba(0, 198, 255, 0.3); box-shadow: 0 0 20px rgba(0, 198, 255, 0.15); }
+        
+        .app-card { 
+            background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.08); border-radius: 20px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer; position: relative; overflow: hidden;
+        }
+        .app-card:hover { 
+            border-color: var(--primary); transform: translateY(-4px); 
+            box-shadow: 0 10px 40px -10px rgba(0, 198, 255, 0.15); 
+        }
+        .app-card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 100%;
+            background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%);
+            pointer-events: none;
+        }
+
+        .custom-select-wrapper { position: relative; user-select: none; z-index: 50; }
+        .select-trigger {
+            background: rgba(0, 198, 255, 0.05); border: 1px solid rgba(0, 198, 255, 0.2);
+            border-radius: 16px; padding: 12px 16px; cursor: pointer;
+            display: flex; align-items: center; justify-content: space-between;
+            transition: all 0.3s ease;
+        }
+        .select-trigger:hover { border-color: var(--primary); background: rgba(0, 198, 255, 0.1); }
+        .select-options {
+            position: absolute; top: calc(100% + 8px); left: 0; right: 0;
+            background: #0f172a; border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px; overflow: hidden; display: none;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5); z-index: 100;
+        }
+        .select-options.active { display: block; animation: slideDown 0.2s ease-out; }
+        .option-item { padding: 12px 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); transition: 0.2s; }
+        .option-item:hover { background: var(--primary); color: black; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .custom-table { width: 100%; border-collapse: separate; border-spacing: 0 8px; }
+        .custom-table th { padding: 0 16px; text-align: left; font-size: 10px; text-transform: uppercase; color: #4b5563; font-weight: 900; }
+        .custom-table td { padding: 16px; background: rgba(255,255,255,0.03); font-size: 13px; vertical-align: middle; }
+        .custom-table td:first-child { border-radius: 16px 0 0 16px; }
+        .custom-table td:last-child { border-radius: 0 16px 16px 0; }
+        .score-badge { background: rgba(0, 198, 255, 0.15); color: var(--primary); padding: 4px 10px; border-radius: 8px; font-weight: 900; font-family: 'Montserrat'; }
+        .score-total { color: #4b5563; font-weight: 700; font-size: 11px; margin-left: 8px; }
+        
+        .loader-spin { animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        
+        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 2000; display: flex; flex-direction: column; gap: 10px; }
+        .toast { padding: 16px 24px; border-radius: 16px; background: rgba(15, 23, 42, 0.95); border-left: 4px solid var(--primary); color: white; transform: translateX(110%); transition: 0.3s; display: flex; align-items: center; gap: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .toast.show { transform: translateX(0); }
+
+        .nav-btn {
+            position: absolute; top: 50%; transform: translateY(-50%);
+            width: 3.5rem; height: 3.5rem; background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.2); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: 0.3s; z-index: 60; color: white;
+        }
+        .nav-btn:hover { background: var(--primary); color: black; }
+        .nav-btn.prev { left: -5rem; }
+        .nav-btn.next { right: -5rem; }
+        @media (max-width: 1024px) {
+            .nav-btn { position: fixed; bottom: 20px; top: auto; transform: none; background: #000; border-color: var(--primary); }
+            .nav-btn.prev { left: 20px; }
+            .nav-btn.next { right: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="toast-container"></div>
+
+    <div id="app" class="max-w-7xl mx-auto hidden animate-fade-in">
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-6">
+            <div>
+                <p id="cName" class="text-gray-400 text-sm font-bold uppercase tracking-widest mb-1 pl-1">...</p>
+                <h1 class="text-4xl md:text-5xl font-black italic uppercase text-white leading-none">
+                    Curator <span class="text-primary">Panel</span>
+                </h1>
+                <div class="flex items-center gap-3 mt-3">
+                    <span class="w-8 h-[2px] bg-primary"></span>
+                    <p id="cRole" class="text-primary font-bold text-[10px] tracking-[0.3em] uppercase">...</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="text-right hidden md:block">
+                    <p class="text-[9px] text-gray-500 uppercase font-black">Управление</p>
+                    <p id="managedTeamsLabel" class="text-white font-bold text-sm italic uppercase">Загрузка...</p>
+                </div>
+                <button onclick="logout()" class="btn-glass py-3 px-6 text-xs font-bold uppercase"><i class="fas fa-power-off mr-2"></i>Выход</button>
+            </div>
+        </header>
+        
+        <div class="flex gap-3 mb-8 overflow-x-auto pb-2 scrollbar-hide">
+            <button onclick="switchTab('req')" id="tab_req" class="tab-btn active"><i class="fas fa-inbox mr-2"></i>Заявки на баллы</button>
+            <button onclick="switchTab('apps')" id="tab_apps" class="tab-btn"><i class="fas fa-rocket mr-2"></i>Набор в команды</button>
+            <button onclick="switchTab('vols')" id="tab_vols" class="tab-btn"><i class="fas fa-users mr-2"></i>База Волонтеров</button>
+        </div>
+
+        <div id="secReq" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 section-view">
+            <div class="col-span-full flex justify-center py-20"><i class="fas fa-circle-notch loader-spin text-4xl text-primary/50"></i></div>
+        </div>
+        
+        <div id="secApps" class="hidden section-view">
+            <div class="flex flex-col md:flex-row gap-4 mb-6 justify-between items-end">
+                <div class="flex bg-white/5 p-1 rounded-xl border border-white/5 w-full md:w-auto">
+                    <button id="subTabPending" onclick="switchAppSubTab('pending')" class="flex-1 md:flex-none px-6 py-2.5 rounded-lg text-[10px] font-black uppercase transition-all bg-sky-400/10 text-sky-400">Ожидают (<span id="cntPending">0</span>)</button>
+                    <button id="subTabAccepted" onclick="switchAppSubTab('accepted')" class="flex-1 md:flex-none px-6 py-2.5 rounded-lg text-[10px] font-black uppercase transition-all text-gray-500">Приняты (<span id="cntAccepted">0</span>)</button>
+                </div>
+                <div class="custom-select-wrapper w-full md:w-64">
+                    <div class="select-trigger" id="selectTrigger">
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-filter text-primary text-xs"></i>
+                            <span id="selectedLabel" class="text-[10px] font-black uppercase tracking-widest text-white">Все команды</span>
+                        </div>
+                        <i class="fas fa-chevron-down text-[10px] text-primary"></i>
+                    </div>
+                    <div class="select-options" id="selectOptions"></div>
+                </div>
+            </div>
+
+            <div id="appsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        </div>
+
+        <div id="secVols" class="hidden section-view">
+            <div class="glass-card overflow-hidden p-0 border-white/5">
+                <div class="overflow-x-auto p-4">
+                    <table class="custom-table w-full">
+                        <thead>
+                            <tr>
+                                <th>Волонтер</th>
+                                <th>Направления</th>
+                                <th>Баллы (Всего / в команде)</th>
+                                <th class="text-right">Нарушения</th>
+                            </tr>
+                        </thead>
+                        <tbody id="vTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal" class="hidden fixed inset-0 bg-black/95 backdrop-blur-xl flex items-center justify-center p-2 md:p-6 z-[200]">
+        <div class="relative w-full max-w-4xl">
+            <button class="nav-btn prev" onclick="navigateApp(-1)"><i class="fas fa-chevron-left text-xl"></i></button>
+            <button class="nav-btn next" onclick="navigateApp(1)"><i class="fas fa-chevron-right text-xl"></i></button>
+
+            <div class="glass-card w-full rounded-[30px] p-6 md:p-10 max-h-[90vh] overflow-y-auto relative border-white/10 shadow-2xl bg-[#0b1121]">
+                <button onclick="closeModal()" class="absolute top-6 right-6 text-gray-500 hover:text-white transition z-50">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+                
+                <div id="modalContent"></div>
+
+                <div class="mt-8 pt-8 border-t border-white/10 flex gap-4">
+                    <button id="approveAppBtn" class="flex-1 py-4 bg-primary text-black font-black uppercase rounded-2xl hover:bg-white transition flex items-center justify-center gap-2 shadow-lg shadow-primary/20">
+                        <i class="fas fa-check-double"></i> Принять в команду
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const token = localStorage.getItem('access');
+    const API = {
+        profile: '/api/profile/',
+        submissions: '/api/curator/submissions/',
+        volunteers: '/api/list/',
+        commands: '/commands/',
+        apps: '/commands-applications/'
+    };
+
+    let state = {
+        user: null,
+        submissions: [],
+        volunteers: [],
+        apps: [],
+        commands: [],
+        myManagedTeams: [],
+        myLeadingTeams: [],
+        appsView: [],
+        appSubTab: 'pending',
+        currentAppIndex: 0,
+        currentCommandSlug: ''
+    };
+
+    let questionMap = {};
+
+    const extractId = (obj, fieldName) => {
+        if (!obj) return null;
+        if (obj[`${fieldName}_id`]) return String(obj[`${fieldName}_id`]);
+        if (obj[fieldName] && typeof obj[fieldName] === 'object' && obj[fieldName].id) return String(obj[fieldName].id);
+        if (obj[fieldName]) return String(obj[fieldName]);
+        return null;
+    };
+
+    const getIds = (data) => {
+        if (!data) return [];
+        const arr = Array.isArray(data) ? data : [data];
+        return arr.map(item => String(item.id || item));
+    };
+
+    const getCleanAnswers = (rawAnswers) => {
+        let answers = rawAnswers;
+        if (typeof answers === 'string') {
+            try { answers = JSON.parse(answers); } catch (e) { return {}; }
+        }
+        if (!answers || typeof answers !== 'object') return {};
+        return answers;
+    };
+
+    async function init() {
+        if (!token) return location.href = '/login/';
+        try {
+            const res = await fetch(API.profile, { headers: { 'Authorization': `Bearer ${token}` } });
+            if (res.status === 401) return logout();
+            state.user = await res.json();
+            
+            document.getElementById('cName').innerText = state.user.name || state.user.login;
+            document.getElementById('cRole').innerText = state.user.role_display;
+            document.getElementById('app').classList.remove('hidden');
+
+            setupDropdown();
+            await loadAllData();
+        } catch (e) { console.error("Init Error:", e); }
+    }
+
+    function setupDropdown() {
+        const trigger = document.getElementById('selectTrigger');
+        const options = document.getElementById('selectOptions');
+        trigger.onclick = (e) => { e.stopPropagation(); options.classList.toggle('active'); };
+        window.onclick = () => options.classList.remove('active');
+    }
+
+    async function loadAllData() {
+        try {
+            const h = { 'Authorization': `Bearer ${token}` };
+            const [sub, vol, cmd, app] = await Promise.all([
+                fetch(API.submissions, { headers: h }).then(r => r.json()),
+                fetch(API.volunteers, { headers: h }).then(r => r.json()),
+                fetch(API.commands, { headers: h }).then(r => r.json()),
+                fetch(API.apps, { headers: h }).then(r => r.json())
+            ]);
+
+            state.submissions = sub;
+            state.volunteers = vol;
+            state.commands = cmd;
+            state.apps = app;
+            
+            questionMap = {};
+            state.commands.forEach(c => c.questions?.forEach(q => questionMap[`q_${q.id}`] = q.label));
+            state.commands.forEach(c => c.questions?.forEach(q => questionMap[q.id] = q.label));
+            state.commands.forEach(c => c.questions?.forEach(q => questionMap[String(q.id)] = q.label));
+
+            let dbTeams = [], leadTeams = [];
+            const label = document.getElementById('managedTeamsLabel');
+            const myDirIds = getIds(state.user.direction);
+
+            if (state.user.role === 'admin') {
+                dbTeams = cmd; leadTeams = cmd;
+                label.innerText = "Все направления (Admin)";
+            } else if (state.user.role === 'curator') {
+                dbTeams = cmd.filter(c => myDirIds.includes(extractId(c, 'direction')));
+                leadTeams = cmd.filter(c => String(c.leader?.id || c.leader) === String(state.user.id));
+                const dirs = Array.isArray(state.user.direction) ? state.user.direction : [state.user.direction];
+                const dirNames = dirs.map(d => d.name || d.title).filter(Boolean);
+                label.innerText = dirNames.length > 0 ? dirNames.join(' / ') : "Направление не привязано";
+            } else {
+                dbTeams = cmd.filter(c => String(c.leader?.id || c.leader) === String(state.user.id));
+                leadTeams = dbTeams;
+                label.innerText = dbTeams.map(t => t.title).join(' / ') || "Команда не назначена";
+            }
+
+            state.myManagedTeams = dbTeams;
+            state.myLeadingTeams = leadTeams;
+
+            renderCommandFilter();
+            renderSubmissions();
+            renderVolunteers();
+            filterAndRenderApps();
+        } catch (e) { console.error("Load Data Error:", e); }
+    }
+
+    function renderCommandFilter() {
+        const container = document.getElementById('selectOptions');
+        let html = `<div class="option-item" onclick="applyCommandFilter('', 'Все команды')">
+            <span class="text-[10px] font-black uppercase tracking-widest text-white">⚡ Все команды</span>
+        </div>`;
+        state.myLeadingTeams.forEach(cmd => {
+            const count = state.apps.filter(a => (a.command_slug === cmd.slug || a.command_title === cmd.title) && a.status === 'pending').length;
+            html += `<div class="option-item" onclick="applyCommandFilter('${cmd.slug}', '${cmd.title}')">
+                <span class="text-[10px] font-bold text-gray-300">${cmd.title}</span>
+                <span class="badge text-gray-400">${count}</span>
+            </div>`;
+        });
+        container.innerHTML = html;
+    }
+
+    function applyCommandFilter(slug, title) {
+        state.currentCommandSlug = slug;
+        document.getElementById('selectedLabel').innerText = title;
+        filterAndRenderApps();
+    }
+
+    function filterAndRenderApps() {
+        const subTab = state.appSubTab;
+        const appsGrid = document.getElementById('appsGrid');
+        const slug = state.currentCommandSlug;
+
+        state.appsView = state.apps.filter(app => {
+            const statusMatch = subTab === 'pending' ? app.status === 'pending' : app.status === 'accepted';
+            const hasRights = state.user.role === 'admin' || state.myLeadingTeams.some(t => t.slug === app.command_slug || t.title === app.command_title);
+            const commandMatch = slug ? (app.command_slug === slug) : true;
+            return statusMatch && hasRights && commandMatch;
+        });
+
+        const countPending = state.apps.filter(a => a.status==='pending' && (state.user.role === 'admin' || state.myLeadingTeams.some(t => t.slug === a.command_slug))).length;
+        const countAccepted = state.apps.filter(a => a.status==='accepted' && (state.user.role === 'admin' || state.myLeadingTeams.some(t => t.slug === a.command_slug))).length;
+        
+        document.getElementById('cntPending').innerText = countPending;
+        document.getElementById('cntAccepted').innerText = countAccepted;
+
+        if (state.appsView.length === 0) {
+            appsGrid.innerHTML = `<div class="col-span-full py-20 text-center text-gray-600 font-black uppercase text-xs italic tracking-widest">Нет заявок</div>`;
+            return;
+        }
+
+        appsGrid.innerHTML = state.appsView.map((a, index) => {
+            const answers = getCleanAnswers(a.answers);
+            const values = Object.values(answers);
+            
+            let derivedName = "Без имени";
+            if (values.length > 0 && values[0]) derivedName = String(values[0]);
+
+            let previewText = "Анкета заполнена";
+            if (values.length > 1 && values[1]) previewText = String(values[1]);
+
+            const fileCount = (a.files && Array.isArray(a.files)) ? a.files.length : 0;
+
+            return `
+            <div class="app-card p-6 flex flex-col group" onclick="openAppModal(${index})">
+                <div class="flex justify-between items-start mb-3">
+                    <span class="px-2 py-1 bg-white/5 rounded text-[8px] font-black uppercase text-primary border border-white/5">${a.command_title}</span>
+                    <span class="text-[9px] font-mono text-gray-600">ID-${a.id}</span>
+                </div>
+                <h4 class="font-black text-white uppercase italic text-xl group-hover:text-primary transition-colors line-clamp-1">${derivedName}</h4>
+                <p class="text-[10px] text-gray-400 mt-2 line-clamp-2 italic">"${previewText}"</p>
+                ${fileCount > 0 ? `<div class="mt-3 text-[9px] text-blue-400 font-bold flex items-center gap-1"><i class="fas fa-paperclip"></i> Вложений: ${fileCount}</div>` : ''}
+            </div>`;
+        }).join('');
+    }
+
+    function openAppModal(index) {
+        try {
+            state.currentAppIndex = index;
+            updateModalContent();
+            document.getElementById('modal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        } catch (e) { console.error(e); }
+    }
+
+    function navigateApp(direction) {
+        const newIndex = state.currentAppIndex + direction;
+        if (newIndex >= 0 && newIndex < state.appsView.length) {
+            state.currentAppIndex = newIndex;
+            updateModalContent();
+        }
+    }
+
+    function updateModalContent() {
+        const app = state.appsView[state.currentAppIndex];
+        if (!app) return closeModal();
+
+        const prevBtn = document.querySelector('.nav-btn.prev');
+        const nextBtn = document.querySelector('.nav-btn.next');
+        if(prevBtn) {
+            prevBtn.style.opacity = state.currentAppIndex > 0 ? '1' : '0.3';
+            prevBtn.style.pointerEvents = state.currentAppIndex > 0 ? 'auto' : 'none';
+        }
+        if(nextBtn) {
+            nextBtn.style.opacity = state.currentAppIndex < state.appsView.length - 1 ? '1' : '0.3';
+            nextBtn.style.pointerEvents = state.currentAppIndex < state.appsView.length - 1 ? 'auto' : 'none';
+        }
+
+        const answers = getCleanAnswers(app.answers);
+        const values = Object.values(answers);
+
+        let derivedName = "Без имени";
+        let firstLetter = "?";
+        if (values.length > 0 && values[0]) {
+            derivedName = String(values[0]);
+            firstLetter = derivedName.charAt(0).toUpperCase();
+        }
+
+        let answersHtml = '';
+        if (Object.keys(answers).length > 0) {
+            Object.entries(answers).forEach(([q, ans]) => {
+                const label = questionMap[q] || q;
+                const displayAns = (ans !== null && ans !== undefined) ? ans : "---";
+                answersHtml += `
+                <div class="mb-6">
+                    <p class="text-[10px] text-primary uppercase font-black mb-2 tracking-widest flex items-center gap-2">
+                         <span class="w-2 h-2 rounded-full bg-primary/50"></span> ${label}
+                    </p>
+                    <div class="bg-white/5 p-4 rounded-xl border border-white/5 text-sm italic text-gray-200 leading-relaxed shadow-inner">
+                        ${displayAns}
+                    </div>
+                </div>`;
+            });
+        } else {
+            answersHtml = '<div class="text-gray-500 italic mb-4">Текстовых ответов нет</div>';
+        }
+
+        let mediaHtml = '';
+        if (app.files && Array.isArray(app.files) && app.files.length > 0) {
+             mediaHtml += `<div class="mt-8 pt-8 border-t border-white/10 space-y-8">`;
+             mediaHtml += `<h4 class="text-xs font-black uppercase text-gray-500 tracking-widest mb-4">Вложения (${app.files.length})</h4>`;
+
+             app.files.forEach(f => {
+                 const fileUrl = f.file;
+                 const isImg = fileUrl.match(/\.(jpg|jpeg|png|webp|gif|svg)$/i);
+                 const isVid = fileUrl.match(/\.(mp4|mov|webm|avi)$/i);
+                 const label = f.label || "Файл";
+                 
+                 mediaHtml += `
+                 <div class="bg-black/40 p-4 rounded-2xl border border-white/10">
+                     <div class="flex items-center gap-3 mb-4">
+                        <div class="w-8 h-8 rounded bg-primary/20 flex items-center justify-center text-primary text-xs">
+                             <i class="fas fa-paperclip"></i>
+                        </div>
+                        <p class="text-xs font-bold text-gray-300 uppercase">${label}</p>
+                     </div>
+                     
+                     ${isImg 
+                         ? `<div class="rounded-xl overflow-hidden border border-white/10 bg-black/50"><img src="${fileUrl}" class="w-full h-auto object-contain max-h-[600px]"></div>`
+                         : isVid
+                            ? `<div class="rounded-xl overflow-hidden border border-white/10 bg-black/50"><video controls class="w-full max-h-[500px]"><source src="${fileUrl}"></video></div>`
+                            : `<div class="p-8 text-center bg-white/5 rounded-xl border border-white/5 flex flex-col items-center gap-3">
+                                  <i class="fas fa-file-alt text-4xl text-gray-500"></i>
+                                  <span class="text-xs text-gray-400">${fileUrl.split('/').pop()}</span>
+                               </div>`
+                     }
+
+                     <div class="flex gap-2 mt-4">
+                         <a href="${fileUrl}" target="_blank" class="flex-1 py-3 bg-white/10 hover:bg-white/20 text-center text-[10px] font-bold uppercase rounded-xl text-white transition">
+                            <i class="fas fa-external-link-alt mr-2"></i> Открыть
+                         </a>
+                         <a href="${fileUrl}" download class="flex-1 py-3 bg-primary/10 hover:bg-primary/20 text-center text-[10px] font-bold uppercase rounded-xl text-primary transition">
+                            <i class="fas fa-download mr-2"></i> Скачать
+                         </a>
+                     </div>
+                 </div>`;
+             });
+             mediaHtml += `</div>`;
+        }
+
+        document.getElementById('modalContent').innerHTML = `
+            <div class="flex items-center gap-5 mb-8 pb-8 border-b border-white/10">
+                <div class="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-black font-black text-3xl italic shadow-[0_0_20px_rgba(0,198,255,0.3)]">
+                    ${firstLetter}
+                </div>
+                <div>
+                    <h3 class="text-2xl md:text-3xl font-black text-white uppercase italic leading-none mb-1">${derivedName}</h3>
+                    <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Команда: <span class="text-white">${app.command_title}</span></p>
+                </div>
+            </div>
+            <div class="custom-scrollbar pr-2 max-h-[60vh] overflow-y-auto">
+                ${answersHtml}
+                ${mediaHtml}
+            </div>
+        `;
+        
+        const btn = document.getElementById('approveAppBtn');
+        if (app.status === 'accepted') {
+            btn.innerHTML = '<i class="fas fa-check"></i> Уже принят';
+            btn.disabled = true;
+            btn.className = "flex-1 py-4 bg-green-500/10 text-green-500 border border-green-500/20 font-black uppercase rounded-2xl cursor-not-allowed flex items-center justify-center gap-2";
+        } else {
+            btn.innerHTML = '<i class="fas fa-check-double"></i> Принять в команду';
+            btn.disabled = false;
+            // ИЗМЕНЕНИЕ: bg-primary -> bg-[#80e5ff] (светлее)
+            btn.className = "flex-1 py-4 bg-[#80e5ff] text-black font-black uppercase rounded-2xl hover:bg-white transition flex items-center justify-center gap-2 shadow-lg shadow-primary/20";
+            btn.onclick = () => acceptApp(app.id);
+        }
+    }
+
+    async function acceptApp(id) {
+        try {
+            const btn = document.getElementById('approveAppBtn');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохранение...';
+            
+            const res = await fetch(`${API.apps}${id}/accept/`, {
+                method: 'PATCH',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'accepted' })
+            });
+            if (res.ok) {
+                showToast('Заявка принята в команду');
+                const app = state.apps.find(a => a.id === id);
+                if (app) app.status = 'accepted';
+                
+                state.appsView.splice(state.currentAppIndex, 1);
+                document.getElementById('cntPending').innerText = parseInt(document.getElementById('cntPending').innerText) - 1;
+                document.getElementById('cntAccepted').innerText = parseInt(document.getElementById('cntAccepted').innerText) + 1;
+
+                if (state.appsView.length === 0) { closeModal(); filterAndRenderApps(); }
+                else {
+                    if (state.currentAppIndex >= state.appsView.length) state.currentAppIndex = state.appsView.length - 1;
+                    updateModalContent();
+                    filterAndRenderApps();
+                }
+            }
+        } catch(e){ console.error(e); }
+    }
+
+    function decideSub(id, status) {
+        try {
+            fetch(`${API.submissions}${id}/`, {
+                method: 'PATCH',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status })
+            }).then(res => {
+                if (res.ok) {
+                    const el = document.getElementById(`sub-${id}`);
+                    el.style.opacity = '0';
+                    setTimeout(() => el.remove(), 300);
+                    showToast(status === 'approved' ? 'Баллы начислены' : 'Заявка отклонена');
+                    setTimeout(loadAllData, 500);
+                }
+            });
+        } catch(e) { console.error(e); }
+    }
+
+    function renderSubmissions() {
+        const container = document.getElementById('secReq');
+        const myDirIds = getIds(state.user.direction);
+        const myTeamIds = state.myManagedTeams.map(t => String(t.id));
+
+        const pending = state.submissions.filter(s => {
+            if (s.status !== 'pending') return false;
+            if (state.user.role === 'admin') return true;
+            const taskDirId = extractId(s.task_details, 'direction');
+            const taskCmdId = extractId(s.task_details, 'command');
+            if (!taskDirId && !taskCmdId) return true; 
+            if (state.user.role === 'curator') return myDirIds.includes(taskDirId) || (taskCmdId && myTeamIds.includes(taskCmdId));
+            return myTeamIds.includes(taskCmdId);
+        });
+
+        if (pending.length === 0) {
+            container.innerHTML = `<div class="col-span-full py-20 text-center text-gray-600 font-black uppercase text-xs italic tracking-widest">Нет активных заявок</div>`;
+            return;
+        }
+
+        container.innerHTML = pending.map(s => `
+            <div class="glass-card flex flex-col h-full border-white/5 hover:border-primary/20 transition group" id="sub-${s.id}">
+                <div class="flex justify-between items-start mb-4">
+                    <span class="px-2 py-1 bg-primary/10 text-primary text-[8px] font-black uppercase rounded">${s.task_details?.command_name || 'Общая задача'}</span>
+                    <span class="text-[10px] text-gray-600 font-mono tracking-tighter">${new Date(s.created_at).toLocaleDateString()}</span>
+                </div>
+                <div class="mb-6 flex-grow">
+                    <h4 class="font-black text-lg italic uppercase leading-tight text-white group-hover:text-primary transition">${s.volunteer_name}</h4>
+                    <p class="text-[10px] text-gray-400 font-bold uppercase mt-1 mb-3">${s.task_details?.title}</p>
+                    <div class="bg-black/40 p-3 rounded-xl text-sm italic text-gray-500 border border-white/5">"${s.description || 'Без комментария'}"</div>
+                </div>
+                <div class="flex items-center gap-3 mt-auto">
+                    <div class="score-badge text-lg">+${parseFloat(s.task_details?.points || 0)}</div>
+                    <div class="flex-grow grid grid-cols-2 gap-2">
+                        <button onclick="decideSub(${s.id}, 'approved')" class="py-3 bg-[#80e5ff] text-black rounded-xl font-black uppercase text-[10px] hover:bg-white transition">Принять</button>
+                        <button onclick="decideSub(${s.id}, 'rejected')" class="py-3 bg-white/5 text-gray-500 rounded-xl font-black uppercase text-[10px] hover:text-red-500 transition">Отказ</button>
+                    </div>
+                </div>
+            </div>`).join('');
+    }
+
+    function renderVolunteers() {
+        const table = document.getElementById('vTable');
+        const myDirIds = getIds(state.user.direction);
+        const myTeamIds = state.myManagedTeams.map(t => String(t.id));
+
+        table.innerHTML = state.volunteers.map(v => {
+            const scopePoints = state.submissions.reduce((sum, s) => {
+                const isHis = (String(s.volunteer_id || s.volunteer) === String(v.id));
+                const isAppr = s.status === 'approved';
+                const taskDirId = extractId(s.task_details, 'direction');
+                const taskCmdId = extractId(s.task_details, 'command');
+                const isGeneral = !taskDirId && !taskCmdId;
+                let inZone = false;
+                if (state.user.role === 'admin') inZone = true;
+                else if (state.user.role === 'curator') inZone = isGeneral || myDirIds.includes(taskDirId) || (taskCmdId && myTeamIds.includes(taskCmdId));
+                else inZone = myTeamIds.includes(taskCmdId);
+                return (isHis && isAppr && inZone) ? sum + (parseFloat(s.task_details?.points) || 0) : sum;
+            }, 0);
+
+            let pointsHTML = state.user.role === 'curator' 
+                ? `<div class="flex items-center"><span class="score-badge">${scopePoints.toFixed(1)}</span><span class="text-[9px] text-gray-500 uppercase font-bold ml-2 italic">всего.</span></div>`
+                : `<div class="flex items-center"><span class="score-badge">${parseFloat(v.point || 0).toFixed(1)}</span><span class="score-total">/ ${scopePoints.toFixed(1)}</span></div>`;
+
+            return `
+            <tr class="hover:bg-white/5 transition">
+                <td>
+                    <div class="font-black uppercase text-sm italic text-white leading-none">${v.name || '---'}</div>
+                    <div class="text-[10px] text-gray-500 font-mono mt-1">${v.login}</div>
+                </td>
+                <td>
+                    <div class="flex flex-wrap gap-1">
+                        ${(v.direction || []).map(d => `<span class="bg-white/5 text-gray-400 text-[8px] px-2 py-0.5 rounded font-black uppercase">${d.name}</span>`).join('')}
+                    </div>
+                </td>
+                <td>${pointsHTML}</td>
+                <td class="text-right text-red-400 font-black">${v.yellow_card || 0}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    function switchAppSubTab(tab) {
+        state.appSubTab = tab;
+        const pBtn = document.getElementById('subTabPending');
+        const aBtn = document.getElementById('subTabAccepted');
+        if (tab === 'pending') {
+            pBtn.className = "flex-1 md:flex-none px-6 py-2.5 rounded-lg text-[10px] font-black uppercase transition-all bg-sky-400/10 text-sky-400 shadow-[0_0_15px_rgba(56,189,248,0.2)]";
+            aBtn.className = "flex-1 md:flex-none px-6 py-2.5 rounded-lg text-[10px] font-black uppercase transition-all text-gray-500 hover:text-white";
+        } else {
+            pBtn.className = "flex-1 md:flex-none px-6 py-2.5 rounded-lg text-[10px] font-black uppercase transition-all text-gray-500 hover:text-white";
+            aBtn.className = "flex-1 md:flex-none px-6 py-2.5 rounded-lg text-[10px] font-black uppercase transition-all bg-green-400/10 text-green-400 shadow-[0_0_15px_rgba(74,222,128,0.2)]";
+        }
+        filterAndRenderApps();
+    }
+
+    function switchTab(tab) {
+        document.querySelectorAll('.section-view').forEach(s => s.classList.add('hidden'));
+        document.getElementById(`sec${tab.charAt(0).toUpperCase()+tab.slice(1)}`).classList.remove('hidden');
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(`tab_${tab}`).classList.add('active');
+    }
+
+    function closeModal() { document.getElementById('modal').classList.add('hidden'); document.body.style.overflow = 'auto'; }
+    function logout() { localStorage.removeItem('access'); location.href='/login/'; }
+    function showToast(msg) {
+        const toast = document.createElement('div');
+        toast.className = 'toast show';
+        toast.innerHTML = `<i class="fas fa-check-circle text-primary text-xl"></i> <span class="font-bold text-sm">${msg}</span>`;
+        document.getElementById('toast-container').appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+
+    init();
+    </script>
+</body>
+</html>

@@ -1,607 +1,368 @@
 import io
 import os
-import random
-import string
-import math
-from datetime import datetime, timedelta
-
 from django.db import transaction
 from django.conf import settings
-from django.core.mail import send_mail
 from django.http import FileResponse
 from django.views.generic import TemplateView
-from django.db.models import Count
+from django.db import models
+# ВАЖНО: Импортируем DecimalField именно отсюда для ORM
+from django.db.models import Sum, Value, Q, DecimalField 
+from django.db.models.functions import Coalesce
 
-from rest_framework import viewsets, generics, status, serializers
+from rest_framework import viewsets, generics, status, permissions
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework_simplejwt.tokens import RefreshToken
 
-# ReportLab для генерации красивого PDF
+# ReportLab для генерации PDF
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from reportlab.lib.styles import ParagraphStyle
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
-from .models import Volunteer, VolunteerApplication, BotAccessConfig
+# Импорты моделей (лучше держать их вверху, если нет циклической зависимости)
+from .models import (
+    Volunteer, VolunteerApplication, BotAccessConfig, 
+    ActivityTask, ActivitySubmission
+)
+from directions.models import VolunteerDirection
+from commands.models import Command
+
 from .serializers import (
-    VolunteerSerializer, VolunteerLoginSerializer,
-    VolunteerApplicationSerializer, VolunteerApplicationStatusUpdateSerializer, BotAuthSerializer
+    VolunteerSerializer, VolunteerLoginSerializer, VolunteerRegisterSerializer,
+    VolunteerApplicationSerializer, ActivityTaskSerializer, 
+    ActivitySubmissionSerializer, VolunteerDirectionSerializer, CommandSerializer,
+    VolunteerListSerializer
 )
 
-# ---------------- Volunteers ----------------
-class VolunteerViewSet(viewsets.ModelViewSet):
-    queryset = Volunteer.objects.all()
-    serializer_class = VolunteerSerializer
-
+# ---------------- АВТОРИЗАЦИЯ И ПРОФИЛЬ ----------------
 
 class VolunteerLoginView(APIView):
-    permission_classes = []  # логин доступен без токена
+    permission_classes = [AllowAny]
 
     def post(self, request):
         serializer = VolunteerLoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        volunteer = serializer.validated_data["volunteer"]
+        volunteer = serializer.validated_data.get("user") or serializer.validated_data.get("volunteer")
+        
+        # --- ОБНОВЛЕНИЕ РОЛИ ПЕРЕД ОТВЕТОМ ---
+        # Проверяем, является ли пользователь ответственным за направление или лидером команды
+        is_responsible = VolunteerDirection.objects.filter(responsible=volunteer).exists()
+        is_leader = Command.objects.filter(leader=volunteer).exists()
+        
+        if is_responsible or is_leader:
+            # Если был обычным волонтером -> повышаем до куратора и даем доступ в админку
+            if volunteer.role == 'volunteer':
+                volunteer.role = 'curator'
+                volunteer.is_staff = True
+                volunteer.save()
+            # Если уже был тимлидом/админом, но не имел staff статуса -> даем доступ
+            elif not volunteer.is_staff:
+                volunteer.is_staff = True
+                volunteer.save()
+        # -------------------------------------
 
         refresh = RefreshToken.for_user(volunteer)
-
+        is_assigned = volunteer.direction.exists() or volunteer.commands.exists()
+        
         return Response({
-            "access": str(refresh.access_token),
-            "refresh": str(refresh),
-            "volunteer": {
-                "id": volunteer.id,
-                "name": volunteer.name,
-                "login": volunteer.login,
-                "board": volunteer.board,
-            }
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'role': volunteer.role,
+            'name': volunteer.name or volunteer.login,
+            'is_assigned': is_assigned,
+            'is_team_leader': is_leader,
+            'is_direction_curator': is_responsible
         })
 
 
-class VolunteerProfileView(generics.RetrieveAPIView):
+class VolunteerRegisterView(APIView):
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        serializer = VolunteerRegisterSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+                "role": user.role,
+                "is_assigned": False,
+                "user": VolunteerSerializer(user, context={'request': request}).data
+            }, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class VolunteerProfileView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = VolunteerSerializer
 
     def get_object(self):
-        return Volunteer.objects.get(id=self.request.user.id)
+        return self.request.user
 
 
-# ---------------- Serializers для колонок ----------------
+# ---------------- ЛИЧНЫЙ КАБИНЕТ ВОЛОНТЕРА ----------------
 
-class VolunteerColumnsSerializer(serializers.Serializer):
-    """
-    Сериализатор для объединения заявок по статусам.
-    Используем VolunteerApplicationSerializer для всех статусов, 
-    чтобы на фронте были доступны все данные анкеты.
-    """
-    submitted = VolunteerApplicationSerializer(many=True, read_only=True)
-    interview = VolunteerApplicationSerializer(many=True, read_only=True)
-    accepted = VolunteerApplicationSerializer(many=True, read_only=True)
+class VolunteerActivityViewSet(viewsets.ModelViewSet):
+    queryset = ActivitySubmission.objects.all()
+    serializer_class = ActivitySubmissionSerializer
+    permission_classes = [IsAuthenticated]
+    http_method_names = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options']
 
+    def get_queryset(self):
+        # Оптимизация: select_related для уменьшения запросов при сериализации task
+        return ActivitySubmission.objects.filter(volunteer=self.request.user).select_related('task').order_by('-created_at')
 
-# ---------------- Volunteer Applications ----------------
-class VolunteerApplicationViewSet(viewsets.ModelViewSet):
-    queryset = VolunteerApplication.objects.all().order_by('-created_at')
-    serializer_class = VolunteerApplicationSerializer
-    permission_classes = [AllowAny]
-
-    @action(detail=True, methods=['post'])
-    def update_status(self, request, pk=None):
-        obj = self.get_object()
-        serializer = VolunteerApplicationStatusUpdateSerializer(obj, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        status_new = serializer.validated_data.get('status')
-
-        creating_volunteer = False
-        if status_new == 'accepted' and not obj.volunteer_created:
-            creating_volunteer = True
-
-        serializer.save()
-
-        if creating_volunteer:
-            with transaction.atomic():
-                # Создаем запись волонтера на основе анкеты
-                volunteer = Volunteer.objects.create(
-                    name=obj.full_name,
-                    phone_number=obj.phone_number,
-                    email=obj.email,
-                    image=obj.photo 
-                )
-                
-                if obj.directions.exists():
-                    volunteer.direction.set(obj.directions.all())
-                
-                obj.volunteer_created = True
-                obj.volunteer = volunteer
-                obj.save()
-
-        return Response({'status': 'updated', 'new_status': obj.status})
-
-    @action(detail=False, methods=['post'], permission_classes=[IsAdminUser])
-    def send_credentials(self, request):
-        applications = VolunteerApplication.objects.filter(
-            status='accepted',
-            volunteer_created=True
-        )
-
-        if not applications.exists():
-            return Response({'detail': 'Нет новых принятых волонтёров'}, status=status.HTTP_404_NOT_FOUND)
-
-        sent = []
-        for app in applications:
-            volunteer = getattr(app, 'volunteer', None)
-            if not volunteer:
-                continue
-
-            password = volunteer.visible_password or ''.join(random.choices(string.ascii_letters + string.digits, k=8))
-            if not volunteer.visible_password:
-                volunteer.set_password(password)
-                volunteer.visible_password = password
-                volunteer.save()
-
-            send_mail(
-                subject='Ваши данные для входа в систему волонтёра',
-                message=f"Здравствуйте {volunteer.name}!\n\nВаш логин: {volunteer.login}\nВаш пароль: {password}\n\nС уважением, команда Interact Club.",
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[volunteer.email],
-                fail_silently=False,
-            )
-            sent.append(volunteer.email)
-
-        return Response({'sent_to': sent, 'count': len(sent)})
+    def perform_create(self, serializer):
+        serializer.save(volunteer=self.request.user)
 
 
-# ---------------- Columns View ----------------
-
-class VolunteerColumnsView(APIView):
-    """
-    GET: возвращает группы волонтеров (анкеты) для Канбан-доски
-    """
-    permission_classes = [] 
-
+class DiscoveryListView(APIView):
+    permission_classes = [IsAuthenticated]
+    
     def get(self, request):
-        submitted = VolunteerApplication.objects.filter(status='submitted').order_by('-created_at')
-        interview = VolunteerApplication.objects.filter(status='interview').order_by('-created_at')
-        accepted = VolunteerApplication.objects.filter(status='accepted').order_by('-created_at')
-        
-        context = {'request': request} 
-        serializer = VolunteerColumnsSerializer(
-            {
-                'submitted': submitted,
-                'interview': interview,
-                'accepted': accepted
-            }, 
-            context=context 
-        )
-        return Response(serializer.data)
+        user = request.user
 
+        # 1. Справочники
+        all_directions = VolunteerDirection.objects.all()
+        user_commands = user.commands.all()
+        user_directions = user.direction.all()
 
-class SendAcceptedVolunteersEmailsView(APIView):
-    permission_classes = []
-
-    def post(self, request):
-        applications = VolunteerApplication.objects.filter(
-            status='accepted',
-            volunteer_created=True
-        ).select_related('volunteer')
-
-        if not applications.exists():
-            return Response({'detail': 'Нет принятых волонтёров для отправки'}, status=status.HTTP_404_NOT_FOUND)
-
-        sent = []
-        failed = []
-
-        for app in applications:
-            volunteer = getattr(app, 'volunteer', None)
-            if not volunteer or not volunteer.email:
-                continue
-
-            password = volunteer.visible_password or ''.join(random.choices(string.ascii_letters + string.digits, k=8))
-            if not volunteer.visible_password:
-                volunteer.set_password(password)
-                volunteer.visible_password = password
-                volunteer.save()
-
-            try:
-                send_mail(
-                    subject='Ваши данные для входа в систему волонтёра',
-                    message=(
-                        f"Здравствуйте {volunteer.name}!\n\n"
-                        f"Ваш логин: {volunteer.login}\n"
-                        f"Ваш пароль: {password}\n\n"
-                        "С уважением, команда Interact Club."
-                    ),
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[volunteer.email],
-                    fail_silently=False,
-                )
-                sent.append(volunteer.email)
-            except Exception as e:
-                failed.append({'email': volunteer.email, 'error': str(e)})
-                continue
+        # 2. Логика задач (Общие + Командные)
+        tasks = ActivityTask.objects.filter(
+            Q(command__isnull=True) |   # Общие задачи
+            Q(command__in=user_commands) # Задачи моих команд
+        ).select_related('command', 'command__direction').distinct()
 
         return Response({
-            'sent_to': sent,
-            'failed': failed,
-            'count_sent': len(sent),
-            'count_failed': len(failed)
+            "all_directions": VolunteerDirectionSerializer(all_directions, many=True).data,
+            "my_direction": VolunteerDirectionSerializer(user_directions, many=True).data,
+            "my_commands": CommandSerializer(user_commands, many=True).data,
+            "available_tasks": ActivityTaskSerializer(tasks, many=True).data
         })
 
 
-# ---------------- Bot Auth ----------------
+# ---------------- ПАНЕЛЬ КУРАТОРА ----------------
 
-class BotCheckAccessView(APIView):
-    permission_classes = [] 
+class CuratorSubmissionViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class = ActivitySubmissionSerializer
 
-    def post(self, request):
-        serializer = BotAuthSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+    def get_queryset(self):
+        user = self.request.user
+        qs = ActivitySubmission.objects.select_related('task', 'volunteer', 'task__command')
+
+        if user.is_superuser or user.role == 'admin':
+            return qs.order_by('-created_at')
+            
+        # Логика Куратора:
+        return qs.filter(
+            Q(task__command__leader=user) | 
+            Q(volunteer__direction__responsible=user)
+        ).distinct().order_by('-created_at')
+
+
+# ---------------- АНКЕТЫ И КАНБАН ----------------
+
+class VolunteerApplicationViewSet(viewsets.ModelViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = VolunteerApplicationSerializer
+    queryset = VolunteerApplication.objects.all()
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser or user.role == 'admin':
+            return VolunteerApplication.objects.all()
+        # Показываем анкеты, где пользователь является лидером команд, выбранных в анкете
+        return VolunteerApplication.objects.filter(
+            commands__leader=user
+        ).distinct()
+
+    def perform_create(self, serializer):
+        validated_data = serializer.validated_data
         
-        access_type = serializer.validated_data['access_type']
-        password = serializer.validated_data['password']
-
-        configs = {config.role: config.password for config in BotAccessConfig.objects.all()}
+        # 1. Извлекаем команды
+        commands_data = validated_data.pop('commands', None)
         
-        curator_pass = configs.get('curator')
-        volunteer_pass = configs.get('volunteer')
+        print(f"DEBUG: User={self.request.user}, Commands Data={commands_data}")
 
-        if password == curator_pass:
-            return Response({"status": "access_granted", "role": "curator"}, status=status.HTTP_200_OK)
-
-        if access_type == "commands" and password == volunteer_pass:
-            return Response({"status": "access_granted", "role": "volunteer"}, status=status.HTTP_200_OK)
-
-        return Response({"status": "access_denied"}, status=status.HTTP_403_FORBIDDEN)
-
-
-# ---------------- PDF Генерация ----------------
-
-class DownloadInterviewScheduleView(APIView):
-    permission_classes = []
-
-    def get(self, request):
-        try:
-            volunteers_query = VolunteerApplication.objects.filter(status='interview').order_by('full_name')
-            volunteers_list = list(volunteers_query)
-            num_volunteers = len(volunteers_list)
-            
-            if num_volunteers == 0:
-                return Response({"error": "Список волонтеров пуст"}, status=400)
-
-            buffer = io.BytesIO()
-            # Увеличим отступы, чтобы таблица точно влезла
-            doc = SimpleDocTemplate(
-                buffer, 
-                pagesize=A4,
-                rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30
+        with transaction.atomic():
+            # 2. Создаем/Обновляем анкету
+            application, created = VolunteerApplication.objects.update_or_create(
+                volunteer=self.request.user,
+                defaults=validated_data
             )
-            elements = []
-
-            # --- ШРИФТ ---
-            font_name = 'Helvetica'
-            font_path = os.path.join(settings.BASE_DIR, 'FreeSans.ttf')
-            if os.path.exists(font_path):
-                try:
-                    pdfmetrics.registerFont(TTFont('FreeSans', font_path))
-                    font_name = 'FreeSans'
-                except: pass
-
-            title_style = ParagraphStyle(
-                'TitleStyle', fontName=font_name, fontSize=18,
-                alignment=1, textColor=colors.HexColor("#333333"), spaceAfter=20
-            )
-            elements.append(Paragraph("Расписание собеседований", title_style))
-
-            # 1. Формируем данные
-            data = [['№', 'ФИО Волонтера', 'Телефон', 'Время']]
-            start_time = datetime.strptime("09:00", "%H:%M")
-            group_size = 30
-
-            for i, v in enumerate(volunteers_list):
-                group_num = i // group_size
-                if i % group_size == 0:
-                    t_start = start_time + timedelta(minutes=group_num * 30)
-                    t_end = t_start + timedelta(minutes=30)
-                    time_text = f"{t_start.strftime('%H:%M')} - {t_end.strftime('%H:%M')}"
-                else:
-                    time_text = ""
-
-                data.append([
-                    str(i + 1), 
-                    str(v.full_name or "---")[:40], # Ограничим длину имени
-                    str(v.phone_number or "---"), 
-                    time_text
-                ])
-
-            # 2. Стили (Базовые)
-            style_config = [
-                ('FONTNAME', (0, 0), (-1, -1), font_name),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTSIZE', (0, 0), (-1, 0), 11),
-                ('FONTSIZE', (0, 1), (-1, -1), 9),
-                
-                # Цвета столбцов (Пастель)
-                ('BACKGROUND', (0, 1), (0, -1), colors.HexColor("#FEF9E7")),
-                ('BACKGROUND', (1, 1), (1, -1), colors.HexColor("#E9F7EF")),
-                ('BACKGROUND', (2, 1), (2, -1), colors.HexColor("#EBF5FB")),
-                ('BACKGROUND', (3, 1), (3, -1), colors.HexColor("#F8F9F9")),
-
-                # Шапка
-                ('BACKGROUND', (0, 0), (0, 0), colors.HexColor("#FAD7A0")),
-                ('BACKGROUND', (1, 0), (1, 0), colors.HexColor("#A9DFBF")),
-                ('BACKGROUND', (2, 0), (2, 0), colors.HexColor("#AED6F1")),
-                ('BACKGROUND', (3, 0), (3, 0), colors.HexColor("#D5DBDB")),
-
-                # Границы
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.black), # Сначала общая тонкая сетка
-                ('BOX', (0, 0), (-1, -1), 1.2, colors.black),
-                ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black), # Жирная под шапкой
-            ]
-
-            # 3. SPAN и Жирные линии (Расчет индексов)
-            for start_row in range(1, len(data), group_size):
-                end_row = start_row + group_size - 1
-                if end_row >= len(data):
-                    end_row = len(data) - 1
-                
-                # Объединяем время
-                style_config.append(('SPAN', (3, start_row), (3, end_row)))
-                
-                # Жирная линия между группами
-                if end_row < len(data) - 1:
-                    style_config.append(('LINEBELOW', (0, end_row), (-1, end_row), 2, colors.black))
-
-            # КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: Задаем высоту каждой строки вручную (например, 25 единиц)
-            # Это предотвращает расчет rh (row heights) внутри ReportLab, который выдавал ошибку.
-            row_heights = [30] + [22] * (len(data) - 1)
-
-            table = Table(data, colWidths=[35, 215, 125, 115], rowHeights=row_heights)
-            table.setStyle(TableStyle(style_config))
-            elements.append(table)
             
-            doc.build(elements)
-            buffer.seek(0)
+            # 3. Привязываем команды к АНКЕТЕ
+            if commands_data is not None:
+                application.commands.set(commands_data)
             
-            return FileResponse(buffer, as_attachment=True, filename="Schedule.pdf")
+            # 4. СИНХРОНИЗАЦИЯ С ПРОФИЛЕМ ВОЛОНТЕРА
+            user = self.request.user
+            
+            if application.full_name:
+                user.name = application.full_name
+            if application.phone_number:
+                user.phone_number = application.phone_number
+            
+            if application.direction:
+                user.direction.set([application.direction])
+            
+            if commands_data is not None:
+                user.commands.set(commands_data)
+            
+            # Проверяем роль куратора/тимлида
+            is_responsible = VolunteerDirection.objects.filter(responsible=user).exists()
+            is_leader = Command.objects.filter(leader=user).exists()
 
-        except Exception as e:
-            import traceback
-            print(f"!!! КРИТИЧЕСКАЯ ОШИБКА PDF: {str(e)}")
-            traceback.print_exc()
-            return Response({"error": f"Ошибка генерации: {str(e)}"}, status=500)
-# ---------------- Страница Доски ----------------
+            if is_responsible or is_leader:
+                user.role = 'curator'
+                user.is_staff = True
+            
+            user.save()
 
-class DownloadAcceptedNamesView(APIView):
-    permission_classes = []
 
-    def get(self, request):
-        try:
-            volunteers = VolunteerApplication.objects.filter(
-                status='accepted'
-            ).order_by('full_name')
+class VolunteerListView(generics.ListAPIView):
+    serializer_class = VolunteerListSerializer  
+    permission_classes = [permissions.IsAuthenticated]
 
-            if not volunteers.exists():
-                return Response(
-                    {"error": "Список принятых волонтеров пуст"},
-                    status=400
+    def get_queryset(self):
+        user = self.request.user
+
+        # Базовый QuerySet с оптимизацией (загружаем связанные направления)
+        qs = Volunteer.objects.prefetch_related('direction')
+
+        # 1. Если Админ — показываем всех
+        if user.is_superuser or user.role == 'admin':
+            return qs.annotate(
+                local_points=Coalesce(
+                    'point', 
+                    Value(0),
+                    output_field=DecimalField() 
                 )
-
-            buffer = io.BytesIO()
-            doc = SimpleDocTemplate(
-                buffer,
-                pagesize=A4,
-                rightMargin=40, leftMargin=40,
-                topMargin=40, bottomMargin=40
             )
 
-            elements = []
+        # 2. Логика Куратора/Тимлида
+        # Если в модели User нет related_name='responsible_for_directions', 
+        # то замените user.responsible_for_directions.all() на правильный запрос:
+        # my_directions = VolunteerDirection.objects.filter(responsible=user)
+        try:
+            my_directions = user.responsible_for_directions.all()
+        except AttributeError:
+            my_directions = VolunteerDirection.objects.filter(responsible=user)
+            
+        my_commands = Command.objects.filter(leader=user)
 
-            # --- Шрифт ---
-            font_name = 'Helvetica'
-            font_path = os.path.join(settings.BASE_DIR, 'FreeSans.ttf')
-            if os.path.exists(font_path):
-                try:
-                    pdfmetrics.registerFont(TTFont('FreeSans', font_path))
-                    font_name = 'FreeSans'
-                except:
-                    pass
+        # 3. Фильтр списка людей (мои направления ИЛИ мои команды)
+        queryset = qs.filter(
+            Q(direction__in=my_directions) | 
+            Q(commands__in=my_commands)
+        ).distinct()
 
-            title_style = ParagraphStyle(
-                'Title',
-                fontName=font_name,
-                fontSize=18,
-                alignment=1,
-                spaceAfter=20
+        # 4. СЧИТАЕМ БАЛЛЫ (local_points)
+        # Считаем сумму баллов только за задачи, которые относятся к "моей" зоне ответственности
+        queryset = queryset.annotate(
+            local_points=Coalesce(
+                Sum(
+                    'submissions__task__points', 
+                    filter=Q(submissions__status='approved') & (
+                        Q(submissions__task__command__in=my_commands) | # Задачи моих команд
+                        Q(submissions__task__command__isnull=True)      # + Общие задачи
+                    )
+                ),
+                Value(0),
+                output_field=DecimalField()
             )
+        )
 
-            elements.append(Paragraph("Список принятых волонтеров", title_style))
+        return queryset.exclude(id=user.id)
 
-            # --- Таблица: Только ФИО ---
-            data = [['ФИО']]  # Только заголовок ФИО
 
-            for v in volunteers:
-                data.append([v.full_name or '---'])
+class VolunteerViewSet(viewsets.ModelViewSet):
+    serializer_class = VolunteerSerializer
+    permission_classes = [IsAuthenticated]
+    queryset = Volunteer.objects.none()
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.role in ['curator', 'admin']:
+            return Volunteer.objects.filter(
+                Q(direction__in=user.direction.all()) | Q(commands__in=user.commands.all())
+            ).distinct().order_by('-point')
+        return Volunteer.objects.filter(id=user.id)
 
-            # Растягиваем колонку ФИО на всю ширину (примерно 450-500 для A4)
-            table = Table(
-                data,
-                colWidths=[450],
-                rowHeights=[30] + [22] * (len(data) - 1)
-            )
 
-            table.setStyle(TableStyle([
-                ('FONTNAME', (0, 0), (-1, -1), font_name),
-                ('FONTSIZE', (0, 0), (-1, 0), 11),
-                ('FONTSIZE', (0, 1), (-1, -1), 10),
+# ---------------- PDF ГЕНЕРАЦИЯ (С кириллицей) ----------------
 
-                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),  # Выравнивание текста влево
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('LEFTPADDING', (0, 0), (-1, -1), 15), # Отступ текста от края
+class DownloadPDFBase(APIView):
+    permission_classes = [AllowAny]
 
-                # Шапка
-                ('BACKGROUND', (0, 0), (0, 0), colors.HexColor("#D6EAF8")),
+    def get_pdf_response(self, volunteers, title, filename):
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+        elements = []
+        
+        # Подключение шрифта с поддержкой кириллицы
+        font_path = os.path.join(settings.BASE_DIR, 'FreeSans.ttf')
+        font_name = 'FreeSans' if os.path.exists(font_path) else 'Helvetica'
+        if os.path.exists(font_path):
+            pdfmetrics.registerFont(TTFont('FreeSans', font_path))
 
-                # Тело
-                ('BACKGROUND', (0, 1), (0, -1), colors.HexColor("#FDFEFE")),
+        elements.append(Paragraph(title, ParagraphStyle('T', fontName=font_name, fontSize=18, alignment=1)))
+        
+        data = [['№', 'ФИО', 'Телефон']]
+        for i, v in enumerate(volunteers):
+            # Проверка на None, чтобы не упало при генерации
+            name = v.full_name if v.full_name else "Не указано"
+            phone = v.phone_number if v.phone_number else "-"
+            data.append([str(i+1), name, phone])
+        
+        t = Table(data, colWidths=[30, 300, 150])
+        t.setStyle(TableStyle([
+            ('FONTNAME', (0,0), (-1,-1), font_name),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.black),
+            ('BACKGROUND', (0,0), (-1,0), colors.grey),
+            ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+            ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ]))
+        elements.append(t)
+        doc.build(elements)
+        buffer.seek(0)
+        return FileResponse(buffer, as_attachment=True, filename=filename)
 
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-                ('BOX', (0, 0), (-1, -1), 1.2, colors.black),
-                ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
-            ]))
+class DownloadInterviewScheduleView(DownloadPDFBase):
+    def get(self, request):
+        vols = VolunteerApplication.objects.filter(status='interview').order_by('full_name')
+        return self.get_pdf_response(vols, "Расписание собеседований", "Interviews.pdf")
 
-            elements.append(table)
-            doc.build(elements)
+class DownloadAcceptedNamesView(DownloadPDFBase):
+    def get(self, request):
+        vols = VolunteerApplication.objects.filter(status='accepted').order_by('full_name')
+        return self.get_pdf_response(vols, "Принятые волонтеры", "Accepted.pdf")
 
-            buffer.seek(0)
-            return FileResponse(
-                buffer,
-                as_attachment=True,
-                filename="Accepted_Volunteers_Names.pdf"
-            )
+# ---------------- HTML VIEWS ----------------
 
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-            return Response(
-                {"error": f"Ошибка генерации PDF: {str(e)}"},
-                status=500
-            )
-
-class DownloadDistributionByDirectionView(APIView):
-    permission_classes = []
+class VolunteerColumnsView(APIView):
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        try:
-            # 1. Загружаем данные
-            all_volunteers = list(VolunteerApplication.objects.filter(
-                status='accepted'
-            ).prefetch_related('directions'))
-            
-            # Получаем список всех направлений, которые были в заявках
-            all_directions_objs = list(set([d for app in all_volunteers for d in app.directions.all()]))
-            
-            if not all_volunteers or not all_directions_objs:
-                return Response({"error": "Нет данных для распределения"}, status=400)
-
-            # 2. Математический расчет "ровности"
-            total_vols = len(all_volunteers)
-            num_dirs = len(all_directions_objs)
-            base_limit = total_vols // num_dirs
-            remainder = total_vols % num_dirs
-            
-            # Создаем словарь лимитов (кому-то достанется на 1 больше, если не делится ровно)
-            dir_limits = {}
-            for i, d in enumerate(all_directions_objs):
-                dir_limits[d.name] = base_limit + (1 if i < remainder else 0)
-
-            # Перемешиваем волонтеров для случайного порядка обработки
-            random.shuffle(all_volunteers)
-
-            # Итоговая структура распределения
-            distribution = {d.name: [] for d in all_directions_objs}
-            assigned_vols_ids = set()
-
-            # 3. ЭТАП 1: Распределение по желаниям (учитывая лимиты)
-            for app in all_volunteers:
-                # Очистка имени (Фамилия Имя)
-                parts = (app.full_name or "").strip().split()
-                clean_name = " ".join(parts[:2]) if len(parts) >= 2 else (parts[0] if parts else "---")
-                
-                # Пробуем каждое из выбранных волонтером направлений
-                for chosen_dir in app.directions.all():
-                    if len(distribution[chosen_dir.name]) < dir_limits[chosen_dir.name]:
-                        distribution[chosen_dir.name].append(clean_name)
-                        assigned_vols_ids.add(app.id)
-                        break
-
-            # 4. ЭТАП 2: Распределение оставшихся (кто не попал в свои приоритеты)
-            unassigned_vols = [v for v in all_volunteers if v.id not in assigned_vols_ids]
-            
-            for app in unassigned_vols:
-                parts = (app.full_name or "").strip().split()
-                clean_name = " ".join(parts[:2]) if len(parts) >= 2 else (parts[0] if parts else "---")
-                
-                # Ищем любое направление, где еще есть место
-                for dir_name, limit in dir_limits.items():
-                    if len(distribution[dir_name]) < limit:
-                        distribution[dir_name].append(clean_name)
-                        break
-
-            # 5. ГЕНЕРАЦИЯ PDF (Улучшенный дизайн)
-            buffer = io.BytesIO()
-            doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
-            
-            font_name = 'Helvetica'
-            font_path = os.path.join(settings.BASE_DIR, 'FreeSans.ttf')
-            if os.path.exists(font_path):
-                pdfmetrics.registerFont(TTFont('FreeSans', font_path))
-                font_name = 'FreeSans'
-
-            elements = []
-            
-            # Стили
-            title_style = ParagraphStyle('Title', fontName=font_name, fontSize=20, alignment=1, spaceAfter=20, textColor=colors.HexColor("#1A237E"))
-            dir_label_style = ParagraphStyle('DirLabel', fontName=font_name, fontSize=12, textColor=colors.white, leading=14)
-            count_label_style = ParagraphStyle('CountLabel', fontName=font_name, fontSize=10, textColor=colors.whitesmoke, alignment=2)
-
-            elements.append(Paragraph("СТРОГОЕ РАСПРЕДЕЛЕНИЕ ПО ГРУППАМ", title_style))
-            elements.append(Paragraph(f"Всего волонтеров: {total_vols} | Групп: {num_dirs}", 
-                                      ParagraphStyle('Sub', fontName=font_name, alignment=1, spaceAfter=20)))
-
-            palette = ["#2E3B4E", "#1B5E20", "#4A148C", "#880E4F", "#BF360C", "#01579B"]
-
-            for i, (dir_name, names) in enumerate(sorted(distribution.items())):
-                color = palette[i % len(palette)]
-                
-                # Рандомизируем список внутри для красоты
-                random.shuffle(names)
-
-                # Шапка блока
-                header_table = Table([[Paragraph(dir_name.upper(), dir_label_style), 
-                                       Paragraph(f"Состав: {len(names)} чел.", count_label_style)]], 
-                                     colWidths=[380, 135])
-                header_table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(color)),
-                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                    ('TOPPADDING', (0, 0), (-1, -1), 10),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 12),
-                    ('RIGHTPADDING', (0, 0), (-1, -1), 12),
-                ]))
-                elements.append(header_table)
-
-                # Таблица имен
-                table_data = []
-                for j in range(0, len(names), 2):
-                    row = [names[j]]
-                    row.append(names[j+1] if j+1 < len(names) else "")
-                    table_data.append(row)
-
-                t = Table(table_data, colWidths=[257.5, 257.5])
-                t.setStyle(TableStyle([
-                    ('FONTNAME', (0, 0), (-1, -1), font_name),
-                    ('FONTSIZE', (0, 0), (-1, -1), 10),
-                    ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor("#333333")),
-                    ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#FAFAFA")),
-                    ('GRID', (0, 0), (-1, -1), 0.5, colors.white),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 15),
-                    ('TOPPADDING', (0, 0), (-1, -1), 6),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-                ]))
-                elements.append(t)
-                elements.append(Spacer(1, 20))
-
-            doc.build(elements)
-            buffer.seek(0)
-            return FileResponse(buffer, as_attachment=True, filename="Strict_Equal_Distribution.pdf")
-
-        except Exception as e:
-            traceback.print_exc()
-            return Response({"error": str(e)}, status=500)
+        # API для Канбан-доски (возвращает списки по статусам)
+        from .models import VolunteerApplication
         
-class VolunteerBoardView(TemplateView):
-    template_name = "volunteers/columns.html"
+        columns = {
+            "submitted": VolunteerApplicationSerializer(VolunteerApplication.objects.filter(status='submitted'), many=True).data,
+            "interview": VolunteerApplicationSerializer(VolunteerApplication.objects.filter(status='interview'), many=True).data,
+            "accepted": VolunteerApplicationSerializer(VolunteerApplication.objects.filter(status='accepted'), many=True).data,
+        }
+        return Response(columns)
+
+class CuratorPanelView(TemplateView): template_name = "volunteers/curator_panel.html"
+class VolunteerCabinetView(TemplateView): template_name = "volunteers/volunteer_cabinet.html"
+class LoginPageView(TemplateView): template_name = "volunteers/login.html"
+class VolunteerBoardView(TemplateView): template_name = "volunteers/columns.html"

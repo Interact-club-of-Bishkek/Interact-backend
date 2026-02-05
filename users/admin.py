@@ -1,8 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from users.models import VolunteerApplication, Volunteer, BotAccessConfig, VolunteerArchive
-
-admin.site.register(VolunteerArchive)
+from users.models import VolunteerApplication, Volunteer, BotAccessConfig
 
 @admin.register(VolunteerApplication)
 class VolunteerApplicationAdmin(admin.ModelAdmin):
@@ -13,11 +11,14 @@ class VolunteerApplicationAdmin(admin.ModelAdmin):
     readonly_fields = ('created_at', 'updated_at', 'photo_tag', 'volunteer_created') 
 
     fieldsets = (
-        ('Личная информация', {
-            'fields': (
-                'full_name', 'email', 'phone_number', 'photo', 'photo_tag',
-                'date_of_birth', 'place_of_study', 
-            )
+        ('Учетные данные', {
+            'fields': ('login', 'visible_password', 'role', 'is_active')
+        }),
+        ('Личные данные', {
+            'fields': ('name', 'phone_number', 'email', 'image')
+        }),
+        ('Структура', {
+            'fields': ('direction', 'commands')
         }),
         ('Анкетные вопросы', {
             'fields': (
