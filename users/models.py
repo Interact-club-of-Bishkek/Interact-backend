@@ -10,13 +10,17 @@ class VolunteerManager(BaseUserManager):
     def create_user(self, login=None, password=None, **extra_fields):
         if not login:
             raise ValueError('Поле Логин должно быть заполнено')
+        
         user = self.model(login=login, **extra_fields)
+        
+        # Если пароль не пришел (автогенерация)
         if password is None:
-            raw_password = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
-            user.visible_password = raw_password
-            user.set_password(raw_password)
-        else:
-            user.set_password(password)
+            password = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+        
+        # ТЕПЕРЬ пароль сохраняется в оба поля всегда:
+        user.visible_password = password  # Для тебя (открытый текст)
+        user.set_password(password)      # Для системы (хеш)
+        
         user.save(using=self._db)
         return user
     
