@@ -8,7 +8,7 @@ admin.site.register(VolunteerArchive)
 class VolunteerApplicationAdmin(admin.ModelAdmin):
     list_display = ('full_name', 'email', 'phone_number', 'status', 'photo_tag', 'created_at')
     # Исправлено: direction вместо directions
-    list_filter = ('status', 'direction')
+    list_filter = ('status', 'direction')Q
     search_fields = ('full_name', 'email', 'phone_number')
     readonly_fields = ('created_at', 'updated_at', 'photo_tag', 'volunteer_created') 
 
