@@ -21,20 +21,23 @@ class ActivitySubmissionInline(admin.TabularInline):
 # --- VOLUNTEER ---
 @admin.register(Volunteer)
 class VolunteerAdmin(admin.ModelAdmin):
-    list_display = ('name', 'login', 'display_password', 'role', 'point', 'yellow_card', 'is_active')
-    list_filter = ('role', 'is_active', 'direction', 'commands')
+    list_display = ('name', 'login', 'display_password', 'role', 'point', 'is_staff', 'is_active')
+    list_filter = ('role', 'is_active', 'is_staff', 'is_superuser', 'direction', 'commands')
     search_fields = ('name', 'login', 'phone_number')
     
-    # login — только чтение. 
-    # visible_password НЕ ДОЛЖНО быть в readonly_fields, чтобы его можно было менять.
     readonly_fields = ('login',) 
     
-    filter_horizontal = ('direction', 'commands') 
+    # Добавляем системные поля groups и permissions для удобного выбора
+    filter_horizontal = ('direction', 'commands', 'groups', 'user_permissions') 
     inlines = [ActivitySubmissionInline]
     
     fieldsets = (
         ('Учетные данные', {
-            'fields': (('login', 'visible_password'), 'role', 'is_active')
+            'fields': (('login', 'visible_password'), 'role')
+        }),
+        ('Статусы доступа', {
+            'fields': (('is_active', 'is_staff', 'is_superuser'),),
+            'description': '<b>is_staff</b> — дает доступ в админку. <b>is_superuser</b> — дает полные права на всё.'
         }),
         ('Личные данные', {
             'fields': ('name', 'phone_number', 'email', 'image')
@@ -45,13 +48,24 @@ class VolunteerAdmin(admin.ModelAdmin):
         ('Статистика', {
             'fields': ('point', 'yellow_card')
         }),
+        # Скрытый блок для детальной настройки прав (через группы)
+        ('Расширенные права', {
+            'fields': ('groups', 'user_permissions'),
+            'classes': ('collapse',), 
+        }),
     )
 
     def save_model(self, request, obj, form, change):
-        # Если создаем нового или изменили поле видимого пароля
+        # 1. Синхронизация пароля
         if not change or 'visible_password' in form.changed_data:
             if obj.visible_password:
                 obj.set_password(obj.visible_password)
+        
+        # 2. Авто-назначение прав по роли
+        # Если ты выбираешь роль 'admin', система сама может ставить галочку входа
+        if obj.role == 'admin':
+            obj.is_staff = True
+            
         super().save_model(request, obj, form, change)
 
     def display_password(self, obj):
