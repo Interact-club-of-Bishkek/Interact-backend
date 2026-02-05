@@ -20,14 +20,17 @@ class ActivitySubmissionInline(admin.TabularInline):
     def has_add_permission(self, request, obj):
         return False
 
-# --- VOLUNTEER ---
 @admin.register(Volunteer)
 class VolunteerAdmin(admin.ModelAdmin):
-    # Добавили display_password в список
+    # Что видим в общем списке
     list_display = ('name', 'login', 'display_password', 'role', 'point', 'yellow_card', 'is_active')
     list_filter = ('role', 'is_active', 'direction', 'commands')
     search_fields = ('name', 'login', 'phone_number')
-    readonly_fields = ('login', 'visible_password')
+    
+    # login оставляем только для чтения, чтобы не сломать связи, 
+    # а visible_password УБИРАЕМ из readonly, чтобы его можно было менять!
+    readonly_fields = ('login',) 
+    
     filter_horizontal = ('direction', 'commands') 
     inlines = [ActivitySubmissionInline]
     
@@ -46,15 +49,29 @@ class VolunteerAdmin(admin.ModelAdmin):
         }),
     )
 
-    # Метод для красивого вывода пароля
+    # ГЛАВНАЯ ФУНКЦИЯ: Синхронизация пароля
+    def save_model(self, request, obj, form, change):
+        """
+        Эта функция срабатывает при нажатии кнопки 'Сохранить'.
+        Если пароль в поле visible_password был изменен, мы его хешируем для системы.
+        """
+        # Если это новый пользователь или поле visible_password было изменено вручную
+        if not change or 'visible_password' in form.changed_data:
+            if obj.visible_password:
+                obj.set_password(obj.visible_password)
+        
+        super().save_model(request, obj, form, change)
+
+    # КРАСИВЫЙ ВЫВОД: Пароль в списке
     def display_password(self, obj):
         if obj.visible_password:
             return format_html(
                 '<code style="background: #fdf2f2; padding: 3px 6px; border-radius: 4px; color: #d63384; font-weight: bold;">{}</code>',
                 obj.visible_password
             )
-        return format_html('<span style="color: #999;">Изменен</span>')
-    display_password.short_description = "Пароль (авто)"
+        return format_html('<span style="color: #999;">Не задан</span>')
+    
+    display_password.short_description = "Пароль"
 
 # --- APPLICATIONS ---
 @admin.register(VolunteerApplication)
