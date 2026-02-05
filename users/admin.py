@@ -7,17 +7,17 @@ admin.site.register(VolunteerArchive)
 @admin.register(VolunteerApplication)
 class VolunteerApplicationAdmin(admin.ModelAdmin):
     list_display = ('full_name', 'email', 'phone_number', 'status', 'photo_tag', 'created_at')
-    # ИСПРАВЛЕНИЕ 1: directions -> direction
+    # Исправлено: direction вместо directions
     list_filter = ('status', 'direction')
     search_fields = ('full_name', 'email', 'phone_number')
-    readonly_fields = ('created_at', 'updated_at', 'photo_tag', 'volunteer_created')
+    readonly_fields = ('created_at', 'updated_at', 'photo_tag', 'volunteer_created') 
 
     fieldsets = (
-        ('Учетные данные', {
-            'fields': ('login', 'visible_password', 'role', 'is_active')
-        }),
-        ('Личные данные', {
-            'fields': ('name', 'phone_number', 'email', 'image')
+        ('Личная информация', {
+            'fields': (
+                'full_name', 'email', 'phone_number', 'photo', 'photo_tag',
+                'date_of_birth', 'place_of_study', 
+            )
         }),
         ('Структура', {
             'fields': ('direction', 'commands')
@@ -25,14 +25,13 @@ class VolunteerApplicationAdmin(admin.ModelAdmin):
         ('Анкетные вопросы', {
             'fields': (
                 'why_volunteer', 'volunteer_experience', 'hobbies_skills', 'strengths',
-                'why_choose_you', 'choice_motives',
+                'why_choose_you', 'choice_motives', 
                 'agree_inactivity_removal', 'agree_terms', 'ready_travel',
-                # ИСПРАВЛЕНИЕ 2: directions -> direction
-                'ideas_improvements', 'expectations', 'direction', 'weekly_hours', 'attend_meetings'
+                'ideas_improvements', 'expectations', 'weekly_hours', 'attend_meetings'
             )
         }),
         ('Статус', {
-            'fields': ('status', 'volunteer', 'volunteer_created')
+            'fields': ('status', 'volunteer', 'volunteer_created') 
         }),
     )
 
@@ -50,16 +49,22 @@ class VolunteerApplicationAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
         if creating_volunteer:
+            # Создаем волонтера
             volunteer = Volunteer.objects.create_user(
+                login=obj.email, # Используем email как логин по умолчанию или настройте логику
                 name=obj.full_name,
                 phone_number=obj.phone_number,
                 email=obj.email
             )
-            # ИСПРАВЛЕНИЕ 3: obj.directions -> obj.direction
-            # Проверяем, есть ли вообще такое поле у объекта перед обращением
-            if hasattr(obj, 'direction'):
-                volunteer.direction.set(obj.direction.all())
             
+            # Переносим направление (ForeignKey)
+            if obj.direction:
+                volunteer.direction.add(obj.direction)
+            
+            # Переносим команды (ManyToMany)
+            if obj.commands.exists():
+                volunteer.commands.set(obj.commands.all())
+                
             volunteer.save()
             
             obj.volunteer = volunteer
@@ -72,7 +77,7 @@ class VolunteerAdmin(admin.ModelAdmin):
     list_display = ('name', 'login', 'visible_password', 'phone_number', 'email', 'is_staff', 'is_active')
     list_filter = ('is_staff', 'is_active', 'direction')
     search_fields = ('name', 'login', 'phone_number', 'email')
-    readonly_fields = ('visible_password',)
+    readonly_fields = ('visible_password', 'is_staff')
 
 
 @admin.register(BotAccessConfig)
