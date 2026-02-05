@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Мой Кабинет</title>
+    <link rel="icon" type="image/png" href="https://i.ibb.co/qFYrFSnD/2105176-1-removebg-preview.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
@@ -145,8 +146,9 @@
         </div>
     </div>
 
-    <script>
+   <script>
         const token = localStorage.getItem('access');
+        
         let appData = {
             my_direction: [],
             my_commands: [],
@@ -167,38 +169,58 @@
 
         function logout() { localStorage.clear(); location.href = '/login/'; }
 
+        // --- ФУНКЦИЯ ИЗВЛЕЧЕНИЯ ID ---
+        function extractId(obj, fieldName) {
+            if (!obj) return null;
+            
+            // 1. Ищем поле _id (direction_id / command_id)
+            const directId = obj[`${fieldName}_id`];
+            if (directId !== undefined && directId !== null) return String(directId);
+
+            // 2. Ищем вложенный объект (direction.id / command.id)
+            const val = obj[fieldName];
+            if (val && typeof val === 'object' && val.id) return String(val.id);
+            
+            // 3. Если это просто ID (строка или число)
+            if (val !== undefined && val !== null && typeof val !== 'object') return String(val);
+
+            return null; 
+        }
+
+        const toArray = (data) => {
+            if (!data) return [];
+            return Array.isArray(data) ? data : [data];
+        };
+
         async function init() {
             if(!token) return location.href = '/login/';
 
             try {
                 const [uRes, dRes, hRes] = await Promise.all([
-                    fetch('/api/profile/', { headers: {'Authorization': `Bearer ${token}`} }),
-                    fetch('/api/discovery/', { headers: {'Authorization': `Bearer ${token}`} }),
-                    fetch('/api/activities/', { headers: {'Authorization': `Bearer ${token}`} })
+                    fetch('/api/profile/', { headers: {'Authorization': `Bearer ${token}`}}),
+                    fetch('/api/discovery/', { headers: {'Authorization': `Bearer ${token}`}}),
+                    fetch('/api/activities/', { headers: {'Authorization': `Bearer ${token}`}})
                 ]);
 
-                if (uRes.status === 401 || dRes.status === 401) {
-                    localStorage.clear();
-                    location.href = '/login/';
-                    return;
-                }
-
+                if (uRes.status === 401 || dRes.status === 401) { logout(); return; }
                 if (!uRes.ok) throw new Error("Auth failed");
 
                 const user = await uRes.json();
                 const disc = await dRes.json();
                 const hist = await hRes.json();
 
-                // ЗАПОЛНЯЕМ ШАПКУ
+                // ОТЛАДКА
+                console.log("📥 Все задачи:", disc.available_tasks);
+
+                // Заполняем профиль
                 document.getElementById('vName').innerText = user.name || user.login;
                 document.getElementById('vRole').innerText = user.role_display || "Волонтер";
-                document.getElementById('vPoints').innerText = user.point;
-                // ВЫВОД ЖЕЛТЫХ КАРТОЧЕК
+                document.getElementById('vPoints').innerText = user.point || 0;
                 document.getElementById('vYellowCards').innerText = user.yellow_card || 0;
 
-                appData.my_direction = disc.my_direction || [];
-                appData.my_commands = disc.my_commands || [];
-                appData.available_tasks = disc.available_tasks || [];
+                appData.my_direction = toArray(disc.my_direction);
+                appData.my_commands = toArray(disc.my_commands);
+                appData.available_tasks = toArray(disc.available_tasks);
                 appData.history = hist;
 
                 renderContextSelect();
@@ -213,15 +235,22 @@
         function renderContextSelect() {
             const sel = document.getElementById('contextSelect');
             sel.innerHTML = '<option value="">Выберите, куда отправить...</option>';
-            if (appData.my_direction.length > 0) {
-                const dir = appData.my_direction[0];
-                sel.innerHTML += `<option value="dir_${dir.id}">🔹 ${dir.name}</option>`;
-            }
-            appData.my_commands.forEach(cmd => {
-                sel.innerHTML += `<option value="cmd_${cmd.id}">🔸 Команда: ${cmd.title}</option>`;
+            
+            // Направления
+            appData.my_direction.forEach(dir => {
+                const dId = dir.id || dir; 
+                const dName = dir.name || "Направление"; 
+                sel.innerHTML += `<option value="dir_${dId}">🔹 ${dName}</option>`;
             });
+
+            // Команды
+            appData.my_commands.forEach(cmd => {
+                const cId = cmd.id || cmd;
+                sel.innerHTML += `<option value="cmd_${cId}">🔸 Команда: ${cmd.title}</option>`;
+            });
+
             if (appData.my_direction.length === 0 && appData.my_commands.length === 0) {
-                 sel.innerHTML = '<option value="">Вы пока нигде не состоите</option>';
+                sel.innerHTML = '<option value="">Вы пока нигде не состоите</option>';
             }
         }
 
@@ -229,19 +258,42 @@
             const contextVal = document.getElementById('contextSelect').value;
             const taskSel = document.getElementById('taskSelect');
             taskSel.innerHTML = '<option value="">Выберите задание...</option>';
+            
             if (!contextVal) return;
+
             const [type, idStr] = contextVal.split('_');
-            const targetId = parseInt(idStr);
+            const targetId = String(idStr);
+
+            console.log(`🔎 Фильтр: Тип=${type}, ID=${targetId}`);
+
             const relevantTasks = appData.available_tasks.filter(t => {
-                if (type === 'dir') return t.direction === targetId;
-                if (type === 'cmd') return t.command === targetId;
+                const taskDirId = extractId(t, 'direction');
+                const taskCmdId = extractId(t, 'command');
+
+                // --- НОВАЯ ЛОГИКА ---
+                // Задача считается "Общей", если у неё нет ни Команды, ни Направления
+                const isGeneralTask = !taskCmdId && !taskDirId;
+
+                if (type === 'dir') {
+                    // Показываем, если совпало направление ИЛИ если задача общая
+                    return (taskDirId === targetId) || isGeneralTask;
+                }
+                if (type === 'cmd') {
+                    // Показываем, если совпала команда ИЛИ если задача общая
+                    return (taskCmdId === targetId) || isGeneralTask;
+                }
                 return false;
             });
+
+            console.log(`Найдено задач: ${relevantTasks.length}`);
+
             if (relevantTasks.length === 0) {
                 taskSel.innerHTML = '<option value="">Нет активных задач</option>';
             } else {
                 relevantTasks.forEach(t => {
-                    taskSel.innerHTML += `<option value="${t.id}">${t.title} (+${t.points})</option>`;
+                    // Добавим пометку (Общая), если это общая задача
+                    const isGen = (!t.command_id && !t.direction_id) ? " (Общая)" : "";
+                    taskSel.innerHTML += `<option value="${t.id}">${t.title}${isGen} (+${t.points})</option>`;
                 });
             }
         }
@@ -249,20 +301,34 @@
         function renderTables() {
             const container = document.getElementById('tablesContainer');
             container.innerHTML = '';
-            if (appData.my_direction.length > 0) {
-                const dir = appData.my_direction[0];
-                const dirSubmissions = appData.history.filter(s => s.task_details.direction === dir.id);
-                container.innerHTML += createTableHTML(dir.name, "Основное направление", dirSubmissions);
-            }
+
+            // История Направлений
+            appData.my_direction.forEach(dir => {
+                const dId = String(dir.id || dir);
+                const dName = dir.name || "Направление";
+                // Показываем историю по направлению + Общие задачи, выполненные в рамках этого контекста (если бы мы хранили контекст)
+                // Но для истории лучше просто фильтровать по факту привязки задачи
+                const dirSubmissions = appData.history.filter(s => {
+                    const tDir = extractId(s.task_details, 'direction');
+                    const tCmd = extractId(s.task_details, 'command');
+                    // Показываем задачу здесь, если она привязана к этому направлению ИЛИ она общая (нет привязок)
+                    return tDir === dId || (!tDir && !tCmd);
+                });
+                container.innerHTML += createTableHTML(dName, "Направление + Общие", dirSubmissions);
+            });
+
+            // История Команд
             appData.my_commands.forEach(cmd => {
-                const cmdSubmissions = appData.history.filter(s => s.task_details.command === cmd.id);
+                const cId = String(cmd.id || cmd);
+                const cmdSubmissions = appData.history.filter(s => extractId(s.task_details, 'command') === cId);
                 container.innerHTML += createTableHTML(cmd.title, "Спец. Команда", cmdSubmissions);
             });
+
             if (container.innerHTML === '') {
                 container.innerHTML = `
                     <div class="glass-card text-center py-10">
                         <i class="fas fa-wind text-4xl text-gray-600 mb-4"></i>
-                        <p class="text-gray-400">У вас пока нет активных направлений.</p>
+                        <p class="text-gray-400">История пуста.</p>
                     </div>`;
             }
         }
@@ -270,21 +336,23 @@
         function createTableHTML(title, subtitle, submissions) {
             const totalPoints = submissions
                 .filter(s => s.status === 'approved')
-                .reduce((sum, s) => sum + (s.task_details.points || 0), 0);
+                .reduce((sum, s) => sum + (parseFloat(s.task_details?.points) || 0), 0);
+            
             const rows = submissions.length === 0 
-                ? `<tr><td colspan="3" class="text-center text-gray-500 py-6 text-xs italic">История заданий пуста</td></tr>`
+                ? `<tr><td colspan="3" class="text-center text-gray-500 py-6 text-xs italic">Нет записей</td></tr>`
                 : submissions.map(s => `
                     <tr>
                         <td class="text-gray-400 font-mono text-[10px]">${new Date(s.created_at).toLocaleDateString()}</td>
                         <td>
-                            <div class="font-bold text-white text-xs md:text-sm line-clamp-1">${s.task_details.title}</div>
+                            <div class="font-bold text-white text-xs md:text-sm line-clamp-1">${s.task_details?.title || 'Задание удалено'}</div>
                             <div class="flex items-center gap-2 mt-1">
                                 ${getStatusBadge(s.status, s.status_display)}
                             </div>
                         </td>
-                        <td class="text-right font-black text-white">+${s.task_details.points}</td>
+                        <td class="text-right font-black text-white">+${s.task_details?.points || 0}</td>
                     </tr>
                 `).join('');
+
             return `
                 <div class="glass-card">
                     <div class="flex justify-between items-center mb-6 border-b border-white/5 pb-4">
@@ -293,8 +361,8 @@
                             <h2 class="text-xl md:text-2xl font-black italic uppercase text-white">${title}</h2>
                         </div>
                         <div class="text-right bg-white/5 px-3 py-2 rounded-xl">
-                             <p class="text-[9px] text-gray-500 font-bold uppercase">Всего</p>
-                             <p class="text-xl font-black text-primary leading-none">${totalPoints}</p>
+                            <p class="text-[9px] text-gray-500 font-bold uppercase">Всего</p>
+                            <p class="text-xl font-black text-primary leading-none">${totalPoints.toFixed(1)}</p>
                         </div>
                     </div>
                     <div class="overflow-x-auto">
@@ -316,7 +384,7 @@
             return `
                 <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[9px] font-bold uppercase tracking-wider ${styles[status] || styles['pending']}">
                     <i class="fas ${icons[status] || 'fa-question'}"></i>
-                    ${text}
+                    ${text || status}
                 </span>
             `;
         }
@@ -325,16 +393,20 @@
             const btn = document.getElementById('sendBtn');
             const taskId = document.getElementById('taskSelect').value;
             const comment = document.getElementById('taskComm').value;
+
             if (!taskId) return showToast("Выберите задание!", "error");
+            
             const originalText = btn.innerHTML;
             btn.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i>`;
             btn.disabled = true;
+            
             try {
                 const res = await fetch('/api/activities/', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                     body: JSON.stringify({ task: taskId, description: comment })
                 });
+                
                 if(res.ok) { 
                     showToast("Отчет успешно отправлен!");
                     document.getElementById('taskComm').value = ""; 
