@@ -21,16 +21,18 @@ class ActivitySubmissionInline(admin.TabularInline):
 
 @admin.register(Volunteer)
 class VolunteerAdmin(admin.ModelAdmin):
-    list_display = ('name', 'login', 'role', 'point', 'yellow_card', 'is_active')
+    # Теперь колонка 'display_password' будет работать
+    list_display = ('name', 'login', 'display_password', 'role', 'point', 'yellow_card', 'is_active')
     list_filter = ('role', 'is_active', 'direction', 'commands')
     search_fields = ('name', 'login', 'phone_number')
-    readonly_fields = ('login', 'visible_password') # point можно редактировать админу
+    readonly_fields = ('login', 'visible_password')
     filter_horizontal = ('direction', 'commands') 
     inlines = [ActivitySubmissionInline]
     
     fieldsets = (
         ('Учетные данные', {
-            'fields': ('login', 'visible_password', 'role', 'is_active')
+            # Скобки ( ... ) вокруг логина и пароля ставят их на ОДНУ строку
+            'fields': (('login', 'visible_password'), 'role', 'is_active')
         }),
         ('Личные данные', {
             'fields': ('name', 'phone_number', 'email', 'image')
@@ -42,6 +44,16 @@ class VolunteerAdmin(admin.ModelAdmin):
             'fields': ('point', 'yellow_card')
         }),
     )
+
+    # Добавляем этот метод внутрь класса!
+    def display_password(self, obj):
+        if obj.visible_password:
+            return format_html(
+                '<code style="background: #fdf2f2; padding: 3px 6px; border-radius: 4px; color: #d63384; font-weight: bold;">{}</code>',
+                obj.visible_password
+            )
+        return format_html('<span style="color: #999;">Изменен</span>')
+    display_password.short_description = "Пароль (авто)"
 
 @admin.register(VolunteerApplication)
 class VolunteerApplicationAdmin(admin.ModelAdmin):
