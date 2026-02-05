@@ -113,6 +113,19 @@ class Volunteer(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return f"{self.name or self.login} ({self.get_role_display()})"
 
+    def has_perm(self, perm, obj=None):
+        # Суперпользователи имеют все права
+        if self.is_active and self.is_superuser:
+            return True
+        # Остальные проверяются через PermissionsMixin (группы)
+        return super().has_perm(perm, obj)
+    
+    def has_module_perms(self, app_label):
+        # Разрешаем просмотр модулей, если у пользователя есть доступ в админку
+        if self.is_active and self.is_staff:
+            return True
+        return super().has_module_perms(app_label)
+
     class Meta:
         verbose_name = "Волонтер"
         verbose_name_plural = "Волонтеры"
