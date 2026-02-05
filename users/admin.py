@@ -1,94 +1,108 @@
 from django.contrib import admin
-from django.utils.html import format_html
-from users.models import VolunteerApplication, Volunteer, BotAccessConfig, VolunteerArchive
+from django.db import models
+from django.db.models import Q
+from .models import (
+    Volunteer, VolunteerApplication, VolunteerArchive, 
+    ActivityTask, ActivitySubmission, BotAccessConfig
+)
 
-admin.site.register(VolunteerArchive)
+# Inline для просмотра заданий внутри профиля волонтера
+class ActivitySubmissionInline(admin.TabularInline):
+    model = ActivitySubmission
+    extra = 0
+    verbose_name = "Выполненное задание"
+    verbose_name_plural = "История заданий"
+    readonly_fields = ('created_at',)
+    fields = ('task', 'status', 'created_at')
+    can_delete = False
 
-@admin.register(VolunteerApplication)
-class VolunteerApplicationAdmin(admin.ModelAdmin):
-    list_display = ('full_name', 'email', 'phone_number', 'status', 'photo_tag', 'created_at')
-    # Исправлено: direction вместо directions
-    list_filter = ('status', 'direction')Q
-    search_fields = ('full_name', 'email', 'phone_number')
-    readonly_fields = ('created_at', 'updated_at', 'photo_tag', 'volunteer_created') 
+    def has_add_permission(self, request, obj):
+        return False
 
+@admin.register(Volunteer)
+class VolunteerAdmin(admin.ModelAdmin):
+    list_display = ('name', 'login', 'role', 'point', 'yellow_card', 'is_active')
+    list_filter = ('role', 'is_active', 'direction', 'commands')
+    search_fields = ('name', 'login', 'phone_number')
+    readonly_fields = ('login', 'visible_password') # point можно редактировать админу
+    filter_horizontal = ('direction', 'commands') 
+    inlines = [ActivitySubmissionInline]
+    
     fieldsets = (
-        ('Личная информация', {
-            'fields': (
-                'full_name', 'email', 'phone_number', 'photo', 'photo_tag',
-                'date_of_birth', 'place_of_study', 
-            )
+        ('Учетные данные', {
+            'fields': ('login', 'visible_password', 'role', 'is_active')
+        }),
+        ('Личные данные', {
+            'fields': ('name', 'phone_number', 'email', 'image')
         }),
         ('Структура', {
             'fields': ('direction', 'commands')
         }),
-        ('Анкетные вопросы', {
-            'fields': (
-                'why_volunteer', 'volunteer_experience', 'hobbies_skills', 'strengths',
-                'why_choose_you', 'choice_motives', 
-                'agree_inactivity_removal', 'agree_terms', 'ready_travel',
-                'ideas_improvements', 'expectations', 'weekly_hours', 'attend_meetings'
-            )
-        }),
-        ('Статус', {
-            'fields': ('status', 'volunteer', 'volunteer_created') 
+        ('Статистика', {
+            'fields': ('point', 'yellow_card')
         }),
     )
 
-    def photo_tag(self, obj):
-        if obj.photo:
-            return format_html('<img src="{}" style="width: 100px; height:auto;" />', obj.photo.url)
-        return "-"
-    photo_tag.short_description = "Фото"
+@admin.register(VolunteerApplication)
+class VolunteerApplicationAdmin(admin.ModelAdmin):
+    list_display = ('full_name', 'direction_name', 'status', 'phone_number', 'created_at')
+    list_filter = ('status', 'direction')
+    search_fields = ('full_name', 'phone_number')
+    filter_horizontal = ('commands',)
 
-    def save_model(self, request, obj, form, change):
-        creating_volunteer = False
-        if obj.status == 'accepted' and not obj.volunteer_created:
-            creating_volunteer = True
+    def direction_name(self, obj):
+        return obj.direction.name if obj.direction else "-"
+    direction_name.short_description = "Направление"
 
-        super().save_model(request, obj, form, change)
+@admin.register(ActivityTask)
+class ActivityTaskAdmin(admin.ModelAdmin):
+    # ИСПРАВЛЕНИЕ: Убрали direction, так как его нет в модели
+    list_display = ('title', 'points', 'get_visibility')
+    list_filter = ('command',) 
+    search_fields = ('title',)
 
-        if creating_volunteer:
-            # Создаем волонтера
-            volunteer = Volunteer.objects.create_user(
-                login=obj.email, # Используем email как логин по умолчанию или настройте логику
-                name=obj.full_name,
-                phone_number=obj.phone_number,
-                email=obj.email
-            )
-            
-            # Переносим направление (ForeignKey)
-            if obj.direction:
-                volunteer.direction.add(obj.direction)
-            
-            # Переносим команды (ManyToMany)
-            if obj.commands.exists():
-                volunteer.commands.set(obj.commands.all())
-                
-            volunteer.save()
-            
-            obj.volunteer = volunteer
-            obj.volunteer_created = True
-            obj.save(update_fields=['volunteer', 'volunteer_created'])
+    # Кастомная колонка для удобства
+    def get_visibility(self, obj):
+        if obj.command:
+            return f"🔒 Только команда: {obj.command.title}"
+        return "🌍 ОБЩЕЕ (Видно всем)"
+    get_visibility.short_description = "Видимость"
 
+@admin.register(ActivitySubmission)
+class ActivitySubmissionAdmin(admin.ModelAdmin):
+    list_display = ('volunteer', 'task', 'status', 'created_at')
+    # ИСПРАВЛЕНИЕ: Фильтруем по статусу и команде задачи (direction у задачи нет)
+    list_filter = ('status', 'task__command')
+    search_fields = ('volunteer__name', 'task__title')
+    actions = ['approve_selected', 'reject_selected']
 
-@admin.register(Volunteer)
-class VolunteerAdmin(admin.ModelAdmin):
-    list_display = ('name', 'login', 'visible_password', 'phone_number', 'email', 'is_staff', 'is_active')
-    list_filter = ('is_staff', 'is_active', 'direction')
-    search_fields = ('name', 'login', 'phone_number', 'email')
-    readonly_fields = ('visible_password', 'is_staff')
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser or request.user.role == 'admin':
+            return qs
+        
+        # ЛОГИКА ВИДИМОСТИ ДЛЯ КУРАТОРА:
+        # 1. Куратор видит задачи, привязанные к ЕГО команде (где он лидер).
+        # 2. Куратор видит задачи, выполненные волонтерами ИЗ ЕГО направления (даже если задача общая).
+        return qs.filter(
+            Q(task__command__leader=request.user) | 
+            Q(volunteer__direction__responsible=request.user)
+        ).distinct()
 
+    @admin.action(description="✅ Одобрить и начислить баллы")
+    def approve_selected(self, request, queryset):
+        for obj in queryset.filter(status='pending'):
+            obj.status = 'approved'
+            obj.save() # Вызовет метод save() модели и начислит баллы
 
-@admin.register(BotAccessConfig)
-class BotAccessConfigAdmin(admin.ModelAdmin):
-    list_display = ('role', 'password')
-    list_editable = ('password',)
-    
-    def has_add_permission(self, request):
-        if BotAccessConfig.objects.count() >= 2:
-            return False
-        return True
+    @admin.action(description="❌ Отклонить выбранные")
+    def reject_selected(self, request, queryset):
+        # Тут используем цикл, чтобы сработал save() и снялись баллы (если вдруг они были начислены)
+        # Или просто update, если мы уверены, что снимать не надо.
+        # Для безопасности лучше через цикл, если логика сложная:
+        for obj in queryset.filter(status='pending'):
+            obj.status = 'rejected'
+            obj.save()
 
-    def has_delete_permission(self, request, obj=None):
-        return False
+admin.site.register(BotAccessConfig)
+admin.site.register(VolunteerArchive)
