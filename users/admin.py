@@ -1,14 +1,16 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from users.models import VolunteerApplication, Volunteer, BotAccessConfig
+from users.models import VolunteerApplication, Volunteer, BotAccessConfig, VolunteerArchive
+
+admin.site.register(VolunteerArchive)
 
 @admin.register(VolunteerApplication)
 class VolunteerApplicationAdmin(admin.ModelAdmin):
     list_display = ('full_name', 'email', 'phone_number', 'status', 'photo_tag', 'created_at')
-    list_filter = ('status', 'directions')
+    # ИСПРАВЛЕНИЕ 1: directions -> direction
+    list_filter = ('status', 'direction')
     search_fields = ('full_name', 'email', 'phone_number')
-    # Добавлены поля в readonly_fields, чтобы их можно было включить в fieldsets
-    readonly_fields = ('created_at', 'updated_at', 'photo_tag', 'volunteer_created') 
+    readonly_fields = ('created_at', 'updated_at', 'photo_tag', 'volunteer_created')
 
     fieldsets = (
         ('Учетные данные', {
@@ -23,14 +25,14 @@ class VolunteerApplicationAdmin(admin.ModelAdmin):
         ('Анкетные вопросы', {
             'fields': (
                 'why_volunteer', 'volunteer_experience', 'hobbies_skills', 'strengths',
-                'why_choose_you', 'choice_motives', 
+                'why_choose_you', 'choice_motives',
                 'agree_inactivity_removal', 'agree_terms', 'ready_travel',
-                'ideas_improvements', 'expectations', 'directions', 'weekly_hours', 'attend_meetings'
+                # ИСПРАВЛЕНИЕ 2: directions -> direction
+                'ideas_improvements', 'expectations', 'direction', 'weekly_hours', 'attend_meetings'
             )
         }),
         ('Статус', {
-            # Теперь volunteer_created можно включить, т.к. оно в readonly_fields
-            'fields': ('status', 'volunteer', 'volunteer_created') 
+            'fields': ('status', 'volunteer', 'volunteer_created')
         }),
     )
 
@@ -53,12 +55,15 @@ class VolunteerApplicationAdmin(admin.ModelAdmin):
                 phone_number=obj.phone_number,
                 email=obj.email
             )
-            volunteer.direction.set(obj.directions.all())
+            # ИСПРАВЛЕНИЕ 3: obj.directions -> obj.direction
+            # Проверяем, есть ли вообще такое поле у объекта перед обращением
+            if hasattr(obj, 'direction'):
+                volunteer.direction.set(obj.direction.all())
+            
             volunteer.save()
             
             obj.volunteer = volunteer
             obj.volunteer_created = True
-            # Предотвращение рекурсии
             obj.save(update_fields=['volunteer', 'volunteer_created'])
 
 
@@ -72,18 +77,13 @@ class VolunteerAdmin(admin.ModelAdmin):
 
 @admin.register(BotAccessConfig)
 class BotAccessConfigAdmin(admin.ModelAdmin):
-    # Поля, которые будут видны в списке
     list_display = ('role', 'password')
-    
-    # Поля, которые можно редактировать прямо в списке
     list_editable = ('password',)
     
-    # Ограничение: запрещаем создавать более двух записей (куратор и волонтер)
     def has_add_permission(self, request):
         if BotAccessConfig.objects.count() >= 2:
             return False
         return True
 
-    # Запрещаем удалять записи, чтобы бот не "сломался"
     def has_delete_permission(self, request, obj=None):
         return False
