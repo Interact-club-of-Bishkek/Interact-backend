@@ -26,14 +26,14 @@ from reportlab.pdfbase.ttfonts import TTFont
 
 # Импорты моделей (лучше держать их вверху, если нет циклической зависимости)
 from .models import (
-    Volunteer, VolunteerApplication, BotAccessConfig, 
+    Attendance, Volunteer, VolunteerApplication, BotAccessConfig, 
     ActivityTask, ActivitySubmission
 )
 from directions.models import VolunteerDirection
 from commands.models import Command
 
 from .serializers import (
-    VolunteerSerializer, VolunteerLoginSerializer, VolunteerRegisterSerializer,
+    BulkAttendanceSerializer, VolunteerSerializer, VolunteerLoginSerializer, VolunteerRegisterSerializer,
     VolunteerApplicationSerializer, ActivityTaskSerializer, 
     ActivitySubmissionSerializer, VolunteerDirectionSerializer, CommandSerializer,
     VolunteerListSerializer
@@ -296,7 +296,105 @@ class VolunteerViewSet(viewsets.ModelViewSet):
             ).distinct().order_by('-point')
         return Volunteer.objects.filter(id=user.id)
 
+from rest_framework import viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from .models import Volunteer, Attendance
+from .serializers import BulkAttendanceSerializer
+from django.db import transaction
 
+class AttendanceViewSet(viewsets.ViewSet):
+    permission_classes = [IsAuthenticated]
+
+    # 1. ПОЛУЧЕНИЕ ЖУРНАЛА (Таблица)
+    @action(detail=False, methods=['get'])
+    def month_journal(self, request):
+        direction_id = request.query_params.get('direction_id')
+        month_str = request.query_params.get('month') # "YYYY-MM"
+        
+        if not direction_id or not month_str:
+            return Response({"error": "Нужны direction_id и month"}, status=400)
+
+        try:
+            year, month = map(int, month_str.split('-'))
+        except ValueError:
+            return Response({"error": "Неверный формат даты"}, status=400)
+
+        # Волонтеры
+        volunteers = Volunteer.objects.filter(direction__id=direction_id).order_by('name')
+        
+        # Записи
+        logs = Attendance.objects.filter(
+            direction_id=direction_id,
+            date__year=year,
+            date__month=month
+        ).order_by('date')
+
+        # Уникальные даты, которые уже есть в базе
+        existing_dates = sorted(list(set([log.date.strftime('%Y-%m-%d') for log in logs])))
+
+        # Карта данных
+        journal_map = {}
+        for log in logs:
+            vid = log.volunteer_id
+            d_str = log.date.strftime('%Y-%m-%d')
+            if vid not in journal_map: journal_map[vid] = {}
+            journal_map[vid][d_str] = log.status
+
+        vol_list = []
+        for vol in volunteers:
+            # Имя и инициалы
+            name = vol.name or vol.login
+            parts = name.split()
+            initials = (parts[0][0] + (parts[1][0] if len(parts)>1 else "")).upper()[:2]
+            
+            vol_list.append({
+                "id": vol.id,
+                "name": name,
+                "initials": initials,
+                "records": journal_map.get(vol.id, {})
+            })
+            
+        return Response({
+            "dates": existing_dates,
+            "volunteers": vol_list
+        })
+
+    # 2. СОХРАНЕНИЕ
+    @action(detail=False, methods=['post'])
+    def mark_bulk(self, request):
+        data = request.data
+        direction_id = data.get('direction_id')
+        records = data.get('records', [])
+
+        if request.user.role not in ['bailiff_activity', 'admin', 'curator', 'president']:
+            return Response({"error": "Нет прав"}, status=403)
+
+        saved_count = 0
+        with transaction.atomic():
+            for item in records:
+                date_str = item.get('date')
+                vol_id = item.get('volunteer_id')
+                status = item.get('status')
+
+                if not date_str or not vol_id: continue
+
+                if not status: # Если статус пустой -> удаляем
+                    Attendance.objects.filter(
+                        volunteer_id=vol_id, direction_id=direction_id, date=date_str
+                    ).delete()
+                else:
+                    Attendance.objects.update_or_create(
+                        volunteer_id=vol_id, direction_id=direction_id, date=date_str,
+                        defaults={'status': status, 'marked_by': request.user}
+                    )
+                saved_count += 1
+            
+        return Response({"message": "Сохранено"})
+
+class BailiffPanelView(TemplateView):
+    template_name = "volunteers/bailiff_panel.html"
 # ---------------- PDF ГЕНЕРАЦИЯ (С кириллицей) ----------------
 
 class DownloadPDFBase(APIView):

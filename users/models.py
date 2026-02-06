@@ -257,3 +257,23 @@ class BotAccessConfig(models.Model):
     class Meta:
         verbose_name = "Настройка доступа бота"
         verbose_name_plural = "Настройки доступа бота"
+
+class Attendance(models.Model):
+    STATUS_CHOICES = [
+        ('present', 'П (Присутствовал)'),
+        ('late', 'Оп (Опоздал)'),
+        ('excused', 'УП (Уважительная причина)'),
+        ('absent', 'Н (Не было)'),
+    ]
+
+    volunteer = models.ForeignKey(Volunteer, on_delete=models.CASCADE, verbose_name="Волонтер", related_name="attendance_records")
+    direction = models.ForeignKey('directions.VolunteerDirection', on_delete=models.CASCADE, verbose_name="Направление")
+    date = models.DateField("Дата собрания")
+    status = models.CharField("Статус", max_length=10, choices=STATUS_CHOICES)
+    marked_by = models.ForeignKey(Volunteer, on_delete=models.SET_NULL, null=True, verbose_name="Кто отметил", related_name="marked_attendances")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Посещаемость"
+        verbose_name_plural = "Журнал посещаемости"
+        unique_together = ('volunteer', 'direction', 'date') # Один волонтер - одна отметка в день по направлению

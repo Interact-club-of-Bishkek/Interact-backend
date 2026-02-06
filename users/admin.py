@@ -4,7 +4,8 @@ from django.db.models import Q
 from django.utils.html import format_html
 from .models import (
     Volunteer, VolunteerApplication, VolunteerArchive, 
-    ActivityTask, ActivitySubmission, BotAccessConfig
+    ActivityTask, ActivitySubmission, BotAccessConfig,
+    Attendance
 )
 
 # --- INLINES ---
@@ -118,6 +119,48 @@ class ActivitySubmissionAdmin(admin.ModelAdmin):
         for obj in queryset.filter(status='pending'):
             obj.status = 'rejected'
             obj.save()
+
+@admin.register(Attendance)
+class AttendanceAdmin(admin.ModelAdmin):
+    list_display = ('volunteer', 'direction', 'status_badge', 'date', 'marked_by_display')
+    list_filter = ('date', 'direction', 'status')
+    search_fields = ('volunteer__name', 'volunteer__login', 'volunteer__email')
+    
+    # Чтобы при выборе волонтера был удобный поиск, а не огромный список
+    autocomplete_fields = ['volunteer', 'direction', 'marked_by']
+    
+    # Навигация по датам сверху
+    date_hierarchy = 'date'
+
+    # Красивое отображение статуса цветом
+    def status_badge(self, obj):
+        colors = {
+            'present': 'green',
+            'late': 'orange',
+            'excused': 'blue',
+            'absent': 'red',
+        }
+        labels = {
+            'present': 'Присутствовал',
+            'late': 'Опоздал',
+            'excused': 'Уваж. причина',
+            'absent': 'Не было',
+        }
+        color = colors.get(obj.status, 'black')
+        label = labels.get(obj.status, obj.status)
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">{}</span>',
+            color, label
+        )
+    status_badge.short_description = 'Статус'
+
+    # Кто отметил (если поле заполнено)
+    def marked_by_display(self, obj):
+        return obj.marked_by.name if obj.marked_by and obj.marked_by.name else (obj.marked_by.login if obj.marked_by else "-")
+    marked_by_display.short_description = 'Кто отметил'
+    
+    # Запрещаем менять "Кто отметил" вручную, чтобы сохранялась история (опционально)
+    readonly_fields = ('created_at',)
 
 admin.site.register(BotAccessConfig)
 admin.site.register(VolunteerArchive)

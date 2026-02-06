@@ -190,7 +190,6 @@
             toggleDropdown();
         }
 
-        // Закрытие при клике мимо
         document.addEventListener('click', (e) => {
             const container = document.getElementById('dirSelectContainer');
             if (container && !container.contains(e.target)) {
@@ -199,7 +198,51 @@
             }
         });
 
-        // --- НАВИГАЦИЯ ---
+        // --- НАВИГАЦИЯ И АВТОЛОГИН ---
+        
+        // 1. Единая функция распределения по ролям
+        function navigateUser(user) {
+            // Добавлена проверка для ПРИСТАВА
+            if (user.role === 'bailiff_activity') {
+                location.href = '/bailiff-panel/';
+                return;
+            }
+            
+            // Остальные роли
+            if (['curator', 'admin', 'teamlead'].includes(user.role)) {
+                location.href = '/curator-panel/';
+            } else if (user.is_assigned || (user.direction && user.direction.length > 0)) {
+                // Если у волонтера есть направление, он идет в кабинет
+                location.href = '/cabinet/';
+            } else {
+                // Если направления нет, показываем продолжение регистрации
+                showApp();
+            }
+        }
+
+        // 2. Функция проверки сессии при загрузке страницы
+        async function checkSession() {
+            const t = localStorage.getItem('access');
+            if (!t) return; // Токена нет, остаемся на форме входа
+
+            try {
+                // Показываем какой-то индикатор или просто ждем (форма пока видна)
+                const res = await fetch('/api/profile/', {
+                    headers: { 'Authorization': `Bearer ${t}` }
+                });
+
+                if (res.ok) {
+                    const user = await res.json();
+                    navigateUser(user); // Автопереход
+                } else {
+                    // Токен протух
+                    localStorage.removeItem('access');
+                }
+            } catch (e) {
+                console.error("Ошибка автологина:", e);
+            }
+        }
+
         function toggleAuth() {
             isLogin = !isLogin;
             const title = document.getElementById('title');
@@ -242,16 +285,11 @@
                 
                 if (res.ok) {
                     localStorage.setItem('access', data.access);
-                    showToast("Авторизация...", "success");
+                    showToast("Успешный вход!", "success");
                     
                     setTimeout(() => {
-                        if (['curator', 'admin', 'teamlead'].includes(data.role)) {
-                            location.href = '/curator-panel/';
-                        } else if (data.is_assigned) {
-                            location.href = '/cabinet/';
-                        } else {
-                            showApp();
-                        }
+                        // Используем ту же логику навигации, что и при автологине
+                        navigateUser(data);
                     }, 800);
                 } else { 
                     const msg = data.detail || data.error || "Ошибка доступа";
@@ -330,6 +368,10 @@
                 setLoading('appBtn', false);
             }
         }
+
+        // ЗАПУСК АВТОЛОГИНА ПРИ ЗАГРУЗКЕ
+        checkSession();
+
     </script>
 </body>
 </html>

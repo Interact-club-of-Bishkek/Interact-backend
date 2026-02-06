@@ -6,7 +6,10 @@ from .views import (
     VolunteerApplicationViewSet, VolunteerViewSet, VolunteerColumnsView,
     DownloadInterviewScheduleView, DownloadAcceptedNamesView,
     CuratorPanelView, VolunteerCabinetView, LoginPageView, VolunteerBoardView,
-    VolunteerListView
+    VolunteerListView,
+    # --- НОВЫЕ ИМПОРТЫ ---
+    AttendanceViewSet,  # API для отметок
+    BailiffPanelView    # HTML страница
 )
 
 router = DefaultRouter()
@@ -16,10 +19,13 @@ router = DefaultRouter()
 # /api/applications/
 # /api/activities/
 # /api/curator/submissions/
+# /api/attendance/  <-- НОВОЕ
 router.register(r'volunteers', VolunteerViewSet, basename='volunteer')
 router.register(r'applications', VolunteerApplicationViewSet, basename='application')
 router.register(r'activities', VolunteerActivityViewSet, basename='vol-activity')
 router.register(r'curator/submissions', CuratorSubmissionViewSet, basename='cur-submission')
+# Регистрация API посещаемости
+router.register(r'attendance', AttendanceViewSet, basename='attendance')
 
 urlpatterns = [
     # --- API Эндпоинты ---
@@ -28,12 +34,10 @@ urlpatterns = [
     path('api/profile/', VolunteerProfileView.as_view(), name='profile'),
     path('api/discovery/', DiscoveryListView.as_view(), name='discovery'),
     
-    # ИСПРАВЛЕНИЕ: Добавляем api/list/, так как фронтенд ищет именно его
     path('api/list/', VolunteerListView.as_view(), name='volunteer-list'),
 
-    # 2. Канбан-доска (переименуем, чтобы не мешала)
+    # 2. Канбан-доска
     path('api/board-columns/', VolunteerColumnsView.as_view(), name='columns-list'),
-    # Оставляем старый путь на всякий случай
     path('api/columns/', VolunteerColumnsView.as_view(), name='columns'),
     
     # --- PDF Генерация ---
@@ -41,12 +45,14 @@ urlpatterns = [
     path('api/download/accepted/', DownloadAcceptedNamesView.as_view(), name='download-accepted'),
     
     # --- Подключение Роутера ---
-    # Важно: все пути роутера будут начинаться с /api/
     path('api/', include(router.urls)),
 
     # --- HTML Страницы ---
-    path('login/', LoginPageView.as_view(), name='login-page'), # Добавил слеш в конце для стандарта
+    path('login/', LoginPageView.as_view(), name='login-page'),
     path('cabinet/', VolunteerCabinetView.as_view(), name='cabinet'),
     path('curator-panel/', CuratorPanelView.as_view(), name='curator-panel'),
     path('board/', VolunteerBoardView.as_view(), name='board'),
+    
+    # НОВЫЙ ПУТЬ ДЛЯ ПРИСТАВА
+    path('bailiff-panel/', BailiffPanelView.as_view(), name='bailiff-panel'),
 ]

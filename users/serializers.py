@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from .models import Volunteer, VolunteerApplication, ActivityTask, ActivitySubmission
+from .models import Attendance, Volunteer, VolunteerApplication, ActivityTask, ActivitySubmission
 from directions.models import VolunteerDirection
 from commands.models import Command
 from commands.serializers import QuestionSerializer
@@ -131,3 +131,15 @@ class VolunteerLoginSerializer(serializers.Serializer):
 class BotAuthSerializer(serializers.Serializer):
     access_type = serializers.ChoiceField(choices=[('volunteer', 'volunteer'), ('curator', 'curator'), ('commands', 'commands')])
     password = serializers.CharField()
+
+class AttendanceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Attendance
+        fields = ['id', 'volunteer', 'direction', 'date', 'status']
+
+class BulkAttendanceSerializer(serializers.Serializer):
+    direction_id = serializers.IntegerField()
+    date = serializers.DateField()
+    records = serializers.ListField(
+        child=serializers.DictField() # Ожидаем список { "volunteer_id": 1, "status": "present" }
+    )
