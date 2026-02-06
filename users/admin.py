@@ -53,9 +53,7 @@ class VolunteerAdmin(admin.ModelAdmin):
     list_display = ('name', 'login', 'display_password', 'role', 'point', 'is_staff', 'is_active')
     list_filter = ('role', 'is_active', 'is_staff', 'is_superuser', 'direction', 'commands')
     search_fields = ('name', 'login', 'phone_number')
-    
-    readonly_fields = ('login',) 
-    
+        
     # Добавляем системные поля groups и permissions для удобного выбора
     filter_horizontal = ('direction', 'commands', 'groups', 'user_permissions') 
     
