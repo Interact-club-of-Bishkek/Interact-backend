@@ -184,47 +184,37 @@ class VolunteerApplicationViewSet(viewsets.ModelViewSet):
         ).distinct()
 
     def perform_create(self, serializer):
-        validated_data = serializer.validated_data
-        
-        # 1. Извлекаем команды
-        commands_data = validated_data.pop('commands', None)
-        
-        print(f"DEBUG: User={self.request.user}, Commands Data={commands_data}")
+        user = self.request.user
+        data = serializer.validated_data
 
-        with transaction.atomic():
-            # 2. Создаем/Обновляем анкету
-            application, created = VolunteerApplication.objects.update_or_create(
-                volunteer=self.request.user,
-                defaults=validated_data
-            )
-            
-            # 3. Привязываем команды к АНКЕТЕ
-            if commands_data is not None:
-                application.commands.set(commands_data)
-            
-            # 4. СИНХРОНИЗАЦИЯ С ПРОФИЛЕМ ВОЛОНТЕРА
-            user = self.request.user
-            
-            if application.full_name:
-                user.name = application.full_name
-            if application.phone_number:
-                user.phone_number = application.phone_number
-            
-            if application.direction:
-                user.direction.set([application.direction])
-            
-            if commands_data is not None:
-                user.commands.set(commands_data)
-            
-            # Проверяем роль куратора/тимлида
-            is_responsible = VolunteerDirection.objects.filter(responsible=user).exists()
-            is_leader = Command.objects.filter(leader=user).exists()
+        # 🚫 VolunteerApplication НЕ СОЗДАЁМ
+        # Просто игнорируем эту модель
 
-            if is_responsible or is_leader:
-                user.role = 'curator'
-                user.is_staff = True
-            
-            user.save()
+        # --- Обновляем ТОЛЬКО Volunteer ---
+        if 'full_name' in data:
+            user.name = data['full_name']
+
+        if 'phone_number' in data:
+            user.phone_number = data['phone_number']
+
+        if 'email' in data:
+            user.email = data['email']
+
+        if 'direction' in data and data['direction']:
+            user.direction.set([data['direction']])
+
+        if 'commands' in data:
+            user.commands.set(data['commands'])
+
+        # Проверяем роль
+        is_responsible = VolunteerDirection.objects.filter(responsible=user).exists()
+        is_leader = Command.objects.filter(leader=user).exists()
+
+        if is_responsible or is_leader:
+            user.role = 'curator'
+            user.is_staff = True
+
+        user.save()
 
 
 class VolunteerListView(generics.ListAPIView):
