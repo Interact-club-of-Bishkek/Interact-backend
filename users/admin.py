@@ -108,11 +108,30 @@ class VolunteerAdmin(admin.ModelAdmin):
 # --- APPLICATIONS ---
 @admin.register(VolunteerApplication)
 class VolunteerApplicationAdmin(admin.ModelAdmin):
-    list_display = ('full_name', 'direction_name', 'status', 'phone_number', 'created_at')
+    list_display = (
+        'photo_preview',
+        'full_name',
+        'direction_name',
+        'status',
+        'phone_number',
+        'created_at'
+    )
     list_filter = ('status', 'direction')
     search_fields = ('full_name', 'phone_number')
     filter_horizontal = ('commands',)
-    def direction_name(self, obj): return obj.direction.name if obj.direction else "-"
+
+    def direction_name(self, obj):
+        return obj.direction.name if obj.direction else "-"
+
+    def photo_preview(self, obj):
+        if obj.image:
+            return format_html(
+                '<img src="{}" style="width:40px; height:40px; object-fit:cover; border-radius:50%;" />',
+                obj.image.url
+            )
+        return "—"
+
+    photo_preview.short_description = "Фото"
 
 # --- TASKS ---
 @admin.register(ActivityTask)
