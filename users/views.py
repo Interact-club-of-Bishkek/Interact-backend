@@ -307,7 +307,7 @@ from django.db import transaction
 class AttendanceViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
 
-    # 1. ПОЛУЧЕНИЕ ЖУРНАЛА (Таблица)
+    # 1. ПОЛУЧЕНИЕ ЖУРНАЛА
     @action(detail=False, methods=['get'])
     def month_journal(self, request):
         direction_id = request.query_params.get('direction_id')
@@ -321,20 +321,23 @@ class AttendanceViewSet(viewsets.ViewSet):
         except ValueError:
             return Response({"error": "Неверный формат даты"}, status=400)
 
-        # Волонтеры
-        volunteers = Volunteer.objects.filter(direction__id=direction_id).order_by('name')
+        # --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
+        # Фильтруем: только те, у кого role='volunteer'
+        volunteers = Volunteer.objects.filter(
+            direction__id=direction_id, 
+            role='volunteer'
+        ).order_by('name')
+        # -----------------------
         
-        # Записи
+        # Получаем записи посещаемости
         logs = Attendance.objects.filter(
             direction_id=direction_id,
             date__year=year,
             date__month=month
         ).order_by('date')
 
-        # Уникальные даты, которые уже есть в базе
         existing_dates = sorted(list(set([log.date.strftime('%Y-%m-%d') for log in logs])))
 
-        # Карта данных
         journal_map = {}
         for log in logs:
             vid = log.volunteer_id
@@ -344,7 +347,6 @@ class AttendanceViewSet(viewsets.ViewSet):
 
         vol_list = []
         for vol in volunteers:
-            # Имя и инициалы
             name = vol.name or vol.login
             parts = name.split()
             initials = (parts[0][0] + (parts[1][0] if len(parts)>1 else "")).upper()[:2]
@@ -368,6 +370,7 @@ class AttendanceViewSet(viewsets.ViewSet):
         direction_id = data.get('direction_id')
         records = data.get('records', [])
 
+        # Проверка прав (кто может отмечать)
         if request.user.role not in ['bailiff_activity', 'admin', 'curator', 'president']:
             return Response({"error": "Нет прав"}, status=403)
 
@@ -380,7 +383,7 @@ class AttendanceViewSet(viewsets.ViewSet):
 
                 if not date_str or not vol_id: continue
 
-                if not status: # Если статус пустой -> удаляем
+                if not status: 
                     Attendance.objects.filter(
                         volunteer_id=vol_id, direction_id=direction_id, date=date_str
                     ).delete()
@@ -392,7 +395,7 @@ class AttendanceViewSet(viewsets.ViewSet):
                 saved_count += 1
             
         return Response({"message": "Сохранено"})
-
+    
 class BailiffPanelView(TemplateView):
     template_name = "volunteers/bailiff_panel.html"
 # ---------------- PDF ГЕНЕРАЦИЯ (С кириллицей) ----------------
