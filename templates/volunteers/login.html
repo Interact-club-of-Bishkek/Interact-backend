@@ -202,20 +202,41 @@
         
         // 1. Единая функция распределения по ролям
         function navigateUser(user) {
-            // Добавлена проверка для ПРИСТАВА
+            console.log("Роль пользователя:", user.role); // Для отладки
+
+            // --- ВАЖНЫЕ РОЛИ ---
+            
+            // 1. ЭТИЧЕСКИЙ ОФИЦЕР (Ваше исправление)
+            if (user.role === 'equity_officer') {
+                location.href = '/equity-panel/';
+                return;
+            }
+
+            // 2. ПРИСТАВ
             if (user.role === 'bailiff_activity') {
                 location.href = '/bailiff-panel/';
                 return;
             }
+
+            // 3. АДМИН или ПРЕЗИДЕНТ (если вы создали admin-panel)
+            if (user.role === 'admin' || user.role === 'president') {
+                location.href = '/admin-panel/'; // Или '/curator-panel/', если админ-панели нет
+                return;
+            }
             
-            // Остальные роли
-            if (['curator', 'admin', 'teamlead'].includes(user.role)) {
+            // --- ОСТАЛЬНЫЕ ---
+
+            // Кураторы и Тимлиды
+            if (['curator', 'teamlead'].includes(user.role)) {
                 location.href = '/curator-panel/';
-            } else if (user.is_assigned || (user.direction && user.direction.length > 0)) {
-                // Если у волонтера есть направление, он идет в кабинет
+                return;
+            } 
+            
+            // Обычные волонтеры (если есть направление)
+            if (user.is_assigned || (user.direction && user.direction.length > 0)) {
                 location.href = '/cabinet/';
             } else {
-                // Если направления нет, показываем продолжение регистрации
+                // Если направления нет — заканчиваем регистрацию
                 showApp();
             }
         }

@@ -39,7 +39,7 @@
             background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%);
             pointer-events: none;
         }
-
+        
         .custom-select-wrapper { position: relative; user-select: none; z-index: 50; }
         .select-trigger {
             background: rgba(0, 198, 255, 0.05); border: 1px solid rgba(0, 198, 255, 0.2);
@@ -89,6 +89,16 @@
             .nav-btn.prev { left: 20px; }
             .nav-btn.next { right: 20px; }
         }
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+        }
+
+        /* Убираем стрелки в Firefox */
+        input[type=number] {
+        -moz-appearance: textfield;
+}
     </style>
 </head>
 <body>
@@ -541,20 +551,43 @@
 
     function decideSub(id, status) {
         try {
+            const body = { status };
+            
+            // Если статус 'approved', проверяем, не вписал ли куратор свои баллы
+            if (status === 'approved') {
+                const pointsInput = document.getElementById(`pts-${id}`);
+                if (pointsInput) {
+                    body.points_awarded = parseFloat(pointsInput.value);
+                }
+            }
+
             fetch(`${API.submissions}${id}/`, {
                 method: 'PATCH',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status })
+                headers: { 
+                    'Authorization': `Bearer ${token}`, 
+                    'Content-Type': 'application/json' 
+                },
+                body: JSON.stringify(body)
             }).then(res => {
                 if (res.ok) {
                     const el = document.getElementById(`sub-${id}`);
                     el.style.opacity = '0';
+                    el.style.transform = 'scale(0.9)';
                     setTimeout(() => el.remove(), 300);
-                    showToast(status === 'approved' ? 'Баллы начислены' : 'Заявка отклонена');
+                    
+                    const msg = status === 'approved' ? 'Баллы начислены' : 'Заявка отклонена';
+                    showToast(msg);
+                    
+                    // Обновляем данные через полсекунды, чтобы баллы в таблице волонтеров обновились
                     setTimeout(loadAllData, 500);
+                } else {
+                    showToast('Ошибка при сохранении');
                 }
             });
-        } catch(e) { console.error(e); }
+        } catch(e) { 
+            console.error(e); 
+            showToast('Ошибка сети');
+        }
     }
 
     function renderSubmissions() {
@@ -577,7 +610,11 @@
             return;
         }
 
-        container.innerHTML = pending.map(s => `
+        container.innerHTML = pending.map(s => {
+            // ПРОВЕРКА: Гибкие ли баллы у задачи?
+            const isFlex = s.task_details?.is_flexible;
+            
+            return `
             <div class="glass-card flex flex-col h-full border-white/5 hover:border-primary/20 transition group" id="sub-${s.id}">
                 <div class="flex justify-between items-start mb-4">
                     <span class="px-2 py-1 bg-primary/10 text-primary text-[8px] font-black uppercase rounded">${s.task_details?.command_name || 'Общая задача'}</span>
@@ -588,38 +625,50 @@
                     <p class="text-[10px] text-gray-400 font-bold uppercase mt-1 mb-3">${s.task_details?.title}</p>
                     <div class="bg-black/40 p-3 rounded-xl text-sm italic text-gray-500 border border-white/5">"${s.description || 'Без комментария'}"</div>
                 </div>
-                <div class="flex items-center gap-3 mt-auto">
-                    <div class="score-badge text-lg">+${parseFloat(s.task_details?.points || 0)}</div>
-                    <div class="flex-grow grid grid-cols-2 gap-2">
-                        <button onclick="decideSub(${s.id}, 'approved')" class="py-3 bg-[#80e5ff] text-black rounded-xl font-black uppercase text-[10px] hover:bg-white transition">Принять</button>
+                
+                <div class="flex flex-col gap-3 mt-auto">
+                <div class="flex items-center justify-between bg-white/5 p-3 rounded-2xl border border-white/10 transition-all hover:border-primary/30 group/input">
+                    <div class="flex flex-col">
+                        <span class="text-[9px] font-black text-gray-500 uppercase ml-1 tracking-tighter">
+                            ${isFlex ? 'Оценка работы' : 'Фикс. баллы'}
+                        </span>
+                        <span class="text-[8px] text-primary/40 font-bold uppercase ml-1">
+                            ${isFlex ? 'изменяемое' : 'стандарт'}
+                        </span>
+                    </div>
+                    
+                    ${isFlex 
+                        ? `
+                        <div class="relative flex items-center">
+                            <i class="fas fa-pen text-[10px] text-primary/30 absolute left-3 group-focus-within/input:text-primary transition-colors"></i>
+                            <input type="number" 
+                                id="pts-${s.id}" 
+                                class="w-24 bg-[#0f172a] border-2 border-primary/20 rounded-xl pl-8 pr-3 py-2 text-primary font-black text-lg outline-none 
+                                    focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all hover:bg-[#1e293b] appearance-none" 
+                                value="${s.task_details.points}" 
+                                step="0.5"
+                            >
+                        </div>
+                        `
+                        : `<div class="score-badge text-xl px-4 py-2 bg-primary/10 border border-primary/20 rounded-xl">+${parseFloat(s.task_details?.points || 0)}</div>`
+                    }
+                </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="decideSub(${s.id}, 'approved')" class="py-3 bg-[#80e5ff] text-black rounded-xl font-black uppercase text-[10px] hover:bg-white transition shadow-lg shadow-sky-500/10">Принять</button>
                         <button onclick="decideSub(${s.id}, 'rejected')" class="py-3 bg-white/5 text-gray-500 rounded-xl font-black uppercase text-[10px] hover:text-red-500 transition">Отказ</button>
                     </div>
                 </div>
-            </div>`).join('');
+            </div>`;
+        }).join('');
     }
 
-    function renderVolunteers() {
+   function renderVolunteers() {
         const table = document.getElementById('vTable');
-        const myDirIds = getIds(state.user.direction);
-        const myTeamIds = state.myManagedTeams.map(t => String(t.id));
-
         table.innerHTML = state.volunteers.map(v => {
-            const scopePoints = state.submissions.reduce((sum, s) => {
-                const isHis = (String(s.volunteer_id || s.volunteer) === String(v.id));
-                const isAppr = s.status === 'approved';
-                const taskDirId = extractId(s.task_details, 'direction');
-                const taskCmdId = extractId(s.task_details, 'command');
-                const isGeneral = !taskDirId && !taskCmdId;
-                let inZone = false;
-                if (state.user.role === 'admin') inZone = true;
-                else if (state.user.role === 'curator') inZone = isGeneral || myDirIds.includes(taskDirId) || (taskCmdId && myTeamIds.includes(taskCmdId));
-                else inZone = myTeamIds.includes(taskCmdId);
-                return (isHis && isAppr && inZone) ? sum + (parseFloat(s.task_details?.points) || 0) : sum;
-            }, 0);
-
-            let pointsHTML = state.user.role === 'curator' 
-                ? `<div class="flex items-center"><span class="score-badge">${scopePoints.toFixed(1)}</span><span class="text-[9px] text-gray-500 uppercase font-bold ml-2 italic">всего.</span></div>`
-                : `<div class="flex items-center"><span class="score-badge">${parseFloat(v.point || 0).toFixed(1)}</span><span class="score-total">/ ${scopePoints.toFixed(1)}</span></div>`;
+            
+            // Используем ТОЛЬКО значение v.point из базы (Django)
+            const currentPoints = parseFloat(v.point || 0).toFixed(1);
 
             return `
             <tr class="hover:bg-white/5 transition">
@@ -632,8 +681,15 @@
                         ${(v.direction || []).map(d => `<span class="bg-white/5 text-gray-400 text-[8px] px-2 py-0.5 rounded font-black uppercase">${d.name}</span>`).join('')}
                     </div>
                 </td>
-                <td>${pointsHTML}</td>
-                <td class="text-right text-red-400 font-black">${v.yellow_card || 0}</td>
+                <td>
+                    <div class="flex items-center">
+                        <span class="score-badge">${currentPoints}</span>
+                        <span class="text-[9px] text-gray-500 uppercase font-bold ml-2 italic">баллов</span>
+                    </div>
+                </td>
+                <td class="text-right font-black ${v.yellow_card_count > 0 ? 'text-red-400' : 'text-gray-600'}">
+                    ${v.yellow_card_count || 0} <i class="fas fa-exclamation-triangle text-[10px] ml-1 opacity-50"></i>
+                </td>
             </tr>`;
         }).join('');
     }

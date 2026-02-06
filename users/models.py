@@ -1,6 +1,8 @@
 import random
 import string
 from django.db import models
+# Добавляем Sum сюда:
+from django.db.models import Sum 
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from directions.models import VolunteerDirection 
 from commands.models import Command
@@ -77,6 +79,16 @@ class Volunteer(AbstractBaseUser, PermissionsMixin):
             login_candidate = f"user_{random_suffix}"
             if not Volunteer.objects.filter(login=login_candidate).exists():
                 return login_candidate
+    def update_total_points(self):
+            """Полный пересчет баллов на основе одобренных заявок"""
+            # Считаем сумму points_awarded. 
+            # Если points_awarded была пустой (null), берем points из задачи (task)
+            total = self.submissions.filter(status='approved').aggregate(
+                total=Sum('points_awarded')
+            )['total'] or 0
+            
+            self.point = total
+            self.save(update_fields=['point'])
 
     def save(self, *args, **kwargs):
         # 1. Логика для новых записей
@@ -136,17 +148,28 @@ class ActivityTask(models.Model):
     title = models.CharField("Название задания", max_length=255)
     description = models.TextField("Описание", blank=True)
     
-    # ИЗМЕНЕНИЕ: Плавающее число баллов
-    points = models.DecimalField("Баллы за выполнение", max_digits=6, decimal_places=1, default=0)
+    # Рекомендованные баллы (или максимальные)
+    points = models.DecimalField("Баллы (базовые/макс)", max_digits=6, decimal_places=1, default=0)
     
-    # ИЗМЕНЕНИЕ: Убрали direction, так как задачи общие для всех.
-    # Оставили только command. Если command заполнено - задача видна ТОЛЬКО этой команде.
-    # Если command пустое - задача видна ВСЕМ (как общее задание).
-    command = models.ForeignKey(Command, on_delete=models.CASCADE, verbose_name="Спец. Команда (опционально)", null=True, blank=True, help_text="Если выбрать команду, задание будет видно ТОЛЬКО участникам этой команды. Если оставить пустым — видно ВСЕМ.")
+    # НОВОЕ ПОЛЕ: Гибкие баллы
+    is_flexible = models.BooleanField(
+        "Гибкие баллы", 
+        default=False, 
+        help_text="Если включено, куратор сможет сам вписать количество баллов при одобрении (например, от 3 до 5)."
+    )
+    
+    command = models.ForeignKey(
+        Command, 
+        on_delete=models.CASCADE, 
+        verbose_name="Спец. Команда (опционально)", 
+        null=True, blank=True, 
+        help_text="Если выбрать команду, задание будет видно ТОЛЬКО участникам этой команды."
+    )
 
     def __str__(self):
-        dest = self.command.title if self.command else "ОБЩЕЕ (Для всех)"
-        return f"[{dest}] {self.title} ({self.points} б.)"
+        type_str = "ГИБКОЕ" if self.is_flexible else f"{self.points} б."
+        dest = self.command.title if self.command else "ОБЩЕЕ"
+        return f"[{dest}] {self.title} ({type_str})"
 
     class Meta:
         verbose_name = "Справочник заданий"
@@ -163,21 +186,62 @@ class ActivitySubmission(models.Model):
     volunteer = models.ForeignKey(Volunteer, on_delete=models.CASCADE, verbose_name="Волонтер", related_name="submissions")
     task = models.ForeignKey(ActivityTask, on_delete=models.CASCADE, verbose_name="Задание")
     status = models.CharField("Статус", max_length=20, choices=STATUS_CHOICES, default='pending')
+    
+    # НОВОЕ ПОЛЕ: Фактически начисленные баллы
+    points_awarded = models.DecimalField(
+        "Начислено баллов", 
+        max_digits=6, 
+        decimal_places=1, 
+        null=True, blank=True,
+        help_text="Заполняется куратором при одобрении. Если оставить пустым, возьмутся баллы из задания."
+    )
+    
     created_at = models.DateTimeField("Дата подачи", auto_now_add=True)
     description = models.TextField("Комментарий/Отчет", blank=True, null=True) 
 
+    from django.db.models import Sum
+
     def save(self, *args, **kwargs):
         if self.pk:
+            # Получаем старую версию заявки из базы
             old_instance = ActivitySubmission.objects.get(pk=self.pk)
-            # Логика начисления/снятия баллов
+            
+            old_points = old_instance.points_awarded if old_instance.points_awarded is not None else old_instance.task.points
+            new_points = self.points_awarded if self.points_awarded is not None else self.task.points
+
+            # ЛОГИКА ИЗМЕНЕНИЯ БАЛЛОВ:
+            
+            # 1. Заявка только что одобрена
             if old_instance.status != 'approved' and self.status == 'approved':
-                self.volunteer.point += self.task.points
-                self.volunteer.save()
+                self.volunteer.point += new_points
+            
+            # 2. Заявка была одобрена, но теперь отклонена (снимаем баллы)
             elif old_instance.status == 'approved' and self.status != 'approved':
-                self.volunteer.point -= self.task.points
-                self.volunteer.save()
-                
+                self.volunteer.point -= old_points
+            
+            # 3. Заявка остается одобренной, но куратор изменил количество баллов
+            elif old_instance.status == 'approved' and self.status == 'approved':
+                diff = new_points - old_points
+                self.volunteer.point += diff
+
+            self.volunteer.save(update_fields=['point'])
+        
+        else:
+            # Если это создание новой заявки и она сразу approved (редко, но бывает)
+            if self.status == 'approved':
+                points = self.points_awarded if self.points_awarded is not None else self.task.points
+                self.volunteer.point += points
+                self.volunteer.save(update_fields=['point'])
+
         super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        # Если удаляем принятую заявку — вычитаем баллы
+        if self.status == 'approved':
+            points = self.points_awarded if self.points_awarded is not None else self.task.points
+            self.volunteer.point -= points
+            self.volunteer.save(update_fields=['point'])
+        super().delete(*args, **kwargs)
 
     class Meta:
         verbose_name = "Заявка на баллы"
@@ -277,3 +341,13 @@ class Attendance(models.Model):
         verbose_name = "Посещаемость"
         verbose_name_plural = "Журнал посещаемости"
         unique_together = ('volunteer', 'direction', 'date') # Один волонтер - одна отметка в день по направлению
+
+
+class YellowCard(models.Model):
+    volunteer = models.ForeignKey(Volunteer, on_delete=models.CASCADE, related_name='yellow_cards')
+    issued_by = models.ForeignKey(Volunteer, on_delete=models.SET_NULL, null=True, related_name='issued_cards')
+    date_issued = models.DateField(auto_now_add=True)
+    reason = models.CharField(max_length=255, blank=True, null=True)
+
+    def __str__(self):
+        return f"Yellow Card for {self.volunteer.name}"

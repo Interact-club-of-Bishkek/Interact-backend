@@ -5,10 +5,11 @@ from django.utils.html import format_html
 from .models import (
     Volunteer, VolunteerApplication, VolunteerArchive, 
     ActivityTask, ActivitySubmission, BotAccessConfig,
-    Attendance
+    Attendance, YellowCard
 )
 
-# --- INLINES ---
+# --- INLINES (Вложенные таблицы) ---
+
 class ActivitySubmissionInline(admin.TabularInline):
     model = ActivitySubmission
     extra = 0
@@ -19,7 +20,34 @@ class ActivitySubmissionInline(admin.TabularInline):
     can_delete = False
     def has_add_permission(self, request, obj): return False
 
-# --- VOLUNTEER ---
+class YellowCardInline(admin.TabularInline):
+    model = YellowCard
+    fk_name = 'volunteer'  # <--- ДОБАВЬТЕ ЭТУ СТРОКУ
+    extra = 0 
+    readonly_fields = ('date_issued', 'issued_by') 
+    can_delete = True
+    verbose_name = "Желтая карточка"
+    verbose_name_plural = "⚠️ Желтые карточки"
+
+# --- YELLOW CARD ADMIN (Отдельный раздел) ---
+
+@admin.register(YellowCard)
+class YellowCardAdmin(admin.ModelAdmin):
+    # Что показывать в списке
+    list_display = ('volunteer', 'reason', 'issued_by', 'date_issued')
+    
+    # По каким полям можно искать
+    search_fields = ('volunteer__name', 'volunteer__login', 'reason')
+    
+    # Фильтры справа
+    list_filter = ('date_issued', 'issued_by')
+    
+    # Чтобы при выборе волонтера выпадал поиск, а не огромный список
+    autocomplete_fields = ['volunteer', 'issued_by']
+
+
+# --- VOLUNTEER ADMIN ---
+
 @admin.register(Volunteer)
 class VolunteerAdmin(admin.ModelAdmin):
     list_display = ('name', 'login', 'display_password', 'role', 'point', 'is_staff', 'is_active')
@@ -30,7 +58,9 @@ class VolunteerAdmin(admin.ModelAdmin):
     
     # Добавляем системные поля groups и permissions для удобного выбора
     filter_horizontal = ('direction', 'commands', 'groups', 'user_permissions') 
-    inlines = [ActivitySubmissionInline]
+    
+    # ВАЖНО: Объединяем оба инлайна в один список!
+    inlines = [ActivitySubmissionInline, YellowCardInline]
     
     fieldsets = (
         ('Учетные данные', {
@@ -47,7 +77,7 @@ class VolunteerAdmin(admin.ModelAdmin):
             'fields': ('direction', 'commands')
         }),
         ('Статистика', {
-            'fields': ('point', 'yellow_card')
+            'fields': ('point',) # Убрал yellow_card отсюда, так как они теперь видны в inlines внизу
         }),
         # Скрытый блок для детальной настройки прав (через группы)
         ('Расширенные права', {
@@ -63,7 +93,6 @@ class VolunteerAdmin(admin.ModelAdmin):
                 obj.set_password(obj.visible_password)
         
         # 2. Авто-назначение прав по роли
-        # Если ты выбираешь роль 'admin', система сама может ставить галочку входа
         if obj.role == 'admin':
             obj.is_staff = True
             
@@ -161,6 +190,7 @@ class AttendanceAdmin(admin.ModelAdmin):
     
     # Запрещаем менять "Кто отметил" вручную, чтобы сохранялась история (опционально)
     readonly_fields = ('created_at',)
+
 
 admin.site.register(BotAccessConfig)
 admin.site.register(VolunteerArchive)

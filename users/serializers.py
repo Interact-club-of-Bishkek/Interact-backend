@@ -66,7 +66,7 @@ class VolunteerSerializer(serializers.ModelSerializer):
 class ActivityTaskSerializer(serializers.ModelSerializer):
     command_name = serializers.ReadOnlyField(source='command.title')
     command_id = serializers.ReadOnlyField(source='command.id')
-    direction_id = serializers.ReadOnlyField(source='command.direction.id')  # если нужен ID направления команды
+    direction_id = serializers.ReadOnlyField(source='command.direction.id')
 
     class Meta:
         model = ActivityTask
@@ -74,6 +74,7 @@ class ActivityTaskSerializer(serializers.ModelSerializer):
             'id',
             'title',
             'points',
+            'is_flexible',  # <--- ОБЯЗАТЕЛЬНО ДОБАВИТЬ
             'command_id',
             'command_name',
             'direction_id'
@@ -95,7 +96,8 @@ class ActivitySubmissionSerializer(serializers.ModelSerializer):
             'volunteer_name',
             'status',
             'created_at',
-            'description'
+            'description',
+            'points_awarded'  # <--- ОБЯЗАТЕЛЬНО ДОБАВИТЬ
         ]
 
 
@@ -103,10 +105,11 @@ class ActivitySubmissionSerializer(serializers.ModelSerializer):
 class VolunteerListSerializer(serializers.ModelSerializer):
     direction = VolunteerDirectionSerializer(many=True, read_only=True)
     local_points = serializers.IntegerField(read_only=True) # Добавили в прошлом шаге
+    yellow_card_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Volunteer
-        fields = ['id', 'name', 'login', 'direction', 'point', 'local_points', 'yellow_card']
+        fields = ['id', 'name', 'login', 'direction', 'point', 'local_points', 'yellow_card_count']
 
 # --- Анкета ---
 class VolunteerApplicationSerializer(serializers.ModelSerializer):

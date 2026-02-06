@@ -6,7 +6,7 @@ from django.http import FileResponse
 from django.views.generic import TemplateView
 from django.db import models
 # ВАЖНО: Импортируем DecimalField именно отсюда для ORM
-from django.db.models import Sum, Value, Q, DecimalField 
+from django.db.models import Sum, Value, Q, DecimalField, Count
 from django.db.models.functions import Coalesce
 
 from rest_framework import viewsets, generics, status, permissions
@@ -27,7 +27,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 # Импорты моделей (лучше держать их вверху, если нет циклической зависимости)
 from .models import (
     Attendance, Volunteer, VolunteerApplication, BotAccessConfig, 
-    ActivityTask, ActivitySubmission
+    ActivityTask, ActivitySubmission, YellowCard
 )
 from directions.models import VolunteerDirection
 from commands.models import Command
@@ -234,12 +234,15 @@ class VolunteerListView(generics.ListAPIView):
     def get_queryset(self):
         user = self.request.user
 
-        # Базовый QuerySet с оптимизацией (загружаем связанные направления)
+        # Базовый QuerySet
         qs = Volunteer.objects.prefetch_related('direction')
 
-        # 1. Если Админ — показываем всех
+        # 1. Если Админ — показываем всех + считаем ЖК
         if user.is_superuser or user.role == 'admin':
             return qs.annotate(
+                # Считаем карточки (distinct=True важен, чтобы не умножалось при джойнах)
+                yellow_card_count=Count('yellow_cards', distinct=True), 
+                
                 local_points=Coalesce(
                     'point', 
                     Value(0),
@@ -248,9 +251,6 @@ class VolunteerListView(generics.ListAPIView):
             )
 
         # 2. Логика Куратора/Тимлида
-        # Если в модели User нет related_name='responsible_for_directions', 
-        # то замените user.responsible_for_directions.all() на правильный запрос:
-        # my_directions = VolunteerDirection.objects.filter(responsible=user)
         try:
             my_directions = user.responsible_for_directions.all()
         except AttributeError:
@@ -258,21 +258,24 @@ class VolunteerListView(generics.ListAPIView):
             
         my_commands = Command.objects.filter(leader=user)
 
-        # 3. Фильтр списка людей (мои направления ИЛИ мои команды)
+        # 3. Фильтр списка людей
         queryset = qs.filter(
             Q(direction__in=my_directions) | 
             Q(commands__in=my_commands)
         ).distinct()
 
-        # 4. СЧИТАЕМ БАЛЛЫ (local_points)
-        # Считаем сумму баллов только за задачи, которые относятся к "моей" зоне ответственности
+        # 4. СЧИТАЕМ БАЛЛЫ И КАРТОЧКИ
         queryset = queryset.annotate(
+            # --- ДОБАВЛЕНО ЗДЕСЬ ---
+            yellow_card_count=Count('yellow_cards', distinct=True),
+            # -----------------------
+
             local_points=Coalesce(
                 Sum(
                     'submissions__task__points', 
                     filter=Q(submissions__status='approved') & (
-                        Q(submissions__task__command__in=my_commands) | # Задачи моих команд
-                        Q(submissions__task__command__isnull=True)      # + Общие задачи
+                        Q(submissions__task__command__in=my_commands) | 
+                        Q(submissions__task__command__isnull=True)
                     )
                 ),
                 Value(0),
@@ -398,6 +401,81 @@ class AttendanceViewSet(viewsets.ViewSet):
     
 class BailiffPanelView(TemplateView):
     template_name = "volunteers/bailiff_panel.html"
+
+class EquityViewSet(viewsets.ViewSet):
+    permission_classes = [IsAuthenticated]
+
+    # 1. Получение списка (Таблица)
+    @action(detail=False, methods=['get'])
+    def board(self, request):
+        direction_id = request.query_params.get('direction_id')
+        if not direction_id:
+            return Response({"error": "Нужен direction_id"}, status=400)
+
+        # Берем только волонтеров (фильтр role='volunteer')
+        volunteers = Volunteer.objects.filter(
+            direction__id=direction_id, 
+            role='volunteer'
+        ).order_by('name')
+
+        data = []
+        for vol in volunteers:
+            # Получаем все карточки волонтера
+            cards = YellowCard.objects.filter(volunteer=vol).order_by('date_issued')
+            card_data = [{"id": c.id, "date": c.date_issued, "reason": c.reason} for c in cards]
+            
+            data.append({
+                "id": vol.id,
+                "name": vol.name or vol.login,
+                "cards": card_data, # Список карточек
+                "count": len(card_data)
+            })
+
+        return Response(data)
+
+    # 2. Выдать/Убрать карточку
+    @action(detail=False, methods=['post'])
+    def toggle_card(self, request):
+        # Проверка прав (Equity officer, Admin, Curator)
+        if request.user.role not in ['equity_officer', 'admin', 'curator', 'president']:
+             return Response({"error": "Нет прав"}, status=403)
+
+        vol_id = request.data.get('volunteer_id')
+        action_type = request.data.get('action') # 'add' или 'remove'
+
+        try:
+            volunteer = Volunteer.objects.get(id=vol_id)
+        except Volunteer.DoesNotExist:
+            return Response({"error": "Волонтер не найден"}, status=404)
+
+        current_count = YellowCard.objects.filter(volunteer=volunteer).count()
+
+        if action_type == 'add':
+            if current_count >= 4:
+                return Response({"error": "Максимум 4 карточки!"}, status=400)
+            
+            YellowCard.objects.create(
+                volunteer=volunteer,
+                issued_by=request.user,
+                reason=request.data.get('reason', 'Нарушение')
+            )
+            return Response({"message": "Карточка выдана", "new_count": current_count + 1})
+
+        elif action_type == 'remove':
+            if current_count == 0:
+                return Response({"error": "У волонтера нет карточек"}, status=400)
+            
+            # Удаляем последнюю выданную карточку
+            last_card = YellowCard.objects.filter(volunteer=volunteer).last()
+            if last_card:
+                last_card.delete()
+            
+            return Response({"message": "Карточка снята", "new_count": current_count - 1})
+
+        return Response({"error": "Неверное действие"}, status=400)
+    
+class EquityPanelView(TemplateView):
+    template_name = "volunteers/equity_panel.html"
 # ---------------- PDF ГЕНЕРАЦИЯ (С кириллицей) ----------------
 
 class DownloadPDFBase(APIView):

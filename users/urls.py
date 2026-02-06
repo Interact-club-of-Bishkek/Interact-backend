@@ -9,7 +9,9 @@ from .views import (
     VolunteerListView,
     # --- НОВЫЕ ИМПОРТЫ ---
     AttendanceViewSet,  # API для отметок
-    BailiffPanelView    # HTML страница
+    BailiffPanelView,    # HTML страница
+    EquityViewSet, 
+    EquityPanelView
 )
 
 router = DefaultRouter()
@@ -26,7 +28,7 @@ router.register(r'activities', VolunteerActivityViewSet, basename='vol-activity'
 router.register(r'curator/submissions', CuratorSubmissionViewSet, basename='cur-submission')
 # Регистрация API посещаемости
 router.register(r'attendance', AttendanceViewSet, basename='attendance')
-
+router.register(r'equity', EquityViewSet, basename='equity')
 urlpatterns = [
     # --- API Эндпоинты ---
     path('api/login/', VolunteerLoginView.as_view(), name='login'),
@@ -55,4 +57,5 @@ urlpatterns = [
     
     # НОВЫЙ ПУТЬ ДЛЯ ПРИСТАВА
     path('bailiff-panel/', BailiffPanelView.as_view(), name='bailiff-panel'),
+    path('equity-panel/', EquityPanelView.as_view(), name='equity_panel'),
 ]
