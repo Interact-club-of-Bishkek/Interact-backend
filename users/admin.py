@@ -120,18 +120,46 @@ class VolunteerApplicationAdmin(admin.ModelAdmin):
     search_fields = ('full_name', 'phone_number')
     filter_horizontal = ('commands',)
 
+    readonly_fields = ('photo_preview_large',)
+
+    fieldsets = (
+        ('Фото', {
+            'fields': ('photo_preview_large', 'photo')
+        }),
+        ('Основная информация', {
+            'fields': (
+                'full_name',
+                'phone_number',
+                'email',
+                'direction',
+                'commands',
+                'status'
+            )
+        }),
+    )
+
     def direction_name(self, obj):
-        return obj.direction.name if obj.direction else "-"
+        return obj.direction.name if obj.direction else "—"
+    direction_name.short_description = "Направление"
 
     def photo_preview(self, obj):
-        if obj.image:
+        if obj.photo and hasattr(obj.photo, 'url'):
             return format_html(
                 '<img src="{}" style="width:40px; height:40px; object-fit:cover; border-radius:50%;" />',
-                obj.image.url
+                obj.photo.url
             )
         return "—"
-
     photo_preview.short_description = "Фото"
+
+    def photo_preview_large(self, obj):
+        if obj.photo and hasattr(obj.photo, 'url'):
+            return format_html(
+                '<img src="{}" style="max-width:240px; border-radius:12px;" />',
+                obj.photo.url
+            )
+        return "Фото не загружено"
+    photo_preview_large.short_description = "Предпросмотр"
+
 
 # --- TASKS ---
 @admin.register(ActivityTask)
