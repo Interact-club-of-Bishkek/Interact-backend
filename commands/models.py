@@ -11,7 +11,7 @@ class Command(models.Model):
         unique=True,
         blank=True,
         max_length=255,
-        allow_unicode=True,  # Разрешает русские буквы в URL
+        allow_unicode=True,
         help_text="Генерируется автоматически"
     )
     description = models.TextField("Описание", blank=True)
@@ -19,22 +19,30 @@ class Command(models.Model):
     end_date = models.DateTimeField("Конец набора", null=True, blank=True)
 
     direction = models.ForeignKey(
-            VolunteerDirection, 
-            on_delete=models.CASCADE, 
-            related_name="commands", 
-            verbose_name="Направление",
-            null=True, # Временно разрешим null, чтобы миграция прошла успешно
-            blank=True
-        )
+        VolunteerDirection,
+        on_delete=models.CASCADE,
+        related_name="commands",
+        verbose_name="Направление",
+        null=True,
+        blank=True
+    )
 
     leader = models.ForeignKey(
-            'users.Volunteer',
-            on_delete=models.SET_NULL,
-            null=True,
-            blank=True,
-            verbose_name="Лидер/Куратор команды",
-            related_name="led_commands"
-        )
+        'users.Volunteer',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Лидер/Куратор команды",
+        related_name="led_commands"
+    )
+
+    # 🔥 ВОТ ЭТО ПОЛЕ
+    volunteers = models.ManyToManyField(
+        'users.Volunteer',
+        related_name='commands',
+        blank=True,
+        verbose_name="Участники команды"
+    )
 
     class Meta:
         verbose_name = "Команда"

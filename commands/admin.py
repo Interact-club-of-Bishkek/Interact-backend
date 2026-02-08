@@ -45,11 +45,15 @@ class CommandAdmin(admin.ModelAdmin):
     search_fields = ('title',)
     inlines = [QuestionInline]
 
+    # ✅ Массовый выбор волонтёров
+    filter_horizontal = ('volunteers',)
+
     def api_link(self, obj):
         url = reverse('command-detail', kwargs={'slug': obj.slug})
         return format_html('<a href="{}" target="_blank">Открыть API</a>', url)
 
     api_link.short_description = "API"
+
 
 
 @admin.register(Application)
