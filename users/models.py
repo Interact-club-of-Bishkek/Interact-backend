@@ -56,7 +56,6 @@ class Volunteer(AbstractBaseUser, PermissionsMixin):
     
     # Связи
     direction = models.ManyToManyField(VolunteerDirection, verbose_name="Направления", related_name="volunteers", blank=True)
-    commands = models.ManyToManyField(Command, verbose_name="Команды", related_name="volunteers", blank=True)
 
     # Баллы и нарушения
     point = models.DecimalField("Баллы", max_digits=10, decimal_places=1, default=0)
