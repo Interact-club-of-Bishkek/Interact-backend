@@ -72,7 +72,7 @@ class VolunteerAdmin(admin.ModelAdmin):
             'fields': ('name', 'phone_number', 'email', 'image')
         }),
         ('Структура', {
-            'fields': ('direction', 'commands')
+            'fields': ('direction')
         }),
         ('Статистика', {
             'fields': ('point',) # Убрал yellow_card отсюда, так как они теперь видны в inlines внизу
@@ -111,7 +111,6 @@ class VolunteerApplicationAdmin(admin.ModelAdmin):
     list_display = ('full_name', 'direction_name', 'status', 'phone_number', 'created_at')
     list_filter = ('status', 'direction')
     search_fields = ('full_name', 'phone_number')
-    filter_horizontal = ('commands',)
     def direction_name(self, obj): return obj.direction.name if obj.direction else "-"
 
 # --- TASKS ---
