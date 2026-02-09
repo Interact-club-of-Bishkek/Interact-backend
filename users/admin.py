@@ -104,6 +104,7 @@ class VolunteerApplicationAdmin(admin.ModelAdmin):
 class ActivityTaskAdmin(admin.ModelAdmin):
     list_display = ('title', 'points', 'get_visibility')
     list_filter = ('command',)
+    search_fields = ('title',)
 
     def get_visibility(self, obj):
         return f"🔒 {obj.command.title}" if obj.command else "🌍 ОБЩЕЕ"

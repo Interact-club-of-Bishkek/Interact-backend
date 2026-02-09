@@ -294,10 +294,10 @@ class VolunteerApplication(models.Model):
     )
 
     commands = models.ManyToManyField(
-        'commands.Command', 
-        blank=True,
-        related_name='volunteer_applications'
-    )
+            Command,
+            related_name="volunteer_members", # <--- ИЗМЕНИТЕ ЭТО (было "volunteers")
+            blank=True
+        )
 
     class Meta:
         verbose_name = "Анкета кандидата"
