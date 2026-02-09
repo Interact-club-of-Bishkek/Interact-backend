@@ -295,7 +295,7 @@ class VolunteerApplication(models.Model):
 
     commands = models.ManyToManyField(
             Command,
-            related_name="volunteer_members", # <--- ИЗМЕНИТЕ ЭТО (было "volunteers")
+            related_name="volunteer_members",  # Измените здесь (было "volunteers")
             blank=True
         )
 

@@ -38,11 +38,11 @@ class Command(models.Model):
 
     # 🔥 ВОТ ЭТО ПОЛЕ
     volunteers = models.ManyToManyField(
-        'users.Volunteer',
-        related_name='team_memberships',
-        blank=True,
-        verbose_name="Участники команды"
-    )
+            'users.Volunteer',
+            related_name='team_memberships', # Это имя будет доступно как volunteer.team_memberships.all()
+            blank=True,
+            verbose_name="Участники команды"
+        )
 
     class Meta:
         verbose_name = "Команда"
