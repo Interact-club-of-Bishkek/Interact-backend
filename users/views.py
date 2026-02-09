@@ -127,17 +127,16 @@ class DiscoveryListView(APIView):
     
     def get(self, request):
         user = request.user
-
-        # 1. Справочники
         all_directions = VolunteerDirection.objects.all()
-        user_commands = user.commands.all()
+        
+        # Исправляем обращение к командам
+        user_commands = user.volunteer_commands.all() 
         user_directions = user.direction.all()
 
-        # 2. Логика задач (Общие + Командные)
         tasks = ActivityTask.objects.filter(
-            Q(command__isnull=True) |   # Общие задачи
-            Q(command__in=user_commands) # Задачи моих команд
-        ).select_related('command', 'command__direction').distinct()
+            Q(command__isnull=True) |   
+            Q(command__in=user_commands) 
+        ).select_related('command').distinct()
 
         return Response({
             "all_directions": VolunteerDirectionSerializer(all_directions, many=True).data,
@@ -204,7 +203,7 @@ class VolunteerApplicationViewSet(viewsets.ModelViewSet):
             user.direction.set([data['direction']])
 
         if 'commands' in data:
-            user.commands.set(data['commands'])
+            user.volunteer_commands.set(data['commands'])
 
         # Проверяем роль
         is_responsible = VolunteerDirection.objects.filter(responsible=user).exists()
