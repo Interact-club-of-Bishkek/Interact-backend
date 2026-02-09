@@ -63,7 +63,7 @@ class Volunteer(AbstractBaseUser, PermissionsMixin):
 
     commands = models.ManyToManyField(
         Command,
-        related_name="volunteers",
+        related_name="volunteer_commands_list", # Измените на это
         blank=True
     )
     # Статусы
@@ -295,7 +295,7 @@ class VolunteerApplication(models.Model):
 
     commands = models.ManyToManyField(
             Command,
-            related_name="volunteer_commands",  # <--- ИЗМЕНИТЕ ЭТО
+            related_name="volunteer_members", # <--- ИЗМЕНИТЕ ЭТО (было "volunteers")
             blank=True
         )
 
