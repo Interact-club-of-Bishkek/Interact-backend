@@ -51,11 +51,11 @@ class YellowCardAdmin(admin.ModelAdmin):
 @admin.register(Volunteer)
 class VolunteerAdmin(admin.ModelAdmin):
     list_display = ('name', 'login', 'display_password', 'role', 'point', 'is_staff', 'is_active')
-    list_filter = ('role', 'is_active', 'is_staff', 'is_superuser', 'direction', 'commands')
+    list_filter = ('role', 'is_active', 'is_staff', 'is_superuser', 'direction')
     search_fields = ('name', 'login', 'phone_number')
         
     # Добавляем системные поля groups и permissions для удобного выбора
-    filter_horizontal = ('direction', 'commands', 'groups', 'user_permissions') 
+    filter_horizontal = ('direction', 'groups', 'user_permissions') 
     
     # ВАЖНО: Объединяем оба инлайна в один список!
     inlines = [ActivitySubmissionInline, YellowCardInline]
