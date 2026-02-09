@@ -72,7 +72,7 @@ class VolunteerAdmin(admin.ModelAdmin):
             'fields': ('name', 'phone_number', 'email', 'image')
         }),
         ('Структура', {
-            'fields': ('direction')
+            'fields': ['direction']
         }),
         ('Статистика', {
             'fields': ('point',) # Убрал yellow_card отсюда, так как они теперь видны в inlines внизу
