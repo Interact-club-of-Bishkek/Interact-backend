@@ -39,9 +39,10 @@ class Command(models.Model):
     # 🔥 ВОТ ЭТО ПОЛЕ
     volunteers = models.ManyToManyField(
             'users.Volunteer',
-            related_name='team_memberships', # <--- Это имя будет у волонтера (volunteer.team_memberships)
+            related_name='volunteer_commands', # Это имя будет использоваться у волонтера
             blank=True,
-            verbose_name="Участники команды"
+            verbose_name="Участники команды",
+            db_table="users_volunteer_commands" # СТРОГО УКАЗЫВАЕМ ТАБЛИЦУ ИЗ SQL
         )
 
     class Meta:
@@ -127,6 +128,16 @@ class Application(models.Model):
         related_name='applications',
         verbose_name="Команда"
     )
+
+    volunteer = models.ForeignKey(
+        'users.Volunteer', 
+        on_delete=models.CASCADE, 
+        related_name='command_applications', # Заявки волонтера
+        verbose_name="Волонтер",
+        null=True 
+    )
+
+
     answers = models.JSONField("Ответы")
     status = models.CharField(
         "Статус",
