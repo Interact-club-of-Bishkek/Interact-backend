@@ -222,54 +222,30 @@ class VolunteerListView(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-
-        # Базовый QuerySet
         qs = Volunteer.objects.prefetch_related('direction')
 
-        # 1. Если Админ — показываем всех + считаем ЖК
+        # 1. Если Админ — просто возвращаем всех с базовыми баллами
         if user.is_superuser or user.role == 'admin':
             return qs.annotate(
-                # Считаем карточки (distinct=True важен, чтобы не умножалось при джойнах)
-                yellow_card_count=Count('yellow_cards', distinct=True), 
-                
-                local_points=Coalesce(
-                    'point', 
-                    Value(0),
-                    output_field=DecimalField() 
-                )
+                yellow_card_count=Count('yellow_cards', distinct=True),
+                # Используем Value(0), если local_points пока не критичны
+                local_points=Coalesce('point', Value(0), output_field=DecimalField())
             )
 
-        # 2. Логика Куратора/Тимлида
-        try:
-            my_directions = user.responsible_for_directions.all()
-        except AttributeError:
-            my_directions = VolunteerDirection.objects.filter(responsible=user)
-            
+        # 2. Логика Куратора/Тимлида (упрощенная)
+        my_directions = VolunteerDirection.objects.filter(responsible=user)
         my_commands = Command.objects.filter(leader=user)
 
-        # 3. Фильтр списка людей
+        # Фильтруем волонтеров, которые относятся к куратору
         queryset = qs.filter(
             Q(direction__in=my_directions) | 
-            Q(commands__in=my_commands)
+            Q(volunteer_commands__in=my_commands) # Используем исправленный related_name
         ).distinct()
 
-        # 4. СЧИТАЕМ БАЛЛЫ И КАРТОЧКИ
+        # 3. Базовая аннотация без сложных Sum
         queryset = queryset.annotate(
-            # --- ДОБАВЛЕНО ЗДЕСЬ ---
             yellow_card_count=Count('yellow_cards', distinct=True),
-            # -----------------------
-
-            local_points=Coalesce(
-                Sum(
-                    'submissions__task__points', 
-                    filter=Q(submissions__status='approved') & (
-                        Q(submissions__task__command__in=my_commands) | 
-                        Q(submissions__task__command__isnull=True)
-                    )
-                ),
-                Value(0),
-                output_field=DecimalField()
-            )
+            local_points=Value(0, output_field=DecimalField()) # Временно обнуляем для теста
         )
 
         return queryset.exclude(id=user.id)
