@@ -43,7 +43,7 @@ class VolunteerAdmin(admin.ModelAdmin):
     list_display = ('name', 'login', 'display_password', 'role', 'point', 'is_staff', 'is_active')
     list_filter = ('role', 'is_active', 'is_staff', 'is_superuser', 'direction')
     search_fields = ('name', 'login', 'phone_number')
-    filter_horizontal = ('direction', 'groups', 'user_permissions')
+    filter_horizontal = ('direction', 'groups', 'user_permissions', 'volunteer_commands')    
     inlines = [ActivitySubmissionInline, YellowCardInline]
 
     fieldsets = (

@@ -36,14 +36,7 @@ class Command(models.Model):
         related_name="led_commands"
     )
 
-    # 🔥 ВОТ ЭТО ПОЛЕ
-    volunteers = models.ManyToManyField(
-            'users.Volunteer',
-            related_name='volunteer_commands', # Это имя будет использоваться у волонтера
-            blank=True,
-            verbose_name="Участники команды",
-            db_table="users_volunteer_commands" # СТРОГО УКАЗЫВАЕМ ТАБЛИЦУ ИЗ SQL
-        )
+
 
     class Meta:
         verbose_name = "Команда"
