@@ -39,7 +39,7 @@ class Command(models.Model):
     # 🔥 ВОТ ЭТО ПОЛЕ
     volunteers = models.ManyToManyField(
         'users.Volunteer',
-        related_name='commands',
+        related_name='team_memberships',
         blank=True,
         verbose_name="Участники команды"
     )
