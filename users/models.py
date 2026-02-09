@@ -61,6 +61,13 @@ class Volunteer(AbstractBaseUser, PermissionsMixin):
     point = models.DecimalField("Баллы", max_digits=10, decimal_places=1, default=0)
     yellow_card = models.IntegerField("Желтые карточки", default=0)
 
+    commands = models.ManyToManyField(
+        'commands.Command',
+        related_name="team_volunteers", # Можете оставить любое, но запомните его
+        blank=True,
+        verbose_name="Команды",
+        db_table="users_volunteer_commands" # Это заставит Django использовать нашу таблицу
+    )
     # Статусы
     is_staff = models.BooleanField("Доступ в админку", default=False)
     is_active = models.BooleanField("Активен", default=True)

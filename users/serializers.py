@@ -33,7 +33,7 @@ class CommandSerializer(serializers.ModelSerializer):
 class VolunteerSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField(read_only=True)
     direction = VolunteerDirectionSerializer(many=True, read_only=True)
-    commands = CommandSerializer(source='volunteer_commands', many=True, read_only=True)
+    commands = CommandSerializer(many=True, read_only=True)
     role_display = serializers.CharField(source='get_role_display', read_only=True)
     
     # НОВОЕ: Флаг тимлида, который нужен фронтенду
