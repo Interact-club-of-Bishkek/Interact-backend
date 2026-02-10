@@ -334,13 +334,25 @@
         }
 
         function createTableHTML(title, subtitle, submissions) {
+            // Считаем сумму, используя начисленные баллы (points_awarded), а не базовые из задачи
             const totalPoints = submissions
                 .filter(s => s.status === 'approved')
-                .reduce((sum, s) => sum + (parseFloat(s.task_details?.points) || 0), 0);
+                .reduce((sum, s) => {
+                    // Если куратор вписал баллы вручную, берем их, иначе базовые
+                    const actualPoints = s.points_awarded !== null ? parseFloat(s.points_awarded) : (parseFloat(s.task_details?.points) || 0);
+                    return sum + actualPoints;
+                }, 0);
             
             const rows = submissions.length === 0 
                 ? `<tr><td colspan="3" class="text-center text-gray-500 py-6 text-xs italic">Нет записей</td></tr>`
-                : submissions.map(s => `
+                : submissions.map(s => {
+                    // ЛОГИКА ОПРЕДЕЛЕНИЯ БАЛЛОВ ДЛЯ СТРОКИ
+                    // Если одобрено и есть points_awarded — берем их. В остальных случаях — базовые.
+                    const displayPoints = (s.status === 'approved' && s.points_awarded !== null) 
+                        ? s.points_awarded 
+                        : (s.task_details?.points || 0);
+
+                    return `
                     <tr>
                         <td class="text-gray-400 font-mono text-[10px]">${new Date(s.created_at).toLocaleDateString()}</td>
                         <td>
@@ -349,10 +361,11 @@
                                 ${getStatusBadge(s.status, s.status_display)}
                             </div>
                         </td>
-                        <td class="text-right font-black text-white">+${s.task_details?.points || 0}</td>
+                        <td class="text-right font-black text-white">+${parseFloat(displayPoints).toFixed(1)}</td>
                     </tr>
-                `).join('');
+                `}).join('');
 
+            // ... остальной код функции без изменений
             return `
                 <div class="glass-card">
                     <div class="flex justify-between items-center mb-6 border-b border-white/5 pb-4">
