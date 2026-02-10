@@ -14,7 +14,9 @@
         
         .glass-card { background: var(--glass); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 24px; transition: transform 0.2s; }
         
-        /* Поля и списки */
+        .lang-btn { font-size: 10px; font-weight: 900; color: #64748b; cursor: pointer; transition: 0.3s; text-transform: uppercase; border: 1px solid rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 8px; }
+        .lang-btn.active { color: var(--primary); border-color: var(--primary); background: rgba(0, 198, 255, 0.05); }
+
         .input-field { 
             background: rgba(0, 198, 255, 0.03); 
             border: 1px solid rgba(255, 255, 255, 0.1); 
@@ -47,9 +49,6 @@
             padding-right: 2.5rem;
         }
 
-        select.input-field:hover { border-color: rgba(0, 198, 255, 0.5); }
-        select.input-field option { background-color: #0f172a; color: white; padding: 12px; }
-
         .btn-send { background: var(--primary); color: black; font-weight: 800; width: 100%; padding: 16px; border-radius: 16px; text-transform: uppercase; letter-spacing: 0.05em; transition: 0.3s; box-shadow: 0 4px 15px rgba(0, 198, 255, 0.3); }
         .btn-send:active { transform: scale(0.98); }
         
@@ -58,19 +57,14 @@
         .custom-table td { padding: 12px; font-size: 13px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); }
         .custom-table tr td:first-child { border-radius: 12px 0 0 12px; border-right: none; }
         .custom-table tr td:last-child { border-radius: 0 12px 12px 0; border-left: none; }
-        .custom-table tr td:nth-child(2) { border-left: none; border-right: none; }
 
         #toast-container { position: fixed; top: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 10px; }
         .toast { min-width: 300px; padding: 16px; border-radius: 16px; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); border-left: 4px solid var(--primary); color: white; box-shadow: 0 10px 30px rgba(0,0,0,0.5); transform: translateX(100%); transition: transform 0.3s ease-out; display: flex; align-items: center; gap: 12px; }
         .toast.show { transform: translateX(0); }
-        .toast.error { border-color: #ef4444; }
-        .toast.success { border-color: #22c55e; }
 
         @media (max-width: 768px) {
             body { padding: 16px; padding-bottom: 80px; }
             .glass-card { padding: 20px; border-radius: 20px; }
-            #vName { font-size: 1.5rem; }
-            #vPoints, #vYellowCards { font-size: 1.5rem; }
         }
     </style>
 </head>
@@ -79,27 +73,30 @@
 
     <div class="max-w-6xl mx-auto">
         <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
-            <div>
-                <h1 id="vName" class="text-3xl md:text-4xl font-black italic uppercase leading-none">...</h1>
-                <div class="flex items-center gap-2 mt-2">
-                    <span class="w-8 h-[2px] bg-primary"></span>
-                    <p id="vRole" class="text-gray-400 text-[10px] font-bold tracking-[0.2em] uppercase">Загрузка</p>
+            <div class="flex items-start gap-4">
+                <div>
+                    <h1 id="vName" class="text-3xl md:text-4xl font-black italic uppercase leading-none">...</h1>
+                    <div class="flex items-center gap-2 mt-2">
+                        <span class="w-8 h-[2px] bg-primary"></span>
+                        <p id="vRole" class="text-gray-400 text-[10px] font-bold tracking-[0.2em] uppercase">Загрузка</p>
+                    </div>
+                </div>
+                <div class="flex gap-2 mt-1">
+                    <div class="lang-btn" id="lang-ru" onclick="setLang('ru')">RU</div>
+                    <div class="lang-btn" id="lang-en" onclick="setLang('en')">EN</div>
                 </div>
             </div>
             
             <div class="w-full md:w-auto glass-card flex justify-between items-center gap-6 py-3 px-6 border-primary/20">
                 <div>
-                    <p class="text-[9px] text-gray-500 font-bold uppercase tracking-widest mb-1">Ваш счет</p>
+                    <p class="text-[9px] text-gray-500 font-bold uppercase tracking-widest mb-1" id="t-score">Ваш счет</p>
                     <p id="vPoints" class="text-3xl font-black text-primary italic leading-none">0</p>
                 </div>
-
                 <div class="w-[1px] h-8 bg-white/10"></div>
-
                 <div>
-                    <p class="text-[9px] text-gray-500 font-bold uppercase tracking-widest mb-1">ЖК</p>
+                    <p class="text-[9px] text-gray-500 font-bold uppercase tracking-widest mb-1" id="t-yc">ЖК</p>
                     <p id="vYellowCards" class="text-3xl font-black text-orange-500 italic leading-none">0</p>
                 </div>
-
                 <button onclick="logout()" class="ml-2 w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all">
                     <i class="fas fa-sign-out-alt"></i>
                 </button>
@@ -107,31 +104,26 @@
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
             <div class="lg:col-span-1">
                 <div class="glass-card lg:sticky lg:top-6">
                     <div class="flex items-center gap-3 mb-6">
                         <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary">
                             <i class="fas fa-paper-plane text-xs"></i>
                         </div>
-                        <h3 class="font-black italic uppercase text-white text-lg">Новый отчет</h3>
+                        <h3 class="font-black italic uppercase text-white text-lg" id="t-newreport">Новый отчет</h3>
                     </div>
                     
-                    <label class="text-[10px] font-bold text-gray-400 uppercase ml-2 mb-2 block tracking-wider">1. Куда отправляем?</label>
-                    <select id="contextSelect" class="input-field" onchange="updateTaskDropdown()">
-                        <option value="">Загрузка...</option>
-                    </select>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase ml-2 mb-2 block tracking-wider" id="t-step1">1. Куда отправляем?</label>
+                    <select id="contextSelect" class="input-field" onchange="updateTaskDropdown()"></select>
 
-                    <label class="text-[10px] font-bold text-gray-400 uppercase ml-2 mb-2 block tracking-wider">2. Какое задание?</label>
-                    <select id="taskSelect" class="input-field">
-                        <option value="">Сначала выберите группу</option>
-                    </select>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase ml-2 mb-2 block tracking-wider" id="t-step2">2. Какое задание?</label>
+                    <select id="taskSelect" class="input-field"></select>
 
-                    <label class="text-[10px] font-bold text-gray-400 uppercase ml-2 mb-2 block tracking-wider">3. Ссылка / Описание</label>
-                    <textarea id="taskComm" class="input-field h-24 resize-none" placeholder="Вставьте ссылку на Google Drive или опишите работу..."></textarea>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase ml-2 mb-2 block tracking-wider" id="t-step3">3. Ссылка / Описание</label>
+                    <textarea id="taskComm" class="input-field h-24 resize-none"></textarea>
 
                     <button onclick="sendReport()" id="sendBtn" class="btn-send flex items-center justify-center gap-2">
-                        <span>Отправить</span>
+                        <span id="t-send">Отправить</span>
                         <i class="fas fa-arrow-right text-xs"></i>
                     </button>
                 </div>
@@ -140,7 +132,7 @@
             <div class="lg:col-span-2 space-y-6" id="tablesContainer">
                 <div class="glass-card flex flex-col items-center justify-center py-20 text-center">
                     <i class="fas fa-circle-notch fa-spin text-primary text-2xl mb-4"></i>
-                    <p class="text-gray-500 text-sm font-medium">Синхронизация данных...</p>
+                    <p class="text-gray-500 text-sm font-medium" id="t-sync">Синхронизация данных...</p>
                 </div>
             </div>
         </div>
@@ -148,7 +140,63 @@
 
    <script>
         const token = localStorage.getItem('access');
-        
+        let currentLang = localStorage.getItem('lang') || 'ru';
+
+        const translations = {
+            ru: {
+                score: "Ваш счет", yc: "ЖК", newreport: "Новый отчет",
+                step1: "1. Куда отправляем?", step2: "2. Какое задание?",
+                step3: "3. Ссылка / Описание", send: "Отправить",
+                sync: "Синхронизация данных...", loading: "Загрузка...",
+                chooseCtx: "Выберите, куда отправить...", chooseTask: "Выберите задание...",
+                firstCtx: "Сначала выберите группу", noActive: "Нет активных задач",
+                emptyCtx: "Вы пока нигде не состоите", historyEmpty: "История пуста.",
+                total: "Всего", dirSub: "Направление + Общие", cmdSub: "Спец. Команда",
+                noRecords: "Нет записей", delTask: "Задание удалено",
+                toastErr: "Ошибка соединения.", toastSent: "Отчет успешно отправлен!",
+                toastMiss: "Выберите задание!", toastFail: "Ошибка при отправке",
+                placeComm: "Вставьте ссылку на Google Drive или опишите работу...",
+                general: " (Общая)"
+            },
+            en: {
+                score: "Your Score", yc: "YC", newreport: "New Report",
+                step1: "1. Where to send?", step2: "2. Which task?",
+                step3: "3. Link / Description", send: "Submit",
+                sync: "Syncing data...", loading: "Loading...",
+                chooseCtx: "Choose destination...", chooseTask: "Select task...",
+                firstCtx: "Choose a group first", noActive: "No active tasks",
+                emptyCtx: "You are not a member yet", historyEmpty: "History is empty.",
+                total: "Total", dirSub: "Direction + General", cmdSub: "Special Team",
+                noRecords: "No records", delTask: "Task deleted",
+                toastErr: "Connection error.", toastSent: "Report sent successfully!",
+                toastMiss: "Select a task!", toastFail: "Error sending report",
+                placeComm: "Paste Google Drive link or describe your work...",
+                general: " (General)"
+            }
+        };
+
+        function setLang(lang) {
+            currentLang = lang;
+            localStorage.setItem('lang', lang);
+            document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`lang-${lang}`).classList.add('active');
+
+            const t = translations[lang];
+            document.getElementById('t-score').innerText = t.score;
+            document.getElementById('t-yc').innerText = t.yc;
+            document.getElementById('t-newreport').innerText = t.newreport;
+            document.getElementById('t-step1').innerText = t.step1;
+            document.getElementById('t-step2').innerText = t.step2;
+            document.getElementById('t-step3').innerText = t.step3;
+            document.getElementById('t-send').innerText = t.send;
+            if(document.getElementById('t-sync')) document.getElementById('t-sync').innerText = t.sync;
+            document.getElementById('taskComm').placeholder = t.placeComm;
+
+            renderContextSelect();
+            updateTaskDropdown();
+            renderTables();
+        }
+
         let appData = {
             my_direction: [],
             my_commands: [],
@@ -159,9 +207,8 @@
         function showToast(message, type = 'success') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
-            const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
             toast.className = `toast ${type}`;
-            toast.innerHTML = `<i class="fas ${icon} text-lg"></i> <span class="text-sm font-semibold">${message}</span>`;
+            toast.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'} text-lg"></i> <span class="text-sm font-semibold">${message}</span>`;
             container.appendChild(toast);
             requestAnimationFrame(() => toast.classList.add('show'));
             setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 3000);
@@ -169,203 +216,126 @@
 
         function logout() { localStorage.clear(); location.href = '/login/'; }
 
-        // --- ФУНКЦИЯ ИЗВЛЕЧЕНИЯ ID ---
         function extractId(obj, fieldName) {
             if (!obj) return null;
-            
-            // 1. Ищем поле _id (direction_id / command_id)
             const directId = obj[`${fieldName}_id`];
             if (directId !== undefined && directId !== null) return String(directId);
-
-            // 2. Ищем вложенный объект (direction.id / command.id)
             const val = obj[fieldName];
             if (val && typeof val === 'object' && val.id) return String(val.id);
-            
-            // 3. Если это просто ID (строка или число)
             if (val !== undefined && val !== null && typeof val !== 'object') return String(val);
-
             return null; 
         }
 
-        const toArray = (data) => {
-            if (!data) return [];
-            return Array.isArray(data) ? data : [data];
-        };
-
         async function init() {
             if(!token) return location.href = '/login/';
-
             try {
                 const [uRes, dRes, hRes] = await Promise.all([
                     fetch('/api/profile/', { headers: {'Authorization': `Bearer ${token}`}}),
                     fetch('/api/discovery/', { headers: {'Authorization': `Bearer ${token}`}}),
                     fetch('/api/activities/', { headers: {'Authorization': `Bearer ${token}`}})
                 ]);
-
-                if (uRes.status === 401 || dRes.status === 401) { logout(); return; }
-                if (!uRes.ok) throw new Error("Auth failed");
-
+                if (uRes.status === 401 || dRes.status === 401) return logout();
                 const user = await uRes.json();
                 const disc = await dRes.json();
                 const hist = await hRes.json();
 
-                // ОТЛАДКА
-                console.log("📥 Все задачи:", disc.available_tasks);
-
-                // Заполняем профиль
                 document.getElementById('vName').innerText = user.name || user.login;
-                document.getElementById('vRole').innerText = user.role_display || "Волонтер";
+                document.getElementById('vRole').innerText = user.role_display || "Volunteer";
                 document.getElementById('vPoints').innerText = user.point || 0;
                 document.getElementById('vYellowCards').innerText = user.yellow_card || 0;
 
-                appData.my_direction = toArray(disc.my_direction);
-                appData.my_commands = toArray(disc.my_commands);
-                appData.available_tasks = toArray(disc.available_tasks);
+                appData.my_direction = Array.isArray(disc.my_direction) ? disc.my_direction : (disc.my_direction ? [disc.my_direction] : []);
+                appData.my_commands = Array.isArray(disc.my_commands) ? disc.my_commands : (disc.my_commands ? [disc.my_commands] : []);
+                appData.available_tasks = disc.available_tasks || [];
                 appData.history = hist;
 
-                renderContextSelect();
-                renderTables();
-
-            } catch(e) { 
-                console.error(e);
-                showToast("Ошибка соединения.", "error");
-            }
+                setLang(currentLang);
+            } catch(e) { showToast(translations[currentLang].toastErr, "error"); }
         }
 
         function renderContextSelect() {
             const sel = document.getElementById('contextSelect');
-            sel.innerHTML = '<option value="">Выберите, куда отправить...</option>';
-            
-            // Направления
-            appData.my_direction.forEach(dir => {
-                const dId = dir.id || dir; 
-                const dName = dir.name || "Направление"; 
-                sel.innerHTML += `<option value="dir_${dId}">🔹 ${dName}</option>`;
-            });
-
-            // Команды
-            appData.my_commands.forEach(cmd => {
-                const cId = cmd.id || cmd;
-                sel.innerHTML += `<option value="cmd_${cId}">🔸 Команда: ${cmd.title}</option>`;
-            });
-
-            if (appData.my_direction.length === 0 && appData.my_commands.length === 0) {
-                sel.innerHTML = '<option value="">Вы пока нигде не состоите</option>';
-            }
+            const t = translations[currentLang];
+            sel.innerHTML = `<option value="">${t.chooseCtx}</option>`;
+            appData.my_direction.forEach(dir => sel.innerHTML += `<option value="dir_${dir.id || dir}">🔹 ${dir.name || 'Direction'}</option>`);
+            appData.my_commands.forEach(cmd => sel.innerHTML += `<option value="cmd_${cmd.id || cmd}">🔸 ${cmd.title}</option>`);
+            if (appData.my_direction.length === 0 && appData.my_commands.length === 0) sel.innerHTML = `<option value="">${t.emptyCtx}</option>`;
         }
 
-        function updateTaskDropdown() {
+function updateTaskDropdown() {
             const contextVal = document.getElementById('contextSelect').value;
             const taskSel = document.getElementById('taskSelect');
-            taskSel.innerHTML = '<option value="">Выберите задание...</option>';
+            const t = translations[currentLang];
+            taskSel.innerHTML = `<option value="">${contextVal ? t.chooseTask : t.firstCtx}</option>`;
             
             if (!contextVal) return;
 
-            const [type, idStr] = contextVal.split('_');
-            const targetId = String(idStr);
-
-            console.log(`🔎 Фильтр: Тип=${type}, ID=${targetId}`);
-
-            const relevantTasks = appData.available_tasks.filter(t => {
-                const taskDirId = extractId(t, 'direction');
-                const taskCmdId = extractId(t, 'command');
-
-                // --- НОВАЯ ЛОГИКА ---
-                // Задача считается "Общей", если у неё нет ни Команды, ни Направления
-                const isGeneralTask = !taskCmdId && !taskDirId;
-
-                if (type === 'dir') {
-                    // Показываем, если совпало направление ИЛИ если задача общая
-                    return (taskDirId === targetId) || isGeneralTask;
-                }
-                if (type === 'cmd') {
-                    // Показываем, если совпала команда ИЛИ если задача общая
-                    return (taskCmdId === targetId) || isGeneralTask;
-                }
-                return false;
+            const [type, targetId] = contextVal.split('_');
+            const relevantTasks = appData.available_tasks.filter(tk => {
+                const tDirId = extractId(tk, 'direction');
+                const tCmdId = extractId(tk, 'command');
+                const isGen = !tCmdId && !tDirId;
+                return type === 'dir' ? (tDirId === targetId || isGen) : (tCmdId === targetId || isGen);
             });
 
-            console.log(`Найдено задач: ${relevantTasks.length}`);
-
             if (relevantTasks.length === 0) {
-                taskSel.innerHTML = '<option value="">Нет активных задач</option>';
+                taskSel.innerHTML = `<option value="">${t.noActive}</option>`;
             } else {
-                relevantTasks.forEach(t => {
-                    // Добавим пометку (Общая), если это общая задача
-                    const isGen = (!t.command_id && !t.direction_id) ? " (Общая)" : "";
-                    taskSel.innerHTML += `<option value="${t.id}">${t.title}${isGen} (+${t.points})</option>`;
+                relevantTasks.forEach(tk => {
+                    // ЛОГИКА ВЫБОРА ЯЗЫКА ДЛЯ ЗАДАНИЯ
+                    const displayTitle = (currentLang === 'en' && tk.title_en) ? tk.title_en : tk.title;
+                    
+                    const isGen = (!tk.command_id && !tk.direction_id) ? t.general : "";
+                    taskSel.innerHTML += `<option value="${tk.id}">${displayTitle}${isGen} (+${tk.points})</option>`;
                 });
             }
         }
 
         function renderTables() {
             const container = document.getElementById('tablesContainer');
+            const t = translations[currentLang];
             container.innerHTML = '';
-
-            // История Направлений
             appData.my_direction.forEach(dir => {
                 const dId = String(dir.id || dir);
-                const dName = dir.name || "Направление";
-                // Показываем историю по направлению + Общие задачи, выполненные в рамках этого контекста (если бы мы хранили контекст)
-                // Но для истории лучше просто фильтровать по факту привязки задачи
                 const dirSubmissions = appData.history.filter(s => {
                     const tDir = extractId(s.task_details, 'direction');
                     const tCmd = extractId(s.task_details, 'command');
-                    // Показываем задачу здесь, если она привязана к этому направлению ИЛИ она общая (нет привязок)
                     return tDir === dId || (!tDir && !tCmd);
                 });
-                container.innerHTML += createTableHTML(dName, "Направление + Общие", dirSubmissions);
+                container.innerHTML += createTableHTML(dir.name || "Direction", t.dirSub, dirSubmissions);
             });
-
-            // История Команд
             appData.my_commands.forEach(cmd => {
                 const cId = String(cmd.id || cmd);
                 const cmdSubmissions = appData.history.filter(s => extractId(s.task_details, 'command') === cId);
-                container.innerHTML += createTableHTML(cmd.title, "Спец. Команда", cmdSubmissions);
+                container.innerHTML += createTableHTML(cmd.title, t.cmdSub, cmdSubmissions);
             });
-
-            if (container.innerHTML === '') {
-                container.innerHTML = `
-                    <div class="glass-card text-center py-10">
-                        <i class="fas fa-wind text-4xl text-gray-600 mb-4"></i>
-                        <p class="text-gray-400">История пуста.</p>
-                    </div>`;
-            }
+            if (container.innerHTML === '') container.innerHTML = `<div class="glass-card text-center py-10"><p class="text-gray-400">${t.historyEmpty}</p></div>`;
         }
 
-        function createTableHTML(title, subtitle, submissions) {
-            // Считаем сумму, используя начисленные баллы (points_awarded), а не базовые из задачи
-            const totalPoints = submissions
-                .filter(s => s.status === 'approved')
-                .reduce((sum, s) => {
-                    // Если куратор вписал баллы вручную, берем их, иначе базовые
-                    const actualPoints = s.points_awarded !== null ? parseFloat(s.points_awarded) : (parseFloat(s.task_details?.points) || 0);
-                    return sum + actualPoints;
-                }, 0);
+function createTableHTML(title, subtitle, submissions) {
+            const t = translations[currentLang];
+            const totalPoints = submissions.filter(s => s.status === 'approved').reduce((sum, s) => sum + (s.points_awarded !== null ? parseFloat(s.points_awarded) : (parseFloat(s.task_details?.points) || 0)), 0);
             
-            const rows = submissions.length === 0 
-                ? `<tr><td colspan="3" class="text-center text-gray-500 py-6 text-xs italic">Нет записей</td></tr>`
-                : submissions.map(s => {
-                    // ЛОГИКА ОПРЕДЕЛЕНИЯ БАЛЛОВ ДЛЯ СТРОКИ
-                    // Если одобрено и есть points_awarded — берем их. В остальных случаях — базовые.
-                    const displayPoints = (s.status === 'approved' && s.points_awarded !== null) 
-                        ? s.points_awarded 
-                        : (s.task_details?.points || 0);
+            const rows = submissions.length === 0 ? `<tr><td colspan="3" class="text-center text-gray-500 py-6 text-xs italic">${t.noRecords}</td></tr>` : submissions.map(s => {
+                const displayPoints = (s.status === 'approved' && s.points_awarded !== null) ? s.points_awarded : (s.task_details?.points || 0);
+                
+                // ЛОГИКА ВЫБОРА ЯЗЫКА ДЛЯ ИСТОРИИ
+                // Предполагается, что в task_details API также отдает title_en
+                const taskTitle = (currentLang === 'en' && s.task_details?.title_en) 
+                    ? s.task_details.title_en 
+                    : (s.task_details?.title || t.delTask);
 
-                    return `
+                return `
                     <tr>
                         <td class="text-gray-400 font-mono text-[10px]">${new Date(s.created_at).toLocaleDateString()}</td>
                         <td>
-                            <div class="font-bold text-white text-xs md:text-sm line-clamp-1">${s.task_details?.title || 'Задание удалено'}</div>
-                            <div class="flex items-center gap-2 mt-1">
-                                ${getStatusBadge(s.status, s.status_display)}
-                            </div>
+                            <div class="font-bold text-white text-xs md:text-sm">${taskTitle}</div>
+                            <div class="mt-1">${getStatusBadge(s.status, s.status_display)}</div>
                         </td>
                         <td class="text-right font-black text-white">+${parseFloat(displayPoints).toFixed(1)}</td>
-                    </tr>
-                `}).join('');
+                    </tr>`;
+            }).join('');
 
-            // ... остальной код функции без изменений
             return `
                 <div class="glass-card">
                     <div class="flex justify-between items-center mb-6 border-b border-white/5 pb-4">
@@ -374,67 +344,40 @@
                             <h2 class="text-xl md:text-2xl font-black italic uppercase text-white">${title}</h2>
                         </div>
                         <div class="text-right bg-white/5 px-3 py-2 rounded-xl">
-                            <p class="text-[9px] text-gray-500 font-bold uppercase">Всего</p>
+                            <p class="text-[9px] text-gray-500 font-bold uppercase">${t.total}</p>
                             <p class="text-xl font-black text-primary leading-none">${totalPoints.toFixed(1)}</p>
                         </div>
                     </div>
                     <div class="overflow-x-auto">
-                        <table class="custom-table">
-                            ${rows}
-                        </table>
+                        <table class="custom-table">${rows}</table>
                     </div>
-                </div>
-            `;
+                </div>`;
         }
 
         function getStatusBadge(status, text) {
-            const styles = {
-                'approved': 'bg-green-500/10 text-green-400 border-green-500/20',
-                'rejected': 'bg-red-500/10 text-red-400 border-red-500/20',
-                'pending': 'bg-orange-500/10 text-orange-400 border-orange-500/20'
-            };
+            const styles = { 'approved': 'bg-green-500/10 text-green-400 border-green-500/20', 'rejected': 'bg-red-500/10 text-red-400 border-red-500/20', 'pending': 'bg-orange-500/10 text-orange-400 border-orange-500/20' };
             const icons = { 'approved': 'fa-check', 'rejected': 'fa-times', 'pending': 'fa-clock' };
-            return `
-                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[9px] font-bold uppercase tracking-wider ${styles[status] || styles['pending']}">
-                    <i class="fas ${icons[status] || 'fa-question'}"></i>
-                    ${text || status}
-                </span>
-            `;
+            return `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[9px] font-bold uppercase tracking-wider ${styles[status] || styles['pending']}"><i class="fas ${icons[status] || 'fa-question'}"></i>${text || status}</span>`;
         }
 
         async function sendReport() {
             const btn = document.getElementById('sendBtn');
             const taskId = document.getElementById('taskSelect').value;
-            const comment = document.getElementById('taskComm').value;
-
-            if (!taskId) return showToast("Выберите задание!", "error");
-            
+            const t = translations[currentLang];
+            if (!taskId) return showToast(t.toastMiss, "error");
             const originalText = btn.innerHTML;
             btn.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i>`;
             btn.disabled = true;
-            
             try {
-                const res = await fetch('/api/activities/', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ task: taskId, description: comment })
-                });
-                
+                const res = await fetch('/api/activities/', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ task: taskId, description: document.getElementById('taskComm').value }) });
                 if(res.ok) { 
-                    showToast("Отчет успешно отправлен!");
+                    showToast(t.toastSent);
                     document.getElementById('taskComm').value = ""; 
                     const hRes = await fetch('/api/activities/', { headers: {'Authorization': `Bearer ${token}`} });
                     appData.history = await hRes.json();
                     renderTables();
-                } else {
-                    showToast("Ошибка при отправке", "error");
-                }
-            } catch (e) {
-                showToast("Ошибка сети", "error");
-            } finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }
+                } else showToast(t.toastFail, "error");
+            } catch (e) { showToast(t.toastErr, "error"); } finally { btn.innerHTML = originalText; btn.disabled = false; }
         }
 
         init();

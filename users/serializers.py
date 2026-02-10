@@ -63,21 +63,30 @@ class VolunteerSerializer(serializers.ModelSerializer):
 
 
 # --- Задачи (для баллов) ---
+from rest_framework import serializers
+
 class ActivityTaskSerializer(serializers.ModelSerializer):
     command_name = serializers.CharField(source='command.title', read_only=True, default=None)
     command_id = serializers.IntegerField(source='command.id', read_only=True, default=None)
+    
+    # Добавляем оригинальное поле для EN версии
+    title_en = serializers.CharField(read_only=True)
+    
     # Направление берем из команды, если она есть
     direction_id = serializers.SerializerMethodField()
 
     class Meta:
         model = ActivityTask
-        fields = ['id', 'title', 'points', 'is_flexible', 'command_id', 'command_name', 'direction_id']
+        # Добавляем title_en в список полей
+        fields = [
+            'id', 'title', 'title_en', 'points', 
+            'is_flexible', 'command_id', 'command_name', 'direction_id'
+        ]
 
     def get_direction_id(self, obj):
         if obj.command and obj.command.direction:
             return obj.command.direction.id
         return None
-
 
 class ActivitySubmissionSerializer(serializers.ModelSerializer):
     task_details = ActivityTaskSerializer(source='task', read_only=True)

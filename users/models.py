@@ -144,17 +144,20 @@ class Volunteer(AbstractBaseUser, PermissionsMixin):
 # --- СИСТЕМА ЗАДАНИЙ И БАЛЛОВ ---
 
 class ActivityTask(models.Model):
-    title = models.CharField("Название задания", max_length=255)
-    description = models.TextField("Описание", blank=True)
+    # Русские версии (основные)
+    title = models.CharField("Название (RU)", max_length=255)
+    description = models.TextField("Описание (RU)", blank=True)
     
-    # Рекомендованные баллы (или максимальные)
+    # Английские версии (необязательные)
+    title_en = models.CharField("Название (EN)", max_length=255, blank=True, null=True)
+    description_en = models.TextField("Описание (EN)", blank=True, null=True)
+    
     points = models.DecimalField("Баллы (базовые/макс)", max_digits=6, decimal_places=1, default=0)
     
-    # НОВОЕ ПОЛЕ: Гибкие баллы
     is_flexible = models.BooleanField(
         "Гибкие баллы", 
         default=False, 
-        help_text="Если включено, куратор сможет сам вписать количество баллов при одобрении (например, от 3 до 5)."
+        help_text="Если включено, куратор сможет сам вписать количество баллов при одобрении."
     )
     
     command = models.ForeignKey(
@@ -166,9 +169,14 @@ class ActivityTask(models.Model):
     )
 
     def __str__(self):
+        # В админке показываем оба названия для удобства менеджера
+        display_title = self.title
+        if self.title_en:
+            display_title += f" / {self.title_en}"
+            
         type_str = "ГИБКОЕ" if self.is_flexible else f"{self.points} б."
         dest = self.command.title if self.command else "ОБЩЕЕ"
-        return f"[{dest}] {self.title} ({type_str})"
+        return f"[{dest}] {display_title} ({type_str})"
 
     class Meta:
         verbose_name = "Справочник заданий"

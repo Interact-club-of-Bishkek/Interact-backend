@@ -17,8 +17,13 @@
             min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; 
         }
         
-        .glass-card { background: var(--glass); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 32px; width: 100%; max-width: 400px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        .glass-card { background: var(--glass); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 32px; width: 100%; max-width: 400px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); position: relative; }
         
+        /* Language Switcher */
+        .lang-switch { position: absolute; top: 20px; right: 20px; display: flex; gap: 8px; z-index: 100; }
+        .lang-btn { font-size: 10px; font-weight: 900; color: #64748b; cursor: pointer; transition: 0.3s; text-transform: uppercase; border: 1px solid rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 8px; }
+        .lang-btn.active { color: var(--primary); border-color: var(--primary); background: rgba(0, 198, 255, 0.05); }
+
         .input-group { margin-bottom: 16px; position: relative; }
         .input-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #64748b; transition: 0.3s; z-index: 10; }
         .input-field { background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 14px 14px 14px 44px; width: 100%; color: white; outline: none; font-size: 14px; transition: all 0.3s; }
@@ -36,7 +41,6 @@
         .fade-in { animation: fadeIn 0.4s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* Custom Dropdown Styles */
         .select-options-container {
             box-shadow: 0 15px 35px rgba(0, 0, 0, 0.8);
             animation: dropDown 0.3s ease-out forwards;
@@ -51,7 +55,6 @@
         .option-item:hover { background: rgba(0, 198, 255, 0.1); color: var(--primary); padding-left: 20px; }
         .option-item.active { background: var(--primary); color: black; font-weight: 700; }
 
-        /* Toast Notifications */
         #toast-container { position: fixed; top: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 10px; width: 90%; max-width: 350px; }
         .toast { padding: 16px; border-radius: 16px; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); border-left: 4px solid var(--primary); color: white; box-shadow: 0 10px 30px rgba(0,0,0,0.5); transform: translateX(110%); transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: flex; align-items: center; gap: 12px; }
         .toast.show { transform: translateX(0); }
@@ -64,9 +67,14 @@
     <div id="toast-container"></div>
 
     <div class="glass-card fade-in">
+        <div class="lang-switch">
+            <div class="lang-btn active" id="lang-ru" onclick="setLang('ru')">RU</div>
+            <div class="lang-btn" id="lang-en" onclick="setLang('en')">EN</div>
+        </div>
+
         <div class="text-center mb-8">
             <h1 class="text-4xl font-black italic uppercase text-white tracking-tighter">Interact</h1>
-            <p class="text-[10px] font-bold text-primary uppercase tracking-[0.4em] mt-1">Volunteer Club</p>
+            <p class="text-[10px] font-bold text-primary uppercase tracking-[0.4em] mt-1" id="club-sub">Volunteer Club</p>
         </div>
 
         <div id="authSection">
@@ -83,7 +91,7 @@
                 </div>
                 
                 <button type="submit" id="authBtn" class="btn-primary">
-                    <span>Войти</span>
+                    <span id="btn-auth-text">Войти</span>
                     <i class="fas fa-arrow-right"></i>
                 </button>
             </form>
@@ -96,7 +104,7 @@
                 <button onclick="backToAuth()" class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 text-gray-400">
                     <i class="fas fa-arrow-left"></i>
                 </button>
-                <h2 class="text-lg font-bold text-white">Почти готово</h2>
+                <h2 class="text-lg font-bold text-white" id="app-title">Почти готово</h2>
             </div>
 
             <form id="appForm" onsubmit="handleApplication(event)">
@@ -111,7 +119,7 @@
                 </div>
                 
                 <div class="mb-6 relative">
-                    <label class="text-[10px] font-bold text-gray-500 uppercase ml-2 mb-2 block tracking-widest">Направление</label>
+                    <label class="text-[10px] font-bold text-gray-500 uppercase ml-2 mb-2 block tracking-widest" id="label-dir">Направление</label>
                     <div class="relative" id="dirSelectContainer">
                         <div class="input-field flex items-center justify-between cursor-pointer pr-4" onclick="toggleDropdown()">
                             <div class="flex items-center gap-3">
@@ -129,7 +137,7 @@
                 </div>
 
                 <button type="submit" id="appBtn" class="btn-primary">
-                    <span>Завершить</span>
+                    <span id="btn-app-text">Завершить</span>
                     <i class="fas fa-check"></i>
                 </button>
             </form>
@@ -138,9 +146,85 @@
 
     <script>
         let isLogin = true;
+        let currentLang = localStorage.getItem('lang') || 'ru';
         const token = () => localStorage.getItem('access');
 
-        // --- УВЕДОМЛЕНИЯ ---
+        const translations = {
+            ru: {
+                loginTitle: "Вход в систему",
+                regTitle: "Регистрация",
+                loginBtn: "Войти",
+                regNextBtn: "Продолжить",
+                noAcc: "Нет аккаунта? <span class='text-primary underline'>Зарегистрироваться</span>",
+                haveAcc: "Уже есть аккаунт? <span class='text-primary underline'>Войти</span>",
+                loginPlace: "Логин",
+                passPlace: "Пароль",
+                appTitle: "Почти готово",
+                namePlace: "Ваше ФИО",
+                phonePlace: "Телефон",
+                dirLabel: "Направление",
+                dirPlace: "Выберите из списка...",
+                finishBtn: "Завершить",
+                loading: "Загрузка...",
+                noData: "Нет данных",
+                authSuccess: "Успешный вход!",
+                appSuccess: "Анкета сохранена!",
+                errorAccess: "Ошибка доступа",
+                errorNet: "Ошибка сети",
+                selectDir: "Выберите направление!"
+            },
+            en: {
+                loginTitle: "Sign In",
+                regTitle: "Registration",
+                loginBtn: "Login",
+                regNextBtn: "Continue",
+                noAcc: "No account? <span class='text-primary underline'>Sign Up</span>",
+                haveAcc: "Already have an account? <span class='text-primary underline'>Sign In</span>",
+                loginPlace: "Username",
+                passPlace: "Password",
+                appTitle: "Almost done",
+                namePlace: "Your Full Name",
+                phonePlace: "Phone number",
+                dirLabel: "Direction",
+                dirPlace: "Select from list...",
+                finishBtn: "Complete",
+                loading: "Loading...",
+                noData: "No data",
+                authSuccess: "Login success!",
+                appSuccess: "Profile saved!",
+                errorAccess: "Access denied",
+                errorNet: "Network error",
+                selectDir: "Please select a direction!"
+            }
+        };
+
+        function setLang(lang) {
+            currentLang = lang;
+            localStorage.setItem('lang', lang);
+            
+            document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`lang-${lang}`).classList.add('active');
+
+            const t = translations[lang];
+            
+            // Auth section
+            document.getElementById('title').innerText = isLogin ? t.loginTitle : t.regTitle;
+            document.getElementById('userLogin').placeholder = t.loginPlace;
+            document.getElementById('userPass').placeholder = t.passPlace;
+            document.getElementById('btn-auth-text').innerText = isLogin ? t.loginBtn : t.regNextBtn;
+            document.getElementById('toggleBtn').innerHTML = isLogin ? t.noAcc : t.haveAcc;
+
+            // App section
+            document.getElementById('app-title').innerText = t.appTitle;
+            document.getElementById('fullName').placeholder = t.namePlace;
+            document.getElementById('phone').placeholder = t.phonePlace;
+            document.getElementById('label-dir').innerText = t.dirLabel;
+            if(!document.getElementById('dirSelectValue').value) {
+                document.getElementById('selectedOptionLabel').innerText = t.dirPlace;
+            }
+            document.getElementById('btn-app-text').innerText = t.finishBtn;
+        }
+
         function showToast(message, type = 'error') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
@@ -167,7 +251,6 @@
             }
         }
 
-        // --- ЛОГИКА ВЫПАДАЮЩЕГО СПИСКА ---
         function toggleDropdown() {
             const list = document.getElementById('optionsList');
             const chevron = document.getElementById('selectChevron');
@@ -198,87 +281,31 @@
             }
         });
 
-        // --- НАВИГАЦИЯ И АВТОЛОГИН ---
-        
-        // 1. Единая функция распределения по ролям
         function navigateUser(user) {
-            console.log("Роль пользователя:", user.role); // Для отладки
-
-            // --- ВАЖНЫЕ РОЛИ ---
-            
-            // 1. ЭТИЧЕСКИЙ ОФИЦЕР (Ваше исправление)
-            if (user.role === 'equity_officer') {
-                location.href = '/equity-panel/';
-                return;
-            }
-
-            // 2. ПРИСТАВ
-            if (user.role === 'bailiff_activity') {
-                location.href = '/bailiff-panel/';
-                return;
-            }
-
-            // 3. АДМИН или ПРЕЗИДЕНТ (если вы создали admin-panel)
-            if (user.role === 'admin' || user.role === 'president') {
-                location.href = '/admin-panel/'; // Или '/curator-panel/', если админ-панели нет
-                return;
-            }
-            
-            // --- ОСТАЛЬНЫЕ ---
-
-            // Кураторы и Тимлиды
-            if (['curator', 'teamlead'].includes(user.role)) {
-                location.href = '/curator-panel/';
-                return;
-            } 
-            
-            // Обычные волонтеры (если есть направление)
+            if (user.role === 'equity_officer') { location.href = '/equity-panel/'; return; }
+            if (user.role === 'bailiff_activity') { location.href = '/bailiff-panel/'; return; }
+            if (user.role === 'admin' || user.role === 'president') { location.href = '/admin-panel/'; return; }
+            if (['curator', 'teamlead'].includes(user.role)) { location.href = '/curator-panel/'; return; } 
             if (user.is_assigned || (user.direction && user.direction.length > 0)) {
                 location.href = '/cabinet/';
             } else {
-                // Если направления нет — заканчиваем регистрацию
                 showApp();
             }
         }
 
-        // 2. Функция проверки сессии при загрузке страницы
         async function checkSession() {
             const t = localStorage.getItem('access');
-            if (!t) return; // Токена нет, остаемся на форме входа
-
+            if (!t) return;
             try {
-                // Показываем какой-то индикатор или просто ждем (форма пока видна)
-                const res = await fetch('/api/profile/', {
-                    headers: { 'Authorization': `Bearer ${t}` }
-                });
-
-                if (res.ok) {
-                    const user = await res.json();
-                    navigateUser(user); // Автопереход
-                } else {
-                    // Токен протух
-                    localStorage.removeItem('access');
-                }
-            } catch (e) {
-                console.error("Ошибка автологина:", e);
-            }
+                const res = await fetch('/api/profile/', { headers: { 'Authorization': `Bearer ${t}` } });
+                if (res.ok) { navigateUser(await res.json()); } 
+                else { localStorage.removeItem('access'); }
+            } catch (e) {}
         }
 
         function toggleAuth() {
             isLogin = !isLogin;
-            const title = document.getElementById('title');
-            const btnText = document.querySelector('#authBtn span');
-            const toggleText = document.getElementById('toggleBtn');
-            
-            if (isLogin) {
-                title.innerText = 'Вход в систему';
-                btnText.innerText = 'Войти';
-                toggleText.innerHTML = 'Нет аккаунта? <span class="text-primary underline">Зарегистрироваться</span>';
-            } else {
-                title.innerText = 'Регистрация';
-                btnText.innerText = 'Продолжить';
-                toggleText.innerHTML = 'Уже есть аккаунт? <span class="text-primary underline">Войти</span>';
-            }
+            setLang(currentLang);
         }
 
         function backToAuth() {
@@ -287,12 +314,10 @@
             localStorage.clear();
         }
 
-        // --- API: ВХОД / РЕГИСТРАЦИЯ ---
         async function handleAuth(e) {
             e.preventDefault();
             setLoading('authBtn', true);
             const path = isLogin ? '/api/login/' : '/api/register/';
-            
             try {
                 const res = await fetch(path, {
                     method: 'POST',
@@ -303,47 +328,34 @@
                     })
                 });
                 const data = await res.json();
-                
                 if (res.ok) {
                     localStorage.setItem('access', data.access);
-                    showToast("Успешный вход!", "success");
-                    
-                    setTimeout(() => {
-                        // Используем ту же логику навигации, что и при автологине
-                        navigateUser(data);
-                    }, 800);
+                    showToast(translations[currentLang].authSuccess, "success");
+                    setTimeout(() => navigateUser(data), 800);
                 } else { 
-                    const msg = data.detail || data.error || "Ошибка доступа";
-                    showToast(msg, "error");
+                    showToast(data.detail || data.error || translations[currentLang].errorAccess, "error");
                     setLoading('authBtn', false);
                 }
             } catch (err) {
-                showToast("Сервер недоступен", "error");
+                showToast(translations[currentLang].errorNet, "error");
                 setLoading('authBtn', false);
             }
         }
 
-        // --- API: ЗАГРУЗКА НАПРАВЛЕНИЙ ---
         async function showApp() {
             document.getElementById('authSection').classList.add('hidden');
-            const appSection = document.getElementById('appSection');
-            appSection.classList.remove('hidden');
-            appSection.classList.add('fade-in');
-
+            document.getElementById('appSection').classList.remove('hidden');
+            document.getElementById('appSection').classList.add('fade-in');
             try {
-                const res = await fetch('/api/discovery/', { 
-                    headers: {'Authorization': `Bearer ${token()}`} 
-                });
+                const res = await fetch('/api/discovery/', { headers: {'Authorization': `Bearer ${token()}`} });
                 const data = await res.json();
                 const optionsList = document.getElementById('optionsList');
                 optionsList.innerHTML = '';
-                
                 const list = data.all_directions || data.directions || [];
                 if(list.length === 0) {
-                    optionsList.innerHTML = '<div class="text-center p-4 text-gray-500">Нет данных</div>';
+                    optionsList.innerHTML = `<div class="text-center p-4 text-gray-500">${translations[currentLang].noData}</div>`;
                     return;
                 }
-
                 list.forEach(d => {
                     const item = document.createElement('div');
                     item.className = 'option-item';
@@ -351,48 +363,40 @@
                     item.onclick = () => selectOption(d.id, d.name);
                     optionsList.appendChild(item);
                 });
-            } catch (e) {
-                showToast("Ошибка загрузки данных", "error");
-            }
+            } catch (e) { showToast(translations[currentLang].errorNet, "error"); }
         }
 
-        // --- API: СОХРАНЕНИЕ АНКЕТЫ ---
         async function handleApplication(e) {
             e.preventDefault();
             const dirId = document.getElementById('dirSelectValue').value;
-            if(!dirId) return showToast("Выберите направление!");
-
+            if(!dirId) return showToast(translations[currentLang].selectDir);
             setLoading('appBtn', true);
             try {
                 const res = await fetch('/api/applications/', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token()}`
-                    },
+                    headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token()}`},
                     body: JSON.stringify({
                         full_name: document.getElementById('fullName').value,
                         phone_number: document.getElementById('phone').value,
                         direction: dirId
                     })
                 });
-                
                 if (res.ok) {
-                    showToast("Анкета сохранена!", "success");
+                    showToast(translations[currentLang].appSuccess, "success");
                     setTimeout(() => location.href = '/cabinet/', 1000);
                 } else {
-                    showToast("Ошибка сохранения", "error");
+                    showToast(translations[currentLang].errorNet, "error");
                     setLoading('appBtn', false);
                 }
             } catch (err) {
-                showToast("Ошибка сети", "error");
+                showToast(translations[currentLang].errorNet, "error");
                 setLoading('appBtn', false);
             }
         }
 
-        // ЗАПУСК АВТОЛОГИНА ПРИ ЗАГРУЗКЕ
+        // INIT
+        setLang(currentLang);
         checkSession();
-
     </script>
 </body>
 </html>
