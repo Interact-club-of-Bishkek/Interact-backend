@@ -147,6 +147,12 @@ class Application(models.Model):
     )
     created_at = models.DateTimeField("Дата подачи", auto_now_add=True)
 
+    def save(self, *args, **kwargs):
+            # Если статус меняется на 'accepted', добавляем волонтера в команду
+            if self.status == 'accepted' and self.volunteer:
+                self.command.volunteers.add(self.volunteer)
+            super().save(*args, **kwargs)
+            
     class Meta:
         verbose_name = "Заявка"
         verbose_name_plural = "Заявки"
