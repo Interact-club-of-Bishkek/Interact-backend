@@ -1,6 +1,7 @@
 import random
 import string
 from django.db import models
+from django.utils import timezone   
 # Добавляем Sum сюда:
 from django.db.models import Sum 
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
@@ -194,7 +195,13 @@ class ActivitySubmission(models.Model):
     task = models.ForeignKey(ActivityTask, on_delete=models.CASCADE, verbose_name="Задание")
     status = models.CharField("Статус", max_length=20, choices=STATUS_CHOICES, default='pending')
     
-    # НОВОЕ ПОЛЕ: Фактически начисленные баллы
+    # НОВОЕ ПОЛЕ: Дата выполнения (редактируемая)
+    date = models.DateField(
+        "Дата выполнения", 
+        default=timezone.now,
+        help_text="Дата, когда было выполнено задание"
+    )
+
     points_awarded = models.DecimalField(
         "Начислено баллов", 
         max_digits=6, 
@@ -203,30 +210,20 @@ class ActivitySubmission(models.Model):
         help_text="Заполняется куратором при одобрении. Если оставить пустым, возьмутся баллы из задания."
     )
     
+    # Системное поле (дата создания записи)
     created_at = models.DateTimeField("Дата подачи", auto_now_add=True)
     description = models.TextField("Комментарий/Отчет", blank=True, null=True) 
 
-    from django.db.models import Sum
-
     def save(self, *args, **kwargs):
         if self.pk:
-            # Получаем старую версию заявки из базы
             old_instance = ActivitySubmission.objects.get(pk=self.pk)
-            
             old_points = old_instance.points_awarded if old_instance.points_awarded is not None else old_instance.task.points
             new_points = self.points_awarded if self.points_awarded is not None else self.task.points
 
-            # ЛОГИКА ИЗМЕНЕНИЯ БАЛЛОВ:
-            
-            # 1. Заявка только что одобрена
             if old_instance.status != 'approved' and self.status == 'approved':
                 self.volunteer.point += new_points
-            
-            # 2. Заявка была одобрена, но теперь отклонена (снимаем баллы)
             elif old_instance.status == 'approved' and self.status != 'approved':
                 self.volunteer.point -= old_points
-            
-            # 3. Заявка остается одобренной, но куратор изменил количество баллов
             elif old_instance.status == 'approved' and self.status == 'approved':
                 diff = new_points - old_points
                 self.volunteer.point += diff
@@ -234,7 +231,6 @@ class ActivitySubmission(models.Model):
             self.volunteer.save(update_fields=['point'])
         
         else:
-            # Если это создание новой заявки и она сразу approved (редко, но бывает)
             if self.status == 'approved':
                 points = self.points_awarded if self.points_awarded is not None else self.task.points
                 self.volunteer.point += points
@@ -243,7 +239,6 @@ class ActivitySubmission(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        # Если удаляем принятую заявку — вычитаем баллы
         if self.status == 'approved':
             points = self.points_awarded if self.points_awarded is not None else self.task.points
             self.volunteer.point -= points
@@ -253,6 +248,7 @@ class ActivitySubmission(models.Model):
     class Meta:
         verbose_name = "Заявка на баллы"
         verbose_name_plural = "Заявки на баллы"
+        ordering = ['-date'] # Чтобы в админке последние по дате были сверху"
 
 
 # --- АНКЕТЫ (Остаются почти без изменений, только связи) ---

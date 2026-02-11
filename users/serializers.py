@@ -36,15 +36,16 @@ class VolunteerSerializer(serializers.ModelSerializer):
     commands = CommandSerializer(source='volunteer_commands', many=True, read_only=True)
     role_display = serializers.CharField(source='get_role_display', read_only=True)
     
-    # НОВОЕ: Флаг тимлида, который нужен фронтенду
     is_team_leader = serializers.SerializerMethodField()
 
     class Meta:
         model = Volunteer
+        # ВАЖНО: Я добавил 'image' в список ниже
         fields = [
-            'id', 'login', 'name', 'phone_number', 'email', 'image_url',
+            'id', 'login', 'name', 'phone_number', 'email', 
+            'image', 'image_url',   # <--- ДОБАВИЛИ 'image' СЮДА
             'role', 'role_display', 'direction', 'commands', 
-            'point', 'yellow_card', 'is_team_leader' # Добавили поле сюда
+            'point', 'yellow_card', 'is_team_leader'
         ]
         read_only_fields = ['point', 'yellow_card', 'role', 'login']
 
@@ -54,7 +55,6 @@ class VolunteerSerializer(serializers.ModelSerializer):
             return request.build_absolute_uri(obj.image.url) if request else obj.image.url
         return None
 
-    # Логика определения: является ли волонтер лидером хотя бы одной команды
     def get_is_team_leader(self, obj):
         return Command.objects.filter(leader=obj).exists()
     
@@ -98,13 +98,14 @@ class ActivitySubmissionSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'task',
+            'date',           # <--- ВОТ ЭТО ГЛАВНОЕ ИЗМЕНЕНИЕ
             'task_details',
             'volunteer_id',
             'volunteer_name',
             'status',
             'created_at',
             'description',
-            'points_awarded'  # <--- ОБЯЗАТЕЛЬНО ДОБАВИТЬ
+            'points_awarded'
         ]
 
 

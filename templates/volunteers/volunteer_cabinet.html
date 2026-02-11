@@ -14,9 +14,6 @@
         
         .glass-card { background: var(--glass); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 24px; transition: transform 0.2s; }
         
-        .lang-btn { font-size: 10px; font-weight: 900; color: #64748b; cursor: pointer; transition: 0.3s; text-transform: uppercase; border: 1px solid rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 8px; }
-        .lang-btn.active { color: var(--primary); border-color: var(--primary); background: rgba(0, 198, 255, 0.05); }
-
         .input-field { 
             background: rgba(0, 198, 255, 0.03); 
             border: 1px solid rgba(255, 255, 255, 0.1); 
@@ -38,38 +35,96 @@
         }
 
         select.input-field {
-            appearance: none;
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            cursor: pointer;
+            appearance: none; -webkit-appearance: none; -moz-appearance: none; cursor: pointer;
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2300c6ff'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3e");
-            background-repeat: no-repeat;
-            background-position: right 1rem center;
-            background-size: 1.2em;
-            padding-right: 2.5rem;
+            background-repeat: no-repeat; background-position: right 1rem center; background-size: 1.2em; padding-right: 2.5rem;
         }
+        
+        select.input-field:hover { border-color: rgba(0, 198, 255, 0.5); }
+        select.input-field option { background-color: #0f172a; color: white; padding: 12px; }
+
+        .lang-btn { font-size: 10px; font-weight: 900; color: #64748b; cursor: pointer; transition: 0.3s; text-transform: uppercase; border: 1px solid rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 8px; }
+        .lang-btn.active { color: var(--primary); border-color: var(--primary); background: rgba(0, 198, 255, 0.05); }
+
+        input[type="date"] { color-scheme: dark; }
+        input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; filter: invert(1); opacity: 0.6; transition: 0.3s; }
+        input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+
+        input[type="file"]::file-selector-button { background: rgba(255,255,255,0.1); color: white; border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; margin-right: 10px; transition: 0.3s; }
+        input[type="file"]::file-selector-button:hover { background: var(--primary); color: black; }
 
         .btn-send { background: var(--primary); color: black; font-weight: 800; width: 100%; padding: 16px; border-radius: 16px; text-transform: uppercase; letter-spacing: 0.05em; transition: 0.3s; box-shadow: 0 4px 15px rgba(0, 198, 255, 0.3); }
         .btn-send:active { transform: scale(0.98); }
+
+        .btn-logout { background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); font-weight: 700; width: 100%; padding: 14px; border-radius: 16px; transition: 0.3s; margin-top: 12px; font-size: 14px; }
+        .btn-logout:hover { background: rgba(239, 68, 68, 0.2); border-color: #ef4444; }
         
         .custom-table { width: 100%; border-collapse: separate; border-spacing: 0 8px; margin-top: 10px; }
         .custom-table th { text-align: left; padding: 0 12px; font-size: 10px; text-transform: uppercase; color: #6b7280; letter-spacing: 0.05em; }
         .custom-table td { padding: 12px; font-size: 13px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); }
         .custom-table tr td:first-child { border-radius: 12px 0 0 12px; border-right: none; }
         .custom-table tr td:last-child { border-radius: 0 12px 12px 0; border-left: none; }
+        .custom-table tr td:nth-child(2) { border-left: none; border-right: none; }
 
-        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 10px; }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 2000; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: 0.3s; backdrop-filter: blur(5px); }
+        .modal-overlay.open { opacity: 1; pointer-events: auto; }
+        .modal-content { max-width: 500px; width: 90%; transform: scale(0.9); transition: 0.3s; }
+        .modal-overlay.open .modal-content { transform: scale(1); }
+
+        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 3000; display: flex; flex-direction: column; gap: 10px; }
         .toast { min-width: 300px; padding: 16px; border-radius: 16px; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); border-left: 4px solid var(--primary); color: white; box-shadow: 0 10px 30px rgba(0,0,0,0.5); transform: translateX(100%); transition: transform 0.3s ease-out; display: flex; align-items: center; gap: 12px; }
         .toast.show { transform: translateX(0); }
+        .toast.error { border-color: #ef4444; }
+        .toast.success { border-color: #22c55e; }
 
         @media (max-width: 768px) {
             body { padding: 16px; padding-bottom: 80px; }
             .glass-card { padding: 20px; border-radius: 20px; }
+            #vName { font-size: 1.5rem; }
+            #vPoints, #vYellowCards { font-size: 1.5rem; }
         }
     </style>
 </head>
 <body>
     <div id="toast-container"></div>
+
+    <div id="profileModal" class="modal-overlay">
+        <div class="glass-card modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="font-black italic uppercase text-white text-xl" id="t-editProfile">Редактировать профиль</h3>
+                <button onclick="closeProfileModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase ml-2 mb-1 block" id="t-profName">ФИО</label>
+                    <input type="text" id="profName" class="input-field">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase ml-2 mb-1 block" id="t-profPhone">Телефон</label>
+                    <input type="text" id="profPhone" class="input-field">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase ml-2 mb-1 block" id="t-profEmail">Email</label>
+                    <input type="email" id="profEmail" class="input-field">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase ml-2 mb-1 block" id="t-profPhoto">Фото профиля</label>
+                    <input type="file" id="profPhoto" class="input-field" accept="image/*">
+                </div>
+                
+                <button onclick="saveProfile()" id="saveProfileBtn" class="btn-send flex items-center justify-center gap-2 mt-4">
+                    <span id="t-save">Сохранить</span>
+                    <i class="fas fa-save text-xs"></i>
+                </button>
+
+                <button onclick="logout()" class="btn-logout flex items-center justify-center gap-2">
+                    <span id="t-logout">Выйти из аккаунта</span>
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </div>
+    </div>
 
     <div class="max-w-6xl mx-auto">
         <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
@@ -97,8 +152,10 @@
                     <p class="text-[9px] text-gray-500 font-bold uppercase tracking-widest mb-1" id="t-yc">ЖК</p>
                     <p id="vYellowCards" class="text-3xl font-black text-orange-500 italic leading-none">0</p>
                 </div>
-                <button onclick="logout()" class="ml-2 w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all">
-                    <i class="fas fa-sign-out-alt"></i>
+                
+                <button onclick="openProfileModal()" class="ml-2 w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary hover:bg-primary/20 transition-all border border-primary/30 overflow-hidden relative" title="Личный кабинет">
+                    <img id="headerProfileImg" src="" class="w-full h-full object-cover hidden">
+                    <i id="headerProfileIcon" class="fas fa-user text-xl"></i>
                 </button>
             </div>
         </header>
@@ -118,6 +175,9 @@
 
                     <label class="text-[10px] font-bold text-gray-400 uppercase ml-2 mb-2 block tracking-wider" id="t-step2">2. Какое задание?</label>
                     <select id="taskSelect" class="input-field"></select>
+
+                    <label class="text-[10px] font-bold text-gray-400 uppercase ml-2 mb-2 block tracking-wider" id="t-stepDate">Дата выполнения</label>
+                    <input type="date" id="taskDate" class="input-field">
 
                     <label class="text-[10px] font-bold text-gray-400 uppercase ml-2 mb-2 block tracking-wider" id="t-step3">3. Ссылка / Описание</label>
                     <textarea id="taskComm" class="input-field h-24 resize-none"></textarea>
@@ -141,11 +201,13 @@
    <script>
         const token = localStorage.getItem('access');
         let currentLang = localStorage.getItem('lang') || 'ru';
+        let currentUser = null; 
 
         const translations = {
             ru: {
                 score: "Ваш счет", yc: "ЖК", newreport: "Новый отчет",
                 step1: "1. Куда отправляем?", step2: "2. Какое задание?",
+                stepDate: "Дата выполнения",
                 step3: "3. Ссылка / Описание", send: "Отправить",
                 sync: "Синхронизация данных...", loading: "Загрузка...",
                 chooseCtx: "Выберите, куда отправить...", chooseTask: "Выберите задание...",
@@ -156,11 +218,16 @@
                 toastErr: "Ошибка соединения.", toastSent: "Отчет успешно отправлен!",
                 toastMiss: "Выберите задание!", toastFail: "Ошибка при отправке",
                 placeComm: "Вставьте ссылку на Google Drive или опишите работу...",
-                general: " (Общая)"
+                general: " (Общая)",
+                editProfile: "Редактировать профиль", profName: "ФИО", profPhone: "Телефон",
+                profEmail: "Email", profPhoto: "Фото профиля", save: "Сохранить",
+                saveSuccess: "Профиль обновлен!", saveErr: "Ошибка при сохранении",
+                logout: "Выйти из аккаунта"
             },
             en: {
                 score: "Your Score", yc: "YC", newreport: "New Report",
                 step1: "1. Where to send?", step2: "2. Which task?",
+                stepDate: "Execution Date",
                 step3: "3. Link / Description", send: "Submit",
                 sync: "Syncing data...", loading: "Loading...",
                 chooseCtx: "Choose destination...", chooseTask: "Select task...",
@@ -171,7 +238,11 @@
                 toastErr: "Connection error.", toastSent: "Report sent successfully!",
                 toastMiss: "Select a task!", toastFail: "Error sending report",
                 placeComm: "Paste Google Drive link or describe your work...",
-                general: " (General)"
+                general: " (General)",
+                editProfile: "Edit Profile", profName: "Full Name", profPhone: "Phone",
+                profEmail: "Email", profPhoto: "Profile Photo", save: "Save",
+                saveSuccess: "Profile updated!", saveErr: "Error saving profile",
+                logout: "Log Out"
             }
         };
 
@@ -187,8 +258,18 @@
             document.getElementById('t-newreport').innerText = t.newreport;
             document.getElementById('t-step1').innerText = t.step1;
             document.getElementById('t-step2').innerText = t.step2;
+            document.getElementById('t-stepDate').innerText = t.stepDate;
             document.getElementById('t-step3').innerText = t.step3;
             document.getElementById('t-send').innerText = t.send;
+            
+            document.getElementById('t-editProfile').innerText = t.editProfile;
+            document.getElementById('t-profName').innerText = t.profName;
+            document.getElementById('t-profPhone').innerText = t.profPhone;
+            document.getElementById('t-profEmail').innerText = t.profEmail;
+            document.getElementById('t-profPhoto').innerText = t.profPhoto;
+            document.getElementById('t-save').innerText = t.save;
+            document.getElementById('t-logout').innerText = t.logout;
+
             if(document.getElementById('t-sync')) document.getElementById('t-sync').innerText = t.sync;
             document.getElementById('taskComm').placeholder = t.placeComm;
 
@@ -216,6 +297,55 @@
 
         function logout() { localStorage.clear(); location.href = '/login/'; }
 
+        function openProfileModal() {
+            if (currentUser) {
+                document.getElementById('profName').value = currentUser.name || "";
+                document.getElementById('profPhone').value = currentUser.phone_number || "";
+                document.getElementById('profEmail').value = currentUser.email || "";
+                document.getElementById('profPhoto').value = ""; 
+            }
+            document.getElementById('profileModal').classList.add('open');
+        }
+
+        function closeProfileModal() {
+            document.getElementById('profileModal').classList.remove('open');
+        }
+
+        async function saveProfile() {
+            const btn = document.getElementById('saveProfileBtn');
+            const originalText = btn.innerHTML;
+            const t = translations[currentLang];
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
+            btn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('name', document.getElementById('profName').value);
+            formData.append('phone_number', document.getElementById('profPhone').value);
+            formData.append('email', document.getElementById('profEmail').value);
+            const fileInput = document.getElementById('profPhoto');
+            if (fileInput.files.length > 0) formData.append('image', fileInput.files[0]);
+
+            try {
+                const res = await fetch('/api/profile/', {
+                    method: 'PATCH',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: formData
+                });
+                if (res.ok) {
+                    showToast(t.saveSuccess);
+                    closeProfileModal();
+                    init(); 
+                } else showToast(t.saveErr, "error");
+            } catch (e) { showToast(t.toastErr, "error"); } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        document.getElementById('profileModal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('profileModal')) closeProfileModal();
+        });
+
         function extractId(obj, fieldName) {
             if (!obj) return null;
             const directId = obj[`${fieldName}_id`];
@@ -228,6 +358,8 @@
 
         async function init() {
             if(!token) return location.href = '/login/';
+            document.getElementById('taskDate').value = new Date().toISOString().split('T')[0];
+
             try {
                 const [uRes, dRes, hRes] = await Promise.all([
                     fetch('/api/profile/', { headers: {'Authorization': `Bearer ${token}`}}),
@@ -236,6 +368,22 @@
                 ]);
                 if (uRes.status === 401 || dRes.status === 401) return logout();
                 const user = await uRes.json();
+                currentUser = user; 
+
+                // === ЛОГИКА ОТОБРАЖЕНИЯ ФОТО В ШАПКЕ ===
+                const headerImg = document.getElementById('headerProfileImg');
+                const headerIcon = document.getElementById('headerProfileIcon');
+                
+                // Проверяем image_url (из сериализатора) или image
+                if (user.image_url || user.image) {
+                    headerImg.src = user.image_url || user.image;
+                    headerImg.classList.remove('hidden');
+                    headerIcon.classList.add('hidden');
+                } else {
+                    headerImg.classList.add('hidden');
+                    headerIcon.classList.remove('hidden');
+                }
+
                 const disc = await dRes.json();
                 const hist = await hRes.json();
 
@@ -262,7 +410,7 @@
             if (appData.my_direction.length === 0 && appData.my_commands.length === 0) sel.innerHTML = `<option value="">${t.emptyCtx}</option>`;
         }
 
-function updateTaskDropdown() {
+        function updateTaskDropdown() {
             const contextVal = document.getElementById('contextSelect').value;
             const taskSel = document.getElementById('taskSelect');
             const t = translations[currentLang];
@@ -282,9 +430,7 @@ function updateTaskDropdown() {
                 taskSel.innerHTML = `<option value="">${t.noActive}</option>`;
             } else {
                 relevantTasks.forEach(tk => {
-                    // ЛОГИКА ВЫБОРА ЯЗЫКА ДЛЯ ЗАДАНИЯ
                     const displayTitle = (currentLang === 'en' && tk.title_en) ? tk.title_en : tk.title;
-                    
                     const isGen = (!tk.command_id && !tk.direction_id) ? t.general : "";
                     taskSel.innerHTML += `<option value="${tk.id}">${displayTitle}${isGen} (+${tk.points})</option>`;
                 });
@@ -295,39 +441,52 @@ function updateTaskDropdown() {
             const container = document.getElementById('tablesContainer');
             const t = translations[currentLang];
             container.innerHTML = '';
+            
+            const customSort = (a, b) => {
+                const isAPending = a.status === 'pending';
+                const isBPending = b.status === 'pending';
+                if (isAPending && !isBPending) return -1;
+                if (!isAPending && isBPending) return 1;
+                const dateA = new Date(a.date || a.created_at);
+                const dateB = new Date(b.date || b.created_at);
+                return dateB - dateA;
+            };
+
             appData.my_direction.forEach(dir => {
                 const dId = String(dir.id || dir);
-                const dirSubmissions = appData.history.filter(s => {
-                    const tDir = extractId(s.task_details, 'direction');
-                    const tCmd = extractId(s.task_details, 'command');
-                    return tDir === dId || (!tDir && !tCmd);
-                });
+                const dirSubmissions = appData.history
+                    .filter(s => {
+                        const tDir = extractId(s.task_details, 'direction');
+                        const tCmd = extractId(s.task_details, 'command');
+                        return tDir === dId || (!tDir && !tCmd);
+                    })
+                    .sort(customSort); 
                 container.innerHTML += createTableHTML(dir.name || "Direction", t.dirSub, dirSubmissions);
             });
+
             appData.my_commands.forEach(cmd => {
                 const cId = String(cmd.id || cmd);
-                const cmdSubmissions = appData.history.filter(s => extractId(s.task_details, 'command') === cId);
+                const cmdSubmissions = appData.history
+                    .filter(s => extractId(s.task_details, 'command') === cId)
+                    .sort(customSort); 
                 container.innerHTML += createTableHTML(cmd.title, t.cmdSub, cmdSubmissions);
             });
+
             if (container.innerHTML === '') container.innerHTML = `<div class="glass-card text-center py-10"><p class="text-gray-400">${t.historyEmpty}</p></div>`;
         }
 
-function createTableHTML(title, subtitle, submissions) {
+        function createTableHTML(title, subtitle, submissions) {
             const t = translations[currentLang];
             const totalPoints = submissions.filter(s => s.status === 'approved').reduce((sum, s) => sum + (s.points_awarded !== null ? parseFloat(s.points_awarded) : (parseFloat(s.task_details?.points) || 0)), 0);
             
             const rows = submissions.length === 0 ? `<tr><td colspan="3" class="text-center text-gray-500 py-6 text-xs italic">${t.noRecords}</td></tr>` : submissions.map(s => {
                 const displayPoints = (s.status === 'approved' && s.points_awarded !== null) ? s.points_awarded : (s.task_details?.points || 0);
-                
-                // ЛОГИКА ВЫБОРА ЯЗЫКА ДЛЯ ИСТОРИИ
-                // Предполагается, что в task_details API также отдает title_en
-                const taskTitle = (currentLang === 'en' && s.task_details?.title_en) 
-                    ? s.task_details.title_en 
-                    : (s.task_details?.title || t.delTask);
+                const taskTitle = (currentLang === 'en' && s.task_details?.title_en) ? s.task_details.title_en : (s.task_details?.title || t.delTask);
+                const dateToDisplay = s.date ? new Date(s.date).toLocaleDateString() : new Date(s.created_at).toLocaleDateString();
 
                 return `
                     <tr>
-                        <td class="text-gray-400 font-mono text-[10px]">${new Date(s.created_at).toLocaleDateString()}</td>
+                        <td class="text-gray-400 font-mono text-[10px]">${dateToDisplay}</td>
                         <td>
                             <div class="font-bold text-white text-xs md:text-sm">${taskTitle}</div>
                             <div class="mt-1">${getStatusBadge(s.status, s.status_display)}</div>
@@ -363,13 +522,20 @@ function createTableHTML(title, subtitle, submissions) {
         async function sendReport() {
             const btn = document.getElementById('sendBtn');
             const taskId = document.getElementById('taskSelect').value;
+            const taskDate = document.getElementById('taskDate').value;
             const t = translations[currentLang];
             if (!taskId) return showToast(t.toastMiss, "error");
+            
             const originalText = btn.innerHTML;
             btn.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i>`;
             btn.disabled = true;
+
             try {
-                const res = await fetch('/api/activities/', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ task: taskId, description: document.getElementById('taskComm').value }) });
+                const res = await fetch('/api/activities/', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, 
+                    body: JSON.stringify({ task: taskId, date: taskDate, description: document.getElementById('taskComm').value }) 
+                });
                 if(res.ok) { 
                     showToast(t.toastSent);
                     document.getElementById('taskComm').value = ""; 
