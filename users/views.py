@@ -224,17 +224,21 @@ class VolunteerListView(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
+        
+        # 1. Находим команды, которыми пользователь управляет:
+        # Либо он лидер команды, либо он куратор (responsible) направления этой команды
+        managed_commands = Command.objects.filter(
+            Q(leader=user) | Q(direction__responsible=user)
+        )
+
         qs = Volunteer.objects.prefetch_related('direction', 'volunteer_commands')
 
-        # Определяем команды, которыми управляет текущий пользователь
-        my_commands = Command.objects.filter(leader=user)
-        
-        # Считаем "Баллы в команде" (local_points)
-        # Суммируем points_awarded только из ActivitySubmission, связанных с МОИМИ командами
+        # 2. Считаем баллы именно в тех командах, за которые отвечает юзер
+        # Если это куратор IT, он увидит баллы волонтера во всех IT-командах
         qs = qs.annotate(
             local_points=Coalesce(
                 Sum('submissions__points_awarded', 
-                    filter=Q(submissions__task__command__in=my_commands)
+                    filter=Q(submissions__task__command__in=managed_commands)
                 ), 
                 Value(0), 
                 output_field=DecimalField()
@@ -242,11 +246,18 @@ class VolunteerListView(generics.ListAPIView):
             yellow_card_count=Count('yellow_cards', distinct=True)
         )
 
-        is_leader = my_commands.exists()
+        # 3. Определяем права доступа
         is_curator = VolunteerDirection.objects.filter(responsible=user).exists()
-        
-        if user.is_superuser or user.is_staff or user.role in ['admin', 'curator'] or is_leader or is_curator:
+        is_leader = managed_commands.exists()
+        user_role = getattr(user, 'role', '').lower()
+
+        # Если админ, куратор или лидер — даем доступ к списку
+        if user.is_superuser or user.is_staff or user_role in ['admin', 'curator'] or is_leader or is_curator:
+            # Если ты хочешь, чтобы куратор видел ВООБЩЕ ВСЕХ волонтеров базы:
             return qs.exclude(id=user.id).order_by('-id')
+            
+            # ВАРИАНТ Б (строгий): Если куратор должен видеть ТОЛЬКО людей своего направления:
+            # return qs.filter(direction__responsible=user).distinct().exclude(id=user.id)
 
         return qs.filter(id=user.id)
 

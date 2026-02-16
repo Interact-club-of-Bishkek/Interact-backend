@@ -385,43 +385,55 @@
 
     function renderVolunteers() {
         const table = document.getElementById('vTable');
-        const myTeamIds = state.myLeadingTeams.map(t => Number(t.id)); 
-        const isAdmin = state.user.role === 'admin';
+        if (!table) return;
 
-        const myVolunteers = state.volunteers.filter(v => {
-            if (isAdmin) return true; 
-            const vCommands = v.volunteer_commands || [];
-            return vCommands.some(cmd => {
-                const cmdId = typeof cmd === 'object' ? cmd.id : cmd;
-                return myTeamIds.includes(Number(cmdId));
+        const isAdmin = state.user.role === 'admin';
+        const isCurator = state.user.role === 'curator';
+        
+        // Куратор и Админ должны видеть ВСЕХ, кого прислал Backend.
+        // Тимлиды (если не кураторы) видят только своих.
+        let myVolunteers = state.volunteers;
+
+        if (!isAdmin && !isCurator) {
+            // Только для Тимлидов оставляем фильтр по конкретным командам
+            const myTeamIds = state.myManagedTeams.map(t => String(t.id)); 
+            myVolunteers = state.volunteers.filter(v => {
+                const vCommands = v.volunteer_commands || v.commands || [];
+                return vCommands.some(cmd => myTeamIds.includes(String(cmd.id || cmd)));
             });
-        });
+        }
 
         if (myVolunteers.length === 0) {
-            table.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-gray-500 italic">В ваших командах пока нет участников.<br><span class="text-xs">Используйте кнопку "Добавить", чтобы найти их в базе.</span></td></tr>';
+            const msg = isCurator ? 'В вашем направлении пока нет участников.' : 'В ваших командах пока нет участников.';
+            table.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-gray-500 italic">${msg}</td></tr>`;
             return;
         }
 
         table.innerHTML = myVolunteers.map(v => {
             const totalPoints = parseFloat(v.point || 0).toFixed(1);
             const localPoints = parseFloat(v.local_points || 0).toFixed(1);
-
-            const vCommands = v.volunteer_commands || [];
-            const targetCmd = vCommands.find(c => myTeamIds.includes(Number(c.id || c)));
-            const targetCmdId = targetCmd ? (targetCmd.id || targetCmd) : null;
+            const vCommands = v.volunteer_commands || v.commands || [];
+            
+            // Для кнопки удаления: ищем команду, которой управляет текущий юзер
+            const myManagedIds = state.myManagedTeams.map(t => String(t.id));
+            const targetCmd = vCommands.find(c => myManagedIds.includes(String(c.id || c)));
+            const targetCmdId = targetCmd ? String(targetCmd.id || targetCmd) : null;
             const targetCmdName = targetCmd ? (targetCmd.title || 'Команда') : 'Команда';
             
-            const safeName = (v.name || 'User').replace(/'/g, "\\'");
+            const safeName = (v.name || v.login || 'User').replace(/'/g, "\\'");
 
             return `
             <tr class="hover:bg-white/5 transition border-b border-white/5 group">
                 <td class="py-3 px-4">
-                    <div class="font-black uppercase text-sm italic text-white leading-none">${v.name || 'Без имени'}</div>
+                    <div class="font-black uppercase text-sm italic text-white leading-none">${v.name || v.login || 'Без имени'}</div>
                     <div class="text-[10px] text-gray-500 font-mono mt-1">${v.login}</div>
                 </td>
                 <td class="py-3 px-4">
                     <div class="flex flex-wrap gap-1">
-                        ${(vCommands).map(c => `<span class="bg-white/5 text-gray-400 text-[8px] px-2 py-0.5 rounded font-black uppercase">${c.title || c.name || c}</span>`).join('')}
+                        ${vCommands.length > 0 
+                            ? vCommands.map(c => `<span class="bg-white/5 text-gray-400 text-[8px] px-2 py-0.5 rounded font-black uppercase">${c.title || c.name || 'Команда'}</span>`).join('')
+                            : '<span class="text-[8px] text-gray-600 italic">Без команды</span>'
+                        }
                     </div>
                 </td>
                 <td class="py-3 px-4">
@@ -443,10 +455,9 @@
                 <td class="py-3 px-4 text-right">
                     ${targetCmdId ? 
                         `<button onclick="openDeleteModal(${v.id}, ${targetCmdId}, '${safeName}', '${targetCmdName}')" 
-                           class="w-8 h-8 rounded-lg bg-white text-red-600 hover:bg-red-50 hover:scale-105 transition flex items-center justify-center border border-white shadow-[0_0_15px_rgba(220,38,38,0.3)] ml-auto group/btn" title="Удалить из команды">
-                           <i class="fas fa-trash-alt text-xs group-hover/btn:animate-bounce"></i>
-                        </button>` 
-                    : ''}
+                            class="w-8 h-8 rounded-lg bg-white text-red-600 hover:bg-red-50 transition flex items-center justify-center border border-white ml-auto">
+                            <i class="fas fa-trash-alt text-xs"></i>
+                        </button>` : ''}
                 </td>
             </tr>`;
         }).join('');
