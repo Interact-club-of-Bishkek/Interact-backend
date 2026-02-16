@@ -172,6 +172,7 @@ class ActivitySubmissionAdmin(admin.ModelAdmin):
 
 @admin.register(ActivityTask)
 class ActivityTaskAdmin(admin.ModelAdmin):
+    search_fields = ('title',)
     list_display = ('title', 'points', 'visibility_icon', 'submissions_count')
     autocomplete_fields = ['command']
 

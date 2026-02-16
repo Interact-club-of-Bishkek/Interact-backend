@@ -114,12 +114,11 @@ JAZZMIN_SETTINGS = {
     
     "icons": {
         "auth": "fas fa-users-cog",
-        "auth.user": "fas fa-user",
-        "users.Volunteer": "fas fa-user-astronaut",
+        "users.Volunteer": "fas fa-user-graduate",
         "commands.Command": "fas fa-rocket",
-        "commands.Application": "fas fa-file-signature",
-        "commands.Question": "fas fa-question-circle",
-        "directions.VolunteerDirection": "fas fa-map-signs",
+        "commands.Application": "fas fa-envelope-open-text",
+        "commands.Question": "fas fa-clipboard-list",
+        "directions.VolunteerDirection": "fas fa-map-marked-alt",
         "users.YellowCard": "fas fa-exclamation-triangle",
     },
 
