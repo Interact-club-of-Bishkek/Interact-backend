@@ -49,14 +49,16 @@ class YellowCardInline(admin.TabularInline):
 
 @admin.register(Volunteer)
 class VolunteerAdmin(admin.ModelAdmin):
-    # 🔥 ВЕРНУЛ display_password в список
     list_display = ('get_avatar', 'name_display', 'display_password', 'role_badge', 'point_display', 'is_active_icon')
     list_display_links = ('get_avatar', 'name_display')
     list_filter = ('role', 'is_active', 'direction')
     search_fields = ('name', 'login', 'phone_number', 'email')
     filter_horizontal = ('direction', 'groups', 'user_permissions')
     inlines = [YellowCardInline, ActivitySubmissionInline]
-    readonly_fields = ('last_login',) 
+    
+    # 🔥 ИСПРАВЛЕНИЕ: Добавляем кастомные методы сюда статично
+    readonly_fields = ('last_login', 'get_avatar_large', 'yellow_card_count_display') 
+    
     save_on_top = True
 
     fieldsets = (

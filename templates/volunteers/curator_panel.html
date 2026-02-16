@@ -390,23 +390,34 @@
         const isAdmin = state.user.role === 'admin';
         const isCurator = state.user.role === 'curator';
         
-        // Куратор и Админ должны видеть ВСЕХ, кого прислал Backend.
-        // Тимлиды (если не кураторы) видят только своих.
-        let myVolunteers = state.volunteers;
+        // Получаем ID твоих направлений из профиля
+        const myDirIds = getIds(state.user.direction); 
+        const myManagedTeamIds = state.myManagedTeams.map(t => String(t.id));
 
-        if (!isAdmin && !isCurator) {
-            // Только для Тимлидов оставляем фильтр по конкретным командам
-            const myTeamIds = state.myManagedTeams.map(t => String(t.id)); 
+        let myVolunteers = [];
+
+        if (isAdmin) {
+            // Админ видит всех
+            myVolunteers = state.volunteers;
+        } else if (isCurator) {
+            // 🔥 КУРАТОР: Фильтруем тех, кто относится к его направлениям
             myVolunteers = state.volunteers.filter(v => {
-                const vCommands = v.volunteer_commands || v.commands || [];
-                return vCommands.some(cmd => myTeamIds.includes(String(cmd.id || cmd)));
-            });
-        }
+                const vDirIds = getIds(v.direction);
+                // Если у волонтера есть направление, совпадающее с кураторским
+                const hasDirMatch = vDirIds.some(id => myDirIds.includes(id));
+                
+                // Также на всякий случай проверяем, не в твоей ли он команде (managed)
+                const vCmdIds = getIds(v.volunteer_commands || v.commands);
+                const hasCmdMatch = vCmdIds.some(id => myManagedTeamIds.includes(id));
 
-        if (myVolunteers.length === 0) {
-            const msg = isCurator ? 'В вашем направлении пока нет участников.' : 'В ваших командах пока нет участников.';
-            table.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-gray-500 italic">${msg}</td></tr>`;
-            return;
+                return hasDirMatch || hasCmdMatch;
+            });
+        } else {
+            // ТИМЛИД: Видит только тех, кто в его командах
+            myVolunteers = state.volunteers.filter(v => {
+                const vCmdIds = getIds(v.volunteer_commands || v.commands);
+                return vCmdIds.some(id => myManagedTeamIds.includes(id));
+            });
         }
 
         table.innerHTML = myVolunteers.map(v => {

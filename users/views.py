@@ -252,12 +252,16 @@ class VolunteerListView(generics.ListAPIView):
         user_role = getattr(user, 'role', '').lower()
 
         # Если админ, куратор или лидер — даем доступ к списку
-        if user.is_superuser or user.is_staff or user_role in ['admin', 'curator'] or is_leader or is_curator:
-            # Если ты хочешь, чтобы куратор видел ВООБЩЕ ВСЕХ волонтеров базы:
+        if user.is_superuser or user.role == 'admin':
             return qs.exclude(id=user.id).order_by('-id')
-            
-            # ВАРИАНТ Б (строгий): Если куратор должен видеть ТОЛЬКО людей своего направления:
-            # return qs.filter(direction__responsible=user).distinct().exclude(id=user.id)
+
+        if user.role == 'curator' or is_curator:
+            # Возвращаем ТОЛЬКО тех волонтеров, чье направление совпадает с направлениями куратора
+            return qs.filter(direction__responsible=user).distinct().exclude(id=user.id).order_by('-id')
+
+        if is_leader:
+            # Тимлид видит только тех, кто в его командах
+            return qs.filter(volunteer_commands__in=managed_commands).distinct().exclude(id=user.id).order_by('-id')
 
         return qs.filter(id=user.id)
 
