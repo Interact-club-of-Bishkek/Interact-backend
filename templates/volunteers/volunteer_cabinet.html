@@ -437,7 +437,7 @@
             }
         }
 
-        function renderTables() {
+function renderTables() {
             const container = document.getElementById('tablesContainer');
             const t = translations[currentLang];
             container.innerHTML = '';
@@ -452,29 +452,40 @@
                 return dateB - dateA;
             };
 
+            // --- ТАБЛИЦА НАПРАВЛЕНИЯ (Direction + General) ---
             appData.my_direction.forEach(dir => {
                 const dId = String(dir.id || dir);
                 const dirSubmissions = appData.history
                     .filter(s => {
-                        const tDir = extractId(s.task_details, 'direction');
-                        const tCmd = extractId(s.task_details, 'command');
-                        return tDir === dId || (!tDir && !tCmd);
+                        const tDir = extractId(s.task_details, 'direction') || extractId(s, 'direction');
+                        const tCmd = extractId(s.task_details, 'command') || extractId(s, 'command');
+                        
+                        // 🔥 ГЛАВНОЕ УСЛОВИЕ: Показываем в направлении только если НЕТ команды
+                        const belongsToDir = (tDir === dId);
+                        const hasNoCommand = !tCmd; 
+                        const isGeneral = (!tDir && !tCmd);
+
+                        return (belongsToDir && hasNoCommand) || isGeneral;
                     })
                     .sort(customSort); 
                 container.innerHTML += createTableHTML(dir.name || "Direction", t.dirSub, dirSubmissions);
             });
 
+            // --- ТАБЛИЦА КОМАНДЫ (Special Team) ---
             appData.my_commands.forEach(cmd => {
                 const cId = String(cmd.id || cmd);
                 const cmdSubmissions = appData.history
-                    .filter(s => extractId(s.task_details, 'command') === cId)
+                    .filter(s => {
+                        const tCmd = extractId(s.task_details, 'command') || extractId(s, 'command');
+                        return tCmd === cId;
+                    })
                     .sort(customSort); 
                 container.innerHTML += createTableHTML(cmd.title, t.cmdSub, cmdSubmissions);
             });
 
             if (container.innerHTML === '') container.innerHTML = `<div class="glass-card text-center py-10"><p class="text-gray-400">${t.historyEmpty}</p></div>`;
         }
-
+        
         function createTableHTML(title, subtitle, submissions) {
             const t = translations[currentLang];
             const totalPoints = submissions.filter(s => s.status === 'approved').reduce((sum, s) => sum + (s.points_awarded !== null ? parseFloat(s.points_awarded) : (parseFloat(s.task_details?.points) || 0)), 0);
@@ -523,9 +534,24 @@
             const btn = document.getElementById('sendBtn');
             const taskId = document.getElementById('taskSelect').value;
             const taskDate = document.getElementById('taskDate').value;
+            const contextVal = document.getElementById('contextSelect').value; 
             const t = translations[currentLang];
+
             if (!taskId) return showToast(t.toastMiss, "error");
-            
+
+            let commandId = null;
+            let directionId = null;
+
+            if (contextVal) {
+                const [type, id] = contextVal.split('_');
+                // 🔥 Обязательно преобразуем в число (parseInt)
+                if (type === 'cmd') commandId = parseInt(id);
+                if (type === 'dir') directionId = parseInt(id);
+            }
+
+            // Для отладки: посмотри в консоль браузера перед отправкой
+            console.log("Отправка отчета:", { taskId, commandId, directionId });
+
             const originalText = btn.innerHTML;
             btn.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i>`;
             btn.disabled = true;
@@ -533,19 +559,33 @@
             try {
                 const res = await fetch('/api/activities/', { 
                     method: 'POST', 
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, 
-                    body: JSON.stringify({ task: taskId, date: taskDate, description: document.getElementById('taskComm').value }) 
+                    headers: { 
+                        'Content-Type': 'application/json', 
+                        'Authorization': `Bearer ${token}` 
+                    }, 
+                    body: JSON.stringify({ 
+                        task: taskId, 
+                        date: taskDate, 
+                        description: document.getElementById('taskComm').value,
+                        command: commandId,    // Передаем число или null
+                        direction: directionId // Передаем число или null
+                    }) 
                 });
+                
                 if(res.ok) { 
                     showToast(t.toastSent);
                     document.getElementById('taskComm').value = ""; 
-                    const hRes = await fetch('/api/activities/', { headers: {'Authorization': `Bearer ${token}`} });
-                    appData.history = await hRes.json();
-                    renderTables();
-                } else showToast(t.toastFail, "error");
-            } catch (e) { showToast(t.toastErr, "error"); } finally { btn.innerHTML = originalText; btn.disabled = false; }
+                    init(); // Перезагружаем историю
+                } else {
+                    showToast(t.toastFail, "error");
+                }
+            } catch (e) { 
+                showToast(t.toastErr, "error"); 
+            } finally { 
+                btn.innerHTML = originalText; 
+                btn.disabled = false; 
+            }
         }
-
         init();
     </script>
 </body>

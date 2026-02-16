@@ -6,7 +6,7 @@ from .views import (
 
 urlpatterns = [
     path('join-commands', volunteer_page, name='volunteer-page'),
-    path('dashboard-teamliders', curator_page, name='curator-page'),
+    # path('dashboard-teamliders', curator_page, name='curator-page'),
     path('commands/<int:pk>/add-volunteer/', AddVolunteerToCommandView.as_view(), name='add-volunteer-to-command'),
     path('commands/', CommandListView.as_view(), name='command-list'),
     path('commands/<str:slug>/', CommandDetailView.as_view(), name='command-detail'),

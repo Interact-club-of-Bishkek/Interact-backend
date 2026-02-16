@@ -345,7 +345,7 @@
             state.commands.forEach(c => c.questions?.forEach(q => questionMap[`q_${q.id}`] = q.label));
             state.commands.forEach(c => c.questions?.forEach(q => questionMap[q.id] = q.label));
             state.commands.forEach(c => c.questions?.forEach(q => questionMap[String(q.id)] = q.label));
-                
+
             let dbTeams = [], leadTeams = [];
             const label = document.getElementById('managedTeamsLabel');
             const myDirIds = getIds(state.user.direction);
@@ -872,73 +872,78 @@
     }
 
     function decideSub(id, status) {
-        try {
-            const body = { status };
-            if (status === 'approved') {
-                const pointsInput = document.getElementById(`pts-${id}`);
-                if (pointsInput) { body.points_awarded = parseFloat(pointsInput.value); }
+        const submission = state.submissions.find(s => s.id === id);
+        if (!submission) return;
+
+        let body = { status };
+        
+        if (status === 'approved') {
+            const pointsInput = document.getElementById(`pts-${id}`);
+            // Если есть инпут — берем из него, если нет — берем стандартные баллы задачи
+            body.points_awarded = pointsInput 
+                ? parseFloat(pointsInput.value) 
+                : parseFloat(submission.task_details.points);
+                
+            if (isNaN(body.points_awarded)) {
+                showToast("⚠️ Ошибка в баллах");
+                return;
             }
-            fetch(`${API.submissions}${id}/`, {
-                method: 'PATCH',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
-            }).then(res => {
-                if (res.ok) {
-                    const el = document.getElementById(`sub-${id}`);
-                    el.style.opacity = '0';
-                    el.style.transform = 'scale(0.9)';
-                    setTimeout(() => el.remove(), 300);
-                    const msg = status === 'approved' ? 'Баллы начислены' : 'Заявка отклонена';
-                    showToast(msg);
-                    setTimeout(loadAllData, 500);
-                } else {
-                    showToast('Ошибка при сохранении');
-                }
-            });
-        } catch(e) { console.error(e); showToast('Ошибка сети'); }
+        }
+
+        fetch(`${API.submissions}${id}/`, {
+            method: 'PATCH',
+            headers: { 
+                'Authorization': `Bearer ${token}`, 
+                'Content-Type': 'application/json' 
+            },
+            body: JSON.stringify(body)
+        }).then(res => {
+            if (res.ok) {
+                showToast('Успешно обновлено');
+                loadAllData(); // Перезагружаем, чтобы увидеть обновленные баллы волонтера
+            }
+        });
     }
 
     function renderSubmissions() {
         const container = document.getElementById('secReq');
-        const myDirIds = getIds(state.user.direction);
-        const myTeamIds = state.myManagedTeams.map(t => String(t.id));
-        const pending = state.submissions.filter(s => {
-            if (s.status !== 'pending') return false;
-            if (state.user.role === 'admin') return true;
-            const taskDirId = extractId(s.task_details, 'direction');
-            const taskCmdId = extractId(s.task_details, 'command');
-            if (!taskDirId && !taskCmdId) return true; 
-            if (state.user.role === 'curator') return myDirIds.includes(taskDirId) || (taskCmdId && myTeamIds.includes(taskCmdId));
-            return myTeamIds.includes(taskCmdId);
-        });
+        if (!container) return;
+
+        // Бэкенд уже прислал только ТЕ заявки, которые куратор имеет право видеть.
+        // Нам нужно только отфильтровать их по статусу 'pending'.
+        const pending = state.submissions.filter(s => s.status === 'pending');
+
         if (pending.length === 0) {
-            container.innerHTML = `<div class="col-span-full py-20 text-center text-gray-600 font-black uppercase text-xs italic tracking-widest">Нет активных заявок</div>`;
+            container.innerHTML = `<div class="col-span-full py-20 text-center text-gray-600 font-black uppercase text-xs italic tracking-widest">Нет новых заявок</div>`;
             return;
         }
+
         container.innerHTML = pending.map(s => {
             const isFlex = s.task_details?.is_flexible;
+            const contextName = s.task_details?.command_name || s.task_details?.direction_name || 'Задача';
+            
             return `
             <div class="glass-card flex flex-col h-full border-white/5 hover:border-primary/20 transition group" id="sub-${s.id}">
                 <div class="flex justify-between items-start mb-4">
-                    <span class="px-2 py-1 bg-primary/10 text-primary text-[8px] font-black uppercase rounded">${s.task_details?.command_name || 'Общая задача'}</span>
+                    <span class="px-2 py-1 bg-primary/10 text-primary text-[8px] font-black uppercase rounded">${contextName}</span>
                     <span class="text-[10px] text-gray-600 font-mono tracking-tighter">${new Date(s.created_at).toLocaleDateString()}</span>
                 </div>
                 <div class="mb-6 flex-grow">
-                    <h4 class="font-black text-lg italic uppercase leading-tight text-white group-hover:text-primary transition">${s.volunteer_name}</h4>
-                    <p class="text-[10px] text-gray-400 font-bold uppercase mt-1 mb-3">${s.task_details?.title}</p>
-                    <div class="bg-black/40 p-3 rounded-xl text-sm italic text-gray-500 border border-white/5">"${s.description || 'Без комментария'}"</div>
+                    <h4 class="font-black text-lg italic uppercase leading-tight text-white group-hover:text-primary transition">${s.volunteer_name || 'Волонтер'}</h4>
+                    <p class="text-[10px] text-gray-400 font-bold uppercase mt-1 mb-3">${s.task_details?.title || 'Без названия'}</p>
+                    <div class="bg-black/40 p-3 rounded-xl text-sm italic text-gray-500 border border-white/5">"${s.description || 'Нет комментария'}"</div>
                 </div>
                 <div class="flex flex-col gap-3 mt-auto">
-                <div class="flex items-center justify-between bg-white/5 p-3 rounded-2xl border border-white/10 transition-all hover:border-primary/30 group/input">
-                    <div class="flex flex-col">
-                        <span class="text-[9px] font-black text-gray-500 uppercase ml-1 tracking-tighter">${isFlex ? 'Оценка работы' : 'Фикс. баллы'}</span>
-                        <span class="text-[8px] text-primary/40 font-bold uppercase ml-1">${isFlex ? 'изменяемое' : 'стандарт'}</span>
+                    <div class="flex items-center justify-between bg-white/5 p-3 rounded-2xl border border-white/10 transition-all hover:border-primary/30 group/input">
+                        <div class="flex flex-col">
+                            <span class="text-[9px] font-black text-gray-500 uppercase ml-1 tracking-tighter">${isFlex ? 'Оценка работы' : 'Фикс. баллы'}</span>
+                            <span class="text-[8px] text-primary/40 font-bold uppercase ml-1">${isFlex ? 'изменяемое' : 'стандарт'}</span>
+                        </div>
+                        ${isFlex 
+                            ? `<div class="relative flex items-center"><i class="fas fa-pen text-[10px] text-primary/30 absolute left-3 group-focus-within/input:text-primary transition-colors"></i><input type="number" id="pts-${s.id}" class="w-24 bg-[#0f172a] border-2 border-primary/20 rounded-xl pl-8 pr-3 py-2 text-primary font-black text-lg outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all hover:bg-[#1e293b] appearance-none" value="${s.task_details.points}" step="0.5"></div>`
+                            : `<div class="score-badge text-xl px-4 py-2 bg-primary/10 border border-primary/20 rounded-xl">+${parseFloat(s.task_details?.points || 0)}</div>`
+                        }
                     </div>
-                    ${isFlex 
-                        ? `<div class="relative flex items-center"><i class="fas fa-pen text-[10px] text-primary/30 absolute left-3 group-focus-within/input:text-primary transition-colors"></i><input type="number" id="pts-${s.id}" class="w-24 bg-[#0f172a] border-2 border-primary/20 rounded-xl pl-8 pr-3 py-2 text-primary font-black text-lg outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all hover:bg-[#1e293b] appearance-none" value="${s.task_details.points}" step="0.5"></div>`
-                        : `<div class="score-badge text-xl px-4 py-2 bg-primary/10 border border-primary/20 rounded-xl">+${parseFloat(s.task_details?.points || 0)}</div>`
-                    }
-                </div>
                     <div class="grid grid-cols-2 gap-2">
                         <button onclick="decideSub(${s.id}, 'approved')" class="py-3 bg-[#80e5ff] text-black rounded-xl font-black uppercase text-[10px] hover:bg-white transition shadow-lg shadow-sky-500/10">Принять</button>
                         <button onclick="decideSub(${s.id}, 'rejected')" class="py-3 bg-white/5 text-gray-500 rounded-xl font-black uppercase text-[10px] hover:text-red-500 transition">Отказ</button>
@@ -947,7 +952,6 @@
             </div>`;
         }).join('');
     }
-
     function switchTab(tab) {
         document.querySelectorAll('.section-view').forEach(s => s.classList.add('hidden'));
         document.getElementById(`sec${tab.charAt(0).toUpperCase()+tab.slice(1)}`).classList.remove('hidden');

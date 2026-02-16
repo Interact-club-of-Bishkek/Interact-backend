@@ -7,7 +7,8 @@ from django.shortcuts import get_object_or_404
 from django.views.generic import TemplateView
 from django.db import models
 # ВАЖНО: Импортируем DecimalField именно отсюда для ORM
-from django.db.models import Sum, Value, Q, DecimalField, Count
+# Найди эту строку (примерно в начале файла)
+from django.db.models import Sum, Value, Q, DecimalField, Count, F  # <--- ДОБАВЬ 'F' СЮДА
 from django.db.models.functions import Coalesce
 
 from rest_framework import viewsets, generics, status, permissions
@@ -114,14 +115,25 @@ class VolunteerActivityViewSet(viewsets.ModelViewSet):
     queryset = ActivitySubmission.objects.all()
     serializer_class = ActivitySubmissionSerializer
     permission_classes = [IsAuthenticated]
-    http_method_names = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options']
 
     def get_queryset(self):
-        # Оптимизация: select_related для уменьшения запросов при сериализации task
         return ActivitySubmission.objects.filter(volunteer=self.request.user).select_related('task').order_by('-created_at')
 
     def perform_create(self, serializer):
-        serializer.save(volunteer=self.request.user)
+        # Явно достаем ID команды из запроса, если волонтер её выбрал
+        command_id = self.request.data.get('command')
+        direction_id = self.request.data.get('direction')
+
+        instance = serializer.save(
+            volunteer=self.request.user,
+            command_id=command_id,
+            direction_id=direction_id
+        )
+        
+        # Если выбрана команда, но направление пустое — подтягиваем его
+        if instance.command and not instance.direction:
+            instance.direction = instance.command.direction
+            instance.save()
 
 
 class DiscoveryListView(APIView):
@@ -150,26 +162,65 @@ class DiscoveryListView(APIView):
 
 # ---------------- ПАНЕЛЬ КУРАТОРА ----------------
 
+# Находишь CuratorSubmissionViewSet (удали дубликат, оставь один)
 class CuratorSubmissionViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = ActivitySubmissionSerializer
 
     def get_queryset(self):
         user = self.request.user
-        qs = ActivitySubmission.objects.select_related('task', 'volunteer', 'task__command')
+        uid = user.id
+        
+        qs = ActivitySubmission.objects.select_related(
+            'task', 'volunteer', 'command', 'direction'
+        ).prefetch_related('volunteer__direction')
 
         if user.is_superuser or user.role == 'admin':
             return qs.order_by('-created_at')
-            
-        # Логика Куратора:
+
+        # 1. Тимлид команды: видит все заявки своей команды (новые и старые)
+        is_team_leader = Q(command__leader_id=uid)
+
+        # 2. Куратор направления: 
+        # Видит "чистые" заявки направления (где команда НЕ выбрана)
+        is_direction_curator = Q(direction__responsible_id=uid, command__isnull=True)
+
+        # 3. Контроль для куратора: 
+        # Видит командные заявки своего направления ТОЛЬКО если они уже ОДОБРЕНЫ тимлидом
+        is_overseer = Q(command__direction__responsible_id=uid, status='approved')
+
         return qs.filter(
-            Q(task__command__leader=user) | 
-            Q(volunteer__direction__responsible=user)
+            is_team_leader | is_direction_curator | is_overseer
         ).distinct().order_by('-created_at')
 
+    def perform_update(self, serializer):
+        with transaction.atomic():
+            # Получаем старую версию до сохранения
+            old_instance = self.get_object()
+            was_approved = old_instance.status == 'approved'
+            
+            # Сохраняем новые данные (статус и баллы)
+            instance = serializer.save()
 
-# ---------------- АНКЕТЫ И КАНБАН ----------------
+            if instance.status == 'approved' and not was_approved:
+                volunteer = instance.volunteer
+                points = instance.points_awarded or 0
+                
+                # Обновляем баллы волонтера с защитой от NULL
+                Volunteer.objects.filter(id=volunteer.id).update(
+                    point=Coalesce(F('point'), Value(0), output_field=DecimalField()) + points
+                )
+                volunteer.refresh_from_db()
 
+            elif instance.status != 'approved' and was_approved:
+                volunteer = instance.volunteer
+                # Если куратор передумал и отклонил уже одобренную заявку — забираем баллы
+                points = old_instance.points_awarded or 0
+                Volunteer.objects.filter(id=volunteer.id).update(
+                    point=Coalesce(F('point'), Value(0), output_field=DecimalField()) - points
+                )
+                volunteer.refresh_from_db()
+    
 class VolunteerApplicationViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = VolunteerApplicationSerializer
@@ -225,20 +276,23 @@ class VolunteerListView(generics.ListAPIView):
     def get_queryset(self):
         user = self.request.user
         
-        # 1. Находим команды, которыми пользователь управляет:
-        # Либо он лидер команды, либо он куратор (responsible) направления этой команды
+        # Находим команды, которыми юзер реально рулит
         managed_commands = Command.objects.filter(
             Q(leader=user) | Q(direction__responsible=user)
         )
 
         qs = Volunteer.objects.prefetch_related('direction', 'volunteer_commands')
 
-        # 2. Считаем баллы именно в тех командах, за которые отвечает юзер
-        # Если это куратор IT, он увидит баллы волонтера во всех IT-командах
+        # 🔥 ИСПРАВЛЕНИЕ ТУТ:
+        # Мы смотрим на submissions__command (то, что выбрал волонтер), 
+        # а не на submissions__task__command (настройки самой задачи).
         qs = qs.annotate(
             local_points=Coalesce(
                 Sum('submissions__points_awarded', 
-                    filter=Q(submissions__task__command__in=managed_commands)
+                    filter=Q(
+                        submissions__command__in=managed_commands, # <-- ТЕПЕРЬ СМОТРИМ СЮДА
+                        submissions__status='approved' 
+                    )
                 ), 
                 Value(0), 
                 output_field=DecimalField()
@@ -296,11 +350,12 @@ class VolunteerViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        # Если админ, куратор или тимлид - показываем ВСЕХ (чтобы можно было добавлять в команды)
-        if user.is_staff or user.role in ['admin', 'curator']:
+        # Проверяем, является ли он лидером хотя бы одной команды
+        is_leader = Command.objects.filter(leader=user).exists()
+        
+        if user.is_staff or user.role in ['admin', 'curator'] or is_leader:
             return Volunteer.objects.all().order_by('-date_joined')
         
-        # Обычный волонтер видит только себя
         return Volunteer.objects.filter(id=user.id)
     
     

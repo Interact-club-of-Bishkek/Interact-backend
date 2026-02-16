@@ -79,15 +79,30 @@ class ActivitySubmissionSerializer(serializers.ModelSerializer):
     task_details = ActivityTaskSerializer(source='task', read_only=True)
     volunteer_name = serializers.ReadOnlyField(source='volunteer.name')
     volunteer_id = serializers.IntegerField(read_only=True)
+    
+    # 🔥 ЯВНО указываем, что эти поля принимают ID (для записи)
+    command = serializers.PrimaryKeyRelatedField(
+        queryset=Command.objects.all(), 
+        required=False, 
+        allow_null=True
+    )
+    direction = serializers.PrimaryKeyRelatedField(
+        queryset=VolunteerDirection.objects.all(), 
+        required=False, 
+        allow_null=True
+    )
+
+    command_title = serializers.ReadOnlyField(source='command.title')
+    direction_name = serializers.ReadOnlyField(source='direction.name')
 
     class Meta:
         model = ActivitySubmission
         fields = [
             'id', 'task', 'date', 'task_details',
             'volunteer_id', 'volunteer_name',
-            'status', 'created_at', 'description', 'points_awarded'
+            'status', 'created_at', 'description', 'points_awarded',
+            'command', 'direction', 'command_title', 'direction_name'
         ]
-
 
 # --- 🔥 ИСПРАВЛЕННЫЙ СПИСОК ДЛЯ КУРАТОРА ---
 class VolunteerListSerializer(serializers.ModelSerializer):

@@ -184,6 +184,10 @@ class ActivityTask(models.Model):
         verbose_name_plural = "Справочник заданий"
 
 
+from django.utils import timezone
+from django.db import models, transaction
+from django.db.models import F
+
 class ActivitySubmission(models.Model):
     STATUS_CHOICES = [
         ('pending', 'На проверке'),
@@ -195,45 +199,54 @@ class ActivitySubmission(models.Model):
     task = models.ForeignKey(ActivityTask, on_delete=models.CASCADE, verbose_name="Задание")
     status = models.CharField("Статус", max_length=20, choices=STATUS_CHOICES, default='pending')
     
-    # НОВОЕ ПОЛЕ: Дата выполнения (редактируемая)
-    date = models.DateField(
-        "Дата выполнения", 
-        default=timezone.now,
-        help_text="Дата, когда было выполнено задание"
+    # --- КЛЮЧЕВЫЕ ПОЛЯ ДЛЯ МАРШРУТИЗАЦИИ ---
+    # Если заполнено это поле -> видит Тимлид
+    command = models.ForeignKey(
+        'commands.Command', 
+        on_delete=models.SET_NULL, 
+        null=True, blank=True, 
+        verbose_name="Команда (для тимлида)"
     )
+    # Если заполнено это поле (а команда пуста) -> видит Куратор
+    direction = models.ForeignKey(
+        'directions.VolunteerDirection', 
+        on_delete=models.SET_NULL, 
+        null=True, blank=True, 
+        verbose_name="Направление (для куратора)"
+    )
+    # ---------------------------------------
 
+    date = models.DateField("Дата выполнения", default=timezone.now)
     points_awarded = models.DecimalField(
         "Начислено баллов", 
-        max_digits=6, 
-        decimal_places=1, 
-        null=True, blank=True,
-        help_text="Заполняется куратором при одобрении. Если оставить пустым, возьмутся баллы из задания."
+        max_digits=6, decimal_places=1, 
+        null=True, blank=True
     )
-    
-    # Системное поле (дата создания записи)
     created_at = models.DateTimeField("Дата подачи", auto_now_add=True)
     description = models.TextField("Комментарий/Отчет", blank=True, null=True) 
 
     def save(self, *args, **kwargs):
+        # Твоя логика с начислением баллов через save() рабочая, 
+        # но помни про риск NULL в поле point у волонтера.
         if self.pk:
             old_instance = ActivitySubmission.objects.get(pk=self.pk)
             old_points = old_instance.points_awarded if old_instance.points_awarded is not None else old_instance.task.points
             new_points = self.points_awarded if self.points_awarded is not None else self.task.points
 
             if old_instance.status != 'approved' and self.status == 'approved':
-                self.volunteer.point += new_points
+                self.volunteer.point = (self.volunteer.point or 0) + new_points
             elif old_instance.status == 'approved' and self.status != 'approved':
-                self.volunteer.point -= old_points
+                self.volunteer.point = (self.volunteer.point or 0) - old_points
             elif old_instance.status == 'approved' and self.status == 'approved':
                 diff = new_points - old_points
-                self.volunteer.point += diff
+                self.volunteer.point = (self.volunteer.point or 0) + diff
 
             self.volunteer.save(update_fields=['point'])
         
         else:
             if self.status == 'approved':
                 points = self.points_awarded if self.points_awarded is not None else self.task.points
-                self.volunteer.point += points
+                self.volunteer.point = (self.volunteer.point or 0) + points
                 self.volunteer.save(update_fields=['point'])
 
         super().save(*args, **kwargs)
@@ -241,14 +254,14 @@ class ActivitySubmission(models.Model):
     def delete(self, *args, **kwargs):
         if self.status == 'approved':
             points = self.points_awarded if self.points_awarded is not None else self.task.points
-            self.volunteer.point -= points
+            self.volunteer.point = (self.volunteer.point or 0) - points
             self.volunteer.save(update_fields=['point'])
         super().delete(*args, **kwargs)
 
     class Meta:
         verbose_name = "Заявка на баллы"
         verbose_name_plural = "Заявки на баллы"
-        ordering = ['-date'] # Чтобы в админке последние по дате были сверху"
+        ordering = ['-date']
 
 
 # --- АНКЕТЫ (Остаются почти без изменений, только связи) ---
