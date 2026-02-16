@@ -95,3 +95,13 @@ input:focus, textarea:focus, select:focus {
     background-color: #4e5d6c !important;
     color: #fff !important;
 }
+
+.login-page .login-logo, 
+.login-box .login-logo {
+    display: none !important;
+}
+
+/* Убираем лишние отступы, которые останутся после скрытия лого */
+.login-box {
+    margin-top: 5vh !important;
+}
