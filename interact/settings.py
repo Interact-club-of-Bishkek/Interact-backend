@@ -109,7 +109,7 @@ JAZZMIN_SETTINGS = {
     # 🔥 Указываем путь относительно папки static
     "site_logo": "img/logo.png",
     "site_icon": "img/logo.png", # Это будет favicon в кладке браузера
-
+    "login_logo": None,
     "custom_css": "css/admin_dark.css",
     
     "icons": {
