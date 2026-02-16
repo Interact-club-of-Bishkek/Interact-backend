@@ -345,7 +345,7 @@
             state.commands.forEach(c => c.questions?.forEach(q => questionMap[`q_${q.id}`] = q.label));
             state.commands.forEach(c => c.questions?.forEach(q => questionMap[q.id] = q.label));
             state.commands.forEach(c => c.questions?.forEach(q => questionMap[String(q.id)] = q.label));
-
+                
             let dbTeams = [], leadTeams = [];
             const label = document.getElementById('managedTeamsLabel');
             const myDirIds = getIds(state.user.direction);
