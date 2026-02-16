@@ -682,7 +682,11 @@
 
         state.appsView = state.apps.filter(app => {
             const statusMatch = subTab === 'pending' ? app.status === 'pending' : app.status === 'accepted';
-            const hasRights = state.user.role === 'admin' || state.myLeadingTeams.some(t => t.slug === app.command_slug || t.title === app.command_title);
+            const hasRights = state.user.role === 'admin' || 
+                state.myLeadingTeams.some(t => 
+                    String(t.slug) === String(app.command_slug) ||
+                    String(t.title) === String(app.command_title)
+                );
             const commandMatch = slug ? (app.command_slug === slug) : true;
             return statusMatch && hasRights && commandMatch;
         });
