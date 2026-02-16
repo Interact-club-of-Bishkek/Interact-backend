@@ -34,11 +34,6 @@
             border-color: var(--primary); transform: translateY(-4px); 
             box-shadow: 0 10px 40px -10px rgba(0, 198, 255, 0.15); 
         }
-        .app-card::before {
-            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 100%;
-            background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%);
-            pointer-events: none;
-        }
         
         .custom-select-wrapper { position: relative; user-select: none; z-index: 50; }
         .select-trigger {
@@ -65,7 +60,6 @@
         .custom-table td:first-child { border-radius: 16px 0 0 16px; }
         .custom-table td:last-child { border-radius: 0 16px 16px 0; }
         .score-badge { background: rgba(0, 198, 255, 0.15); color: var(--primary); padding: 4px 10px; border-radius: 8px; font-weight: 900; font-family: 'Montserrat'; }
-        .score-total { color: #4b5563; font-weight: 700; font-size: 11px; margin-left: 8px; }
         
         .loader-spin { animation: spin 1s linear infinite; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
@@ -89,16 +83,16 @@
             .nav-btn.prev { left: 20px; }
             .nav-btn.next { right: 20px; }
         }
-        input::-webkit-outer-spin-button,
-        input::-webkit-inner-spin-button {
-        -webkit-appearance: none;
-        margin: 0;
-        }
+        
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--primary); }
 
-        /* Убираем стрелки в Firefox */
-        input[type=number] {
-        -moz-appearance: textfield;
-}
+        /* Чекбокс */
+        .custom-checkbox { appearance: none; width: 20px; height: 20px; border: 2px solid #334155; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+        .custom-checkbox:checked { background: var(--primary); border-color: var(--primary); }
+        .custom-checkbox:checked::after { content: '✔'; color: black; font-size: 12px; font-weight: 900; }
     </style>
 </head>
 <body>
@@ -152,20 +146,26 @@
                     <div class="select-options" id="selectOptions"></div>
                 </div>
             </div>
-
             <div id="appsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
         </div>
 
         <div id="secVols" class="hidden section-view">
+            <div class="flex justify-end mb-4" id="addVolBtnContainer">
+                 <button onclick="openSearchModal()" class="py-3 px-6 text-xs font-black uppercase bg-white text-black hover:bg-gray-200 border border-white rounded-xl flex items-center gap-2 shadow-[0_0_20px_rgba(255,255,255,0.2)] transition-all transform hover:scale-105">
+                     <i class="fas fa-user-plus text-primary"></i> Добавить участников
+                 </button>
+            </div>
+
             <div class="glass-card overflow-hidden p-0 border-white/5">
                 <div class="overflow-x-auto p-4">
                     <table class="custom-table w-full">
                         <thead>
                             <tr>
                                 <th>Волонтер</th>
-                                <th>Направления</th>
-                                <th>Баллы (Всего / в команде)</th>
+                                <th>Команды</th>
+                                <th>Баллы (В команде / Общие)</th>
                                 <th class="text-right">Нарушения</th>
+                                <th class="text-right">Действие</th>
                             </tr>
                         </thead>
                         <tbody id="vTable"></tbody>
@@ -175,18 +175,72 @@
         </div>
     </div>
 
+    <div id="deleteModal" class="hidden fixed inset-0 bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 z-[400]">
+        <div class="glass-card w-full max-w-sm p-8 text-center bg-[#0f172a] border border-red-500/20 shadow-[0_0_50px_rgba(220,38,38,0.2)] relative transform transition-all scale-100">
+            <div class="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-6 border border-red-500/20 shadow-[0_0_20px_rgba(220,38,38,0.1)]">
+                <i class="fas fa-trash-alt text-2xl text-red-500"></i>
+            </div>
+            
+            <h3 class="text-xl font-black uppercase italic text-white mb-2">Удаление участника</h3>
+            <p class="text-xs text-gray-400 mb-8 leading-relaxed">
+                Вы уверены, что хотите исключить <br> 
+                <span id="delVolName" class="text-white font-bold">...</span> <br>
+                из команды <span id="delTeamName" class="text-primary font-bold">...</span>?
+            </p>
+
+            <div class="flex gap-3">
+                <button onclick="closeDeleteModal()" class="flex-1 py-3 bg-white/5 hover:bg-white/10 text-gray-400 font-bold uppercase rounded-xl text-[10px] transition">
+                    Отмена
+                </button>
+                <button onclick="confirmDeleteAction()" id="btnConfirmDelete" class="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white font-black uppercase rounded-xl text-[10px] shadow-lg shadow-red-500/20 transition transform active:scale-95">
+                    Да, удалить
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="searchModal" class="hidden fixed inset-0 bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 z-[300]">
+        <div class="glass-card w-full max-w-lg p-0 relative bg-[#0b1121] border-primary/20 flex flex-col max-h-[90vh] overflow-hidden">
+            <div class="p-6 border-b border-white/5 bg-[#0f172a]">
+                <button onclick="closeSearchModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white"><i class="fas fa-times"></i></button>
+                <h3 class="text-xl font-black italic uppercase text-white mb-4">Добавить в команду</h3>
+                
+                <div class="mb-4">
+                    <label class="text-[10px] font-bold text-gray-500 uppercase ml-1 mb-2 block">1. Выберите вашу команду</label>
+                    <select id="targetTeamSelect" class="w-full bg-[#1e293b] border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-primary transition appearance-none">
+                    </select>
+                </div>
+
+                <div>
+                    <label class="text-[10px] font-bold text-gray-500 uppercase ml-1 mb-2 block">2. Поиск волонтеров</label>
+                    <div class="relative">
+                        <i class="fas fa-search absolute left-4 top-3.5 text-gray-500 text-xs"></i>
+                        <input type="text" id="volSearchInput" oninput="filterVolunteersList()" 
+                               class="w-full bg-[#1e293b] border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white text-sm focus:border-primary focus:outline-none transition" 
+                               placeholder="Имя или логин...">
+                    </div>
+                </div>
+            </div>
+
+            <div id="volSearchResults" class="flex-1 overflow-y-auto custom-scrollbar p-2 bg-[#020408]">
+                </div>
+
+            <div class="p-4 border-t border-white/5 bg-[#0f172a] flex justify-between items-center">
+                <span class="text-xs text-gray-400 font-bold uppercase ml-2">Выбрано: <span id="selectedCount" class="text-primary">0</span></span>
+                <button onclick="submitBulkAdd()" id="bulkAddBtn" class="py-3 px-6 bg-white/5 text-gray-500 font-black uppercase rounded-xl transition text-xs cursor-not-allowed" disabled>
+                    Добавить выбранных
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div id="modal" class="hidden fixed inset-0 bg-black/95 backdrop-blur-xl flex items-center justify-center p-2 md:p-6 z-[200]">
         <div class="relative w-full max-w-4xl">
             <button class="nav-btn prev" onclick="navigateApp(-1)"><i class="fas fa-chevron-left text-xl"></i></button>
             <button class="nav-btn next" onclick="navigateApp(1)"><i class="fas fa-chevron-right text-xl"></i></button>
-
             <div class="glass-card w-full rounded-[30px] p-6 md:p-10 max-h-[90vh] overflow-y-auto relative border-white/10 shadow-2xl bg-[#0b1121]">
-                <button onclick="closeModal()" class="absolute top-6 right-6 text-gray-500 hover:text-white transition z-50">
-                    <i class="fas fa-times text-2xl"></i>
-                </button>
-                
+                <button onclick="closeModal()" class="absolute top-6 right-6 text-gray-500 hover:text-white transition z-50"><i class="fas fa-times text-2xl"></i></button>
                 <div id="modalContent"></div>
-
                 <div class="mt-8 pt-8 border-t border-white/10 flex gap-4">
                     <button id="approveAppBtn" class="flex-1 py-4 bg-primary text-black font-black uppercase rounded-2xl hover:bg-white transition flex items-center justify-center gap-2 shadow-lg shadow-primary/20">
                         <i class="fas fa-check-double"></i> Принять в команду
@@ -220,8 +274,10 @@
         currentCommandSlug: ''
     };
 
-    let questionMap = {};
+    let selectedVolIds = new Set();
+    let deleteTarget = { volId: null, cmdId: null };
 
+    let questionMap = {};
     const extractId = (obj, fieldName) => {
         if (!obj) return null;
         if (obj[`${fieldName}_id`]) return String(obj[`${fieldName}_id`]);
@@ -229,18 +285,14 @@
         if (obj[fieldName]) return String(obj[fieldName]);
         return null;
     };
-
     const getIds = (data) => {
         if (!data) return [];
         const arr = Array.isArray(data) ? data : [data];
         return arr.map(item => String(item.id || item));
     };
-
     const getCleanAnswers = (rawAnswers) => {
         let answers = rawAnswers;
-        if (typeof answers === 'string') {
-            try { answers = JSON.parse(answers); } catch (e) { return {}; }
-        }
+        if (typeof answers === 'string') { try { answers = JSON.parse(answers); } catch (e) { return {}; } }
         if (!answers || typeof answers !== 'object') return {};
         return answers;
     };
@@ -279,7 +331,13 @@
             ]);
 
             state.submissions = sub;
-            state.volunteers = vol;
+            if (Array.isArray(vol)) {
+                state.volunteers = vol;
+            } else if (vol.results) {
+                state.volunteers = vol.results;
+            } else {
+                state.volunteers = [];
+            }
             state.commands = cmd;
             state.apps = app;
             
@@ -310,12 +368,269 @@
             state.myManagedTeams = dbTeams;
             state.myLeadingTeams = leadTeams;
 
+            if (leadTeams.length === 0 && state.user.role !== 'admin') {
+                document.getElementById('addVolBtnContainer').style.display = 'none';
+            }
+
             renderCommandFilter();
             renderSubmissions();
             renderVolunteers();
             filterAndRenderApps();
         } catch (e) { console.error("Load Data Error:", e); }
     }
+
+    // ============================================
+    //  ЛОГИКА ТАБЛИЦЫ ВОЛОНТЕРОВ И УДАЛЕНИЯ
+    // ============================================
+
+    function renderVolunteers() {
+        const table = document.getElementById('vTable');
+        const myTeamIds = state.myLeadingTeams.map(t => Number(t.id)); 
+        const isAdmin = state.user.role === 'admin';
+
+        const myVolunteers = state.volunteers.filter(v => {
+            if (isAdmin) return true; 
+            const vCommands = v.volunteer_commands || [];
+            return vCommands.some(cmd => {
+                const cmdId = typeof cmd === 'object' ? cmd.id : cmd;
+                return myTeamIds.includes(Number(cmdId));
+            });
+        });
+
+        if (myVolunteers.length === 0) {
+            table.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-gray-500 italic">В ваших командах пока нет участников.<br><span class="text-xs">Используйте кнопку "Добавить", чтобы найти их в базе.</span></td></tr>';
+            return;
+        }
+
+        table.innerHTML = myVolunteers.map(v => {
+            const totalPoints = parseFloat(v.point || 0).toFixed(1);
+            const localPoints = parseFloat(v.local_points || 0).toFixed(1);
+
+            const vCommands = v.volunteer_commands || [];
+            const targetCmd = vCommands.find(c => myTeamIds.includes(Number(c.id || c)));
+            const targetCmdId = targetCmd ? (targetCmd.id || targetCmd) : null;
+            const targetCmdName = targetCmd ? (targetCmd.title || 'Команда') : 'Команда';
+            
+            const safeName = (v.name || 'User').replace(/'/g, "\\'");
+
+            return `
+            <tr class="hover:bg-white/5 transition border-b border-white/5 group">
+                <td class="py-3 px-4">
+                    <div class="font-black uppercase text-sm italic text-white leading-none">${v.name || 'Без имени'}</div>
+                    <div class="text-[10px] text-gray-500 font-mono mt-1">${v.login}</div>
+                </td>
+                <td class="py-3 px-4">
+                    <div class="flex flex-wrap gap-1">
+                        ${(vCommands).map(c => `<span class="bg-white/5 text-gray-400 text-[8px] px-2 py-0.5 rounded font-black uppercase">${c.title || c.name || c}</span>`).join('')}
+                    </div>
+                </td>
+                <td class="py-3 px-4">
+                    <div class="flex items-center gap-2">
+                        <div class="flex flex-col items-center">
+                            <span class="text-primary font-black text-sm">${localPoints}</span>
+                            <span class="text-[8px] text-primary/50 uppercase">В команде</span>
+                        </div>
+                        <span class="text-gray-600">/</span>
+                        <div class="flex flex-col items-center">
+                            <span class="text-white font-bold text-xs">${totalPoints}</span>
+                            <span class="text-[8px] text-gray-600 uppercase">Всего</span>
+                        </div>
+                    </div>
+                </td>
+                <td class="py-3 px-4 text-right font-black ${v.yellow_card_count > 0 ? 'text-red-400' : 'text-gray-600'}">
+                    ${v.yellow_card_count || 0} <i class="fas fa-exclamation-triangle text-[10px] ml-1 opacity-50"></i>
+                </td>
+                <td class="py-3 px-4 text-right">
+                    ${targetCmdId ? 
+                        `<button onclick="openDeleteModal(${v.id}, ${targetCmdId}, '${safeName}', '${targetCmdName}')" 
+                           class="w-8 h-8 rounded-lg bg-white text-red-600 hover:bg-red-50 hover:scale-105 transition flex items-center justify-center border border-white shadow-[0_0_15px_rgba(220,38,38,0.3)] ml-auto group/btn" title="Удалить из команды">
+                           <i class="fas fa-trash-alt text-xs group-hover/btn:animate-bounce"></i>
+                        </button>` 
+                    : ''}
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    // --- УДАЛЕНИЕ ---
+    function openDeleteModal(volId, cmdId, volName, cmdName) {
+        deleteTarget = { volId, cmdId };
+        
+        document.getElementById('delVolName').innerText = volName;
+        document.getElementById('delTeamName').innerText = cmdName;
+        
+        const btn = document.getElementById('btnConfirmDelete');
+        btn.innerText = 'Да, удалить';
+        btn.disabled = false;
+        
+        document.getElementById('deleteModal').classList.remove('hidden');
+    }
+
+    function closeDeleteModal() {
+        document.getElementById('deleteModal').classList.add('hidden');
+    }
+
+    async function confirmDeleteAction() {
+        if (!deleteTarget.volId || !deleteTarget.cmdId) return;
+
+        const btn = document.getElementById('btnConfirmDelete');
+        btn.innerText = 'Удаление...';
+        btn.disabled = true;
+
+        try {
+            const res = await fetch(`/commands/${deleteTarget.cmdId}/remove-volunteer/`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ volunteer_id: deleteTarget.volId })
+            });
+            
+            if(res.ok) {
+                showToast(`🗑️ Участник удален`);
+                closeDeleteModal();
+                setTimeout(loadAllData, 500);
+            } else {
+                const d = await res.json();
+                showToast(d.error || 'Ошибка удаления');
+                btn.innerText = 'Ошибка';
+            }
+        } catch(e) { 
+            console.error(e); 
+            showToast('Ошибка сети');
+            btn.innerText = 'Ошибка';
+        }
+    }
+
+    // ============================================
+
+    function openSearchModal() {
+        const modal = document.getElementById('searchModal');
+        const select = document.getElementById('targetTeamSelect');
+        
+        selectedVolIds.clear();
+        updateBulkBtn();
+        document.getElementById('volSearchInput').value = '';
+
+        select.innerHTML = '';
+        if (state.myLeadingTeams.length === 0) {
+            select.innerHTML = '<option disabled selected>Нет команд</option>';
+        } else {
+            state.myLeadingTeams.forEach(t => {
+                select.innerHTML += `<option value="${t.id}">${t.title}</option>`;
+            });
+        }
+
+        renderVolList(state.volunteers);
+        modal.classList.remove('hidden');
+    }
+
+    function closeSearchModal() {
+        document.getElementById('searchModal').classList.add('hidden');
+    }
+
+    function renderVolList(volArray) {
+        const container = document.getElementById('volSearchResults');
+        if (volArray.length === 0) {
+            container.innerHTML = '<div class="text-center py-10 text-gray-500 text-xs uppercase font-bold">Пусто</div>';
+            return;
+        }
+
+        container.innerHTML = volArray.map(v => {
+            const isChecked = selectedVolIds.has(v.id) ? 'checked' : '';
+            const inTeams = (v.volunteer_commands || []).map(c => c.title || c.name || 'cmd').join(', ');
+
+            return `
+            <label class="flex items-center gap-4 p-3 border-b border-white/5 hover:bg-white/5 transition cursor-pointer select-none">
+                <input type="checkbox" class="custom-checkbox flex-shrink-0" onchange="toggleVolSelection(${v.id})" ${isChecked}>
+                <div class="flex-1">
+                    <div class="text-sm font-bold text-gray-200">${v.name || 'Без имени'}</div>
+                    <div class="text-[10px] text-gray-500">${v.login}</div>
+                    ${inTeams ? `<div class="text-[9px] text-primary/50 mt-1">Уже в: ${inTeams}</div>` : ''}
+                </div>
+            </label>
+            `;
+        }).join('');
+    }
+
+    function filterVolunteersList() {
+        const query = document.getElementById('volSearchInput').value.toLowerCase();
+        const filtered = state.volunteers.filter(v => {
+            const name = (v.name || '').toLowerCase();
+            const login = (v.login || '').toLowerCase();
+            return name.includes(query) || login.includes(query);
+        });
+        renderVolList(filtered);
+    }
+
+    function toggleVolSelection(id) {
+        if (selectedVolIds.has(id)) selectedVolIds.delete(id);
+        else selectedVolIds.add(id);
+        updateBulkBtn();
+    }
+
+    function updateBulkBtn() {
+        const btn = document.getElementById('bulkAddBtn');
+        const countSpan = document.getElementById('selectedCount');
+        const count = selectedVolIds.size;
+        
+        countSpan.innerText = count;
+        
+        if (count > 0) {
+            btn.disabled = false;
+            // ДЕЛАЕМ КНОПКУ БЕЛОЙ (СВЕТЛОЙ)
+            btn.classList.remove('bg-white/5', 'text-gray-500', 'cursor-not-allowed');
+            btn.classList.add('bg-white', 'text-black', 'hover:bg-gray-200', 'shadow-[0_0_15px_rgba(255,255,255,0.2)]');
+            btn.innerText = `Добавить выбранных (${count})`;
+        } else {
+            btn.disabled = true;
+            btn.classList.add('bg-white/5', 'text-gray-500', 'cursor-not-allowed');
+            btn.classList.remove('bg-white', 'text-black', 'hover:bg-gray-200', 'shadow-[0_0_15px_rgba(255,255,255,0.2)]');
+            btn.innerText = 'Добавить выбранных';
+        }
+    }
+
+    async function submitBulkAdd() {
+        const select = document.getElementById('targetTeamSelect');
+        const cmdId = select.value;
+        const cmdTitle = select.options[select.selectedIndex].text;
+        
+        if (!cmdId) { showToast('Выберите команду!'); return; }
+        if (selectedVolIds.size === 0) return;
+
+        const idsArray = Array.from(selectedVolIds);
+
+        const btn = document.getElementById('bulkAddBtn');
+        btn.innerText = 'Загрузка...';
+        btn.disabled = true;
+
+        try {
+            const res = await fetch(`/commands/${cmdId}/add-volunteer/`, {
+                method: 'POST',
+                headers: { 
+                    'Authorization': `Bearer ${token}`, 
+                    'Content-Type': 'application/json' 
+                },
+                body: JSON.stringify({ volunteer_ids: idsArray })
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                showToast(`✅ Успешно добавлено участников: ${idsArray.length}`);
+                closeSearchModal();
+                setTimeout(loadAllData, 500);
+            } else {
+                showToast(data.error || 'Ошибка при добавлении');
+                btn.disabled = false;
+                updateBulkBtn();
+            }
+        } catch (e) {
+            console.error(e);
+            showToast('Ошибка сети');
+            btn.disabled = false;
+            updateBulkBtn();
+        }
+    }
+
+    // ============================================
 
     function renderCommandFilter() {
         const container = document.getElementById('selectOptions');
@@ -364,15 +679,11 @@
         appsGrid.innerHTML = state.appsView.map((a, index) => {
             const answers = getCleanAnswers(a.answers);
             const values = Object.values(answers);
-            
             let derivedName = "Без имени";
             if (values.length > 0 && values[0]) derivedName = String(values[0]);
-
             let previewText = "Анкета заполнена";
             if (values.length > 1 && values[1]) previewText = String(values[1]);
-
             const fileCount = (a.files && Array.isArray(a.files)) ? a.files.length : 0;
-
             return `
             <div class="app-card p-6 flex flex-col group" onclick="openAppModal(${index})">
                 <div class="flex justify-between items-start mb-3">
@@ -420,7 +731,6 @@
 
         const answers = getCleanAnswers(app.answers);
         const values = Object.values(answers);
-
         let derivedName = "Без имени";
         let firstLetter = "?";
         if (values.length > 0 && values[0]) {
@@ -466,7 +776,6 @@
                         </div>
                         <p class="text-xs font-bold text-gray-300 uppercase">${label}</p>
                      </div>
-                     
                      ${isImg 
                          ? `<div class="rounded-xl overflow-hidden border border-white/10 bg-black/50"><img src="${fileUrl}" class="w-full h-auto object-contain max-h-[600px]"></div>`
                          : isVid
@@ -476,14 +785,9 @@
                                   <span class="text-xs text-gray-400">${fileUrl.split('/').pop()}</span>
                                </div>`
                      }
-
                      <div class="flex gap-2 mt-4">
-                         <a href="${fileUrl}" target="_blank" class="flex-1 py-3 bg-white/10 hover:bg-white/20 text-center text-[10px] font-bold uppercase rounded-xl text-white transition">
-                            <i class="fas fa-external-link-alt mr-2"></i> Открыть
-                         </a>
-                         <a href="${fileUrl}" download class="flex-1 py-3 bg-primary/10 hover:bg-primary/20 text-center text-[10px] font-bold uppercase rounded-xl text-primary transition">
-                            <i class="fas fa-download mr-2"></i> Скачать
-                         </a>
+                         <a href="${fileUrl}" target="_blank" class="flex-1 py-3 bg-white/10 hover:bg-white/20 text-center text-[10px] font-bold uppercase rounded-xl text-white transition"><i class="fas fa-external-link-alt mr-2"></i> Открыть</a>
+                         <a href="${fileUrl}" download class="flex-1 py-3 bg-primary/10 hover:bg-primary/20 text-center text-[10px] font-bold uppercase rounded-xl text-primary transition"><i class="fas fa-download mr-2"></i> Скачать</a>
                      </div>
                  </div>`;
              });
@@ -514,7 +818,6 @@
         } else {
             btn.innerHTML = '<i class="fas fa-check-double"></i> Принять в команду';
             btn.disabled = false;
-            // ИЗМЕНЕНИЕ: bg-primary -> bg-[#80e5ff] (светлее)
             btn.className = "flex-1 py-4 bg-[#80e5ff] text-black font-black uppercase rounded-2xl hover:bg-white transition flex items-center justify-center gap-2 shadow-lg shadow-primary/20";
             btn.onclick = () => acceptApp(app.id);
         }
@@ -524,7 +827,6 @@
         try {
             const btn = document.getElementById('approveAppBtn');
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохранение...';
-            
             const res = await fetch(`${API.apps}${id}/accept/`, {
                 method: 'PATCH',
                 headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -534,11 +836,9 @@
                 showToast('Заявка принята в команду');
                 const app = state.apps.find(a => a.id === id);
                 if (app) app.status = 'accepted';
-                
                 state.appsView.splice(state.currentAppIndex, 1);
                 document.getElementById('cntPending').innerText = parseInt(document.getElementById('cntPending').innerText) - 1;
                 document.getElementById('cntAccepted').innerText = parseInt(document.getElementById('cntAccepted').innerText) + 1;
-
                 if (state.appsView.length === 0) { closeModal(); filterAndRenderApps(); }
                 else {
                     if (state.currentAppIndex >= state.appsView.length) state.currentAppIndex = state.appsView.length - 1;
@@ -552,21 +852,13 @@
     function decideSub(id, status) {
         try {
             const body = { status };
-            
-            // Если статус 'approved', проверяем, не вписал ли куратор свои баллы
             if (status === 'approved') {
                 const pointsInput = document.getElementById(`pts-${id}`);
-                if (pointsInput) {
-                    body.points_awarded = parseFloat(pointsInput.value);
-                }
+                if (pointsInput) { body.points_awarded = parseFloat(pointsInput.value); }
             }
-
             fetch(`${API.submissions}${id}/`, {
                 method: 'PATCH',
-                headers: { 
-                    'Authorization': `Bearer ${token}`, 
-                    'Content-Type': 'application/json' 
-                },
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
             }).then(res => {
                 if (res.ok) {
@@ -574,27 +866,20 @@
                     el.style.opacity = '0';
                     el.style.transform = 'scale(0.9)';
                     setTimeout(() => el.remove(), 300);
-                    
                     const msg = status === 'approved' ? 'Баллы начислены' : 'Заявка отклонена';
                     showToast(msg);
-                    
-                    // Обновляем данные через полсекунды, чтобы баллы в таблице волонтеров обновились
                     setTimeout(loadAllData, 500);
                 } else {
                     showToast('Ошибка при сохранении');
                 }
             });
-        } catch(e) { 
-            console.error(e); 
-            showToast('Ошибка сети');
-        }
+        } catch(e) { console.error(e); showToast('Ошибка сети'); }
     }
 
     function renderSubmissions() {
         const container = document.getElementById('secReq');
         const myDirIds = getIds(state.user.direction);
         const myTeamIds = state.myManagedTeams.map(t => String(t.id));
-
         const pending = state.submissions.filter(s => {
             if (s.status !== 'pending') return false;
             if (state.user.role === 'admin') return true;
@@ -604,16 +889,12 @@
             if (state.user.role === 'curator') return myDirIds.includes(taskDirId) || (taskCmdId && myTeamIds.includes(taskCmdId));
             return myTeamIds.includes(taskCmdId);
         });
-
         if (pending.length === 0) {
             container.innerHTML = `<div class="col-span-full py-20 text-center text-gray-600 font-black uppercase text-xs italic tracking-widest">Нет активных заявок</div>`;
             return;
         }
-
         container.innerHTML = pending.map(s => {
-            // ПРОВЕРКА: Гибкие ли баллы у задачи?
             const isFlex = s.task_details?.is_flexible;
-            
             return `
             <div class="glass-card flex flex-col h-full border-white/5 hover:border-primary/20 transition group" id="sub-${s.id}">
                 <div class="flex justify-between items-start mb-4">
@@ -625,35 +906,17 @@
                     <p class="text-[10px] text-gray-400 font-bold uppercase mt-1 mb-3">${s.task_details?.title}</p>
                     <div class="bg-black/40 p-3 rounded-xl text-sm italic text-gray-500 border border-white/5">"${s.description || 'Без комментария'}"</div>
                 </div>
-                
                 <div class="flex flex-col gap-3 mt-auto">
                 <div class="flex items-center justify-between bg-white/5 p-3 rounded-2xl border border-white/10 transition-all hover:border-primary/30 group/input">
                     <div class="flex flex-col">
-                        <span class="text-[9px] font-black text-gray-500 uppercase ml-1 tracking-tighter">
-                            ${isFlex ? 'Оценка работы' : 'Фикс. баллы'}
-                        </span>
-                        <span class="text-[8px] text-primary/40 font-bold uppercase ml-1">
-                            ${isFlex ? 'изменяемое' : 'стандарт'}
-                        </span>
+                        <span class="text-[9px] font-black text-gray-500 uppercase ml-1 tracking-tighter">${isFlex ? 'Оценка работы' : 'Фикс. баллы'}</span>
+                        <span class="text-[8px] text-primary/40 font-bold uppercase ml-1">${isFlex ? 'изменяемое' : 'стандарт'}</span>
                     </div>
-                    
                     ${isFlex 
-                        ? `
-                        <div class="relative flex items-center">
-                            <i class="fas fa-pen text-[10px] text-primary/30 absolute left-3 group-focus-within/input:text-primary transition-colors"></i>
-                            <input type="number" 
-                                id="pts-${s.id}" 
-                                class="w-24 bg-[#0f172a] border-2 border-primary/20 rounded-xl pl-8 pr-3 py-2 text-primary font-black text-lg outline-none 
-                                    focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all hover:bg-[#1e293b] appearance-none" 
-                                value="${s.task_details.points}" 
-                                step="0.5"
-                            >
-                        </div>
-                        `
+                        ? `<div class="relative flex items-center"><i class="fas fa-pen text-[10px] text-primary/30 absolute left-3 group-focus-within/input:text-primary transition-colors"></i><input type="number" id="pts-${s.id}" class="w-24 bg-[#0f172a] border-2 border-primary/20 rounded-xl pl-8 pr-3 py-2 text-primary font-black text-lg outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all hover:bg-[#1e293b] appearance-none" value="${s.task_details.points}" step="0.5"></div>`
                         : `<div class="score-badge text-xl px-4 py-2 bg-primary/10 border border-primary/20 rounded-xl">+${parseFloat(s.task_details?.points || 0)}</div>`
                     }
                 </div>
-
                     <div class="grid grid-cols-2 gap-2">
                         <button onclick="decideSub(${s.id}, 'approved')" class="py-3 bg-[#80e5ff] text-black rounded-xl font-black uppercase text-[10px] hover:bg-white transition shadow-lg shadow-sky-500/10">Принять</button>
                         <button onclick="decideSub(${s.id}, 'rejected')" class="py-3 bg-white/5 text-gray-500 rounded-xl font-black uppercase text-[10px] hover:text-red-500 transition">Отказ</button>
@@ -661,51 +924,6 @@
                 </div>
             </div>`;
         }).join('');
-    }
-
-   function renderVolunteers() {
-        const table = document.getElementById('vTable');
-        table.innerHTML = state.volunteers.map(v => {
-            
-            // Используем ТОЛЬКО значение v.point из базы (Django)
-            const currentPoints = parseFloat(v.point || 0).toFixed(1);
-
-            return `
-            <tr class="hover:bg-white/5 transition">
-                <td>
-                    <div class="font-black uppercase text-sm italic text-white leading-none">${v.name || '---'}</div>
-                    <div class="text-[10px] text-gray-500 font-mono mt-1">${v.login}</div>
-                </td>
-                <td>
-                    <div class="flex flex-wrap gap-1">
-                        ${(v.direction || []).map(d => `<span class="bg-white/5 text-gray-400 text-[8px] px-2 py-0.5 rounded font-black uppercase">${d.name}</span>`).join('')}
-                    </div>
-                </td>
-                <td>
-                    <div class="flex items-center">
-                        <span class="score-badge">${currentPoints}</span>
-                        <span class="text-[9px] text-gray-500 uppercase font-bold ml-2 italic">баллов</span>
-                    </div>
-                </td>
-                <td class="text-right font-black ${v.yellow_card_count > 0 ? 'text-red-400' : 'text-gray-600'}">
-                    ${v.yellow_card_count || 0} <i class="fas fa-exclamation-triangle text-[10px] ml-1 opacity-50"></i>
-                </td>
-            </tr>`;
-        }).join('');
-    }
-
-    function switchAppSubTab(tab) {
-        state.appSubTab = tab;
-        const pBtn = document.getElementById('subTabPending');
-        const aBtn = document.getElementById('subTabAccepted');
-        if (tab === 'pending') {
-            pBtn.className = "flex-1 md:flex-none px-6 py-2.5 rounded-lg text-[10px] font-black uppercase transition-all bg-sky-400/10 text-sky-400 shadow-[0_0_15px_rgba(56,189,248,0.2)]";
-            aBtn.className = "flex-1 md:flex-none px-6 py-2.5 rounded-lg text-[10px] font-black uppercase transition-all text-gray-500 hover:text-white";
-        } else {
-            pBtn.className = "flex-1 md:flex-none px-6 py-2.5 rounded-lg text-[10px] font-black uppercase transition-all text-gray-500 hover:text-white";
-            aBtn.className = "flex-1 md:flex-none px-6 py-2.5 rounded-lg text-[10px] font-black uppercase transition-all bg-green-400/10 text-green-400 shadow-[0_0_15px_rgba(74,222,128,0.2)]";
-        }
-        filterAndRenderApps();
     }
 
     function switchTab(tab) {

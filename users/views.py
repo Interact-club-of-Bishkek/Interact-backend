@@ -3,6 +3,7 @@ import os
 from django.db import transaction
 from django.conf import settings
 from django.http import FileResponse
+from django.shortcuts import get_object_or_404
 from django.views.generic import TemplateView
 from django.db import models
 # ВАЖНО: Импортируем DecimalField именно отсюда для ORM
@@ -50,24 +51,25 @@ class VolunteerLoginView(APIView):
         volunteer = serializer.validated_data.get("user") or serializer.validated_data.get("volunteer")
         
         # --- ОБНОВЛЕНИЕ РОЛИ ПЕРЕД ОТВЕТОМ ---
-        # Проверяем, является ли пользователь ответственным за направление или лидером команды
         is_responsible = VolunteerDirection.objects.filter(responsible=volunteer).exists()
         is_leader = Command.objects.filter(leader=volunteer).exists()
         
         if is_responsible or is_leader:
-            # Если был обычным волонтером -> повышаем до куратора и даем доступ в админку
             if volunteer.role == 'volunteer':
                 volunteer.role = 'curator'
                 volunteer.is_staff = True
                 volunteer.save()
-            # Если уже был тимлидом/админом, но не имел staff статуса -> даем доступ
             elif not volunteer.is_staff:
                 volunteer.is_staff = True
                 volunteer.save()
         # -------------------------------------
 
         refresh = RefreshToken.for_user(volunteer)
-        is_assigned = volunteer.direction.exists() or volunteer.commands.exists()
+        
+        # === ИСПРАВЛЕНИЕ ЗДЕСЬ ===
+        # Было: volunteer.commands.exists() -> Ошибка
+        # Стало: volunteer.volunteer_commands.exists()
+        is_assigned = volunteer.direction.exists() or volunteer.volunteer_commands.exists()
         
         return Response({
             'access': str(refresh.access_token),
@@ -222,48 +224,71 @@ class VolunteerListView(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        qs = Volunteer.objects.prefetch_related('direction')
+        qs = Volunteer.objects.prefetch_related('direction', 'volunteer_commands')
 
-        # 1. Если Админ — просто возвращаем всех с базовыми баллами
-        if user.is_superuser or user.role == 'admin':
-            return qs.annotate(
-                yellow_card_count=Count('yellow_cards', distinct=True),
-                # Используем Value(0), если local_points пока не критичны
-                local_points=Coalesce('point', Value(0), output_field=DecimalField())
-            )
-
-        # 2. Логика Куратора/Тимлида (упрощенная)
-        my_directions = VolunteerDirection.objects.filter(responsible=user)
+        # Определяем команды, которыми управляет текущий пользователь
         my_commands = Command.objects.filter(leader=user)
-
-        # Фильтруем волонтеров, которые относятся к куратору
-        queryset = qs.filter(
-            Q(direction__in=my_directions) | 
-            Q(volunteer_commands__in=my_commands) # Используем исправленный related_name
-        ).distinct()
-
-        # 3. Базовая аннотация без сложных Sum
-        queryset = queryset.annotate(
-            yellow_card_count=Count('yellow_cards', distinct=True),
-            local_points=Value(0, output_field=DecimalField()) # Временно обнуляем для теста
+        
+        # Считаем "Баллы в команде" (local_points)
+        # Суммируем points_awarded только из ActivitySubmission, связанных с МОИМИ командами
+        qs = qs.annotate(
+            local_points=Coalesce(
+                Sum('submissions__points_awarded', 
+                    filter=Q(submissions__task__command__in=my_commands)
+                ), 
+                Value(0), 
+                output_field=DecimalField()
+            ),
+            yellow_card_count=Count('yellow_cards', distinct=True)
         )
 
-        return queryset.exclude(id=user.id)
+        is_leader = my_commands.exists()
+        is_curator = VolunteerDirection.objects.filter(responsible=user).exists()
+        
+        if user.is_superuser or user.is_staff or user.role in ['admin', 'curator'] or is_leader or is_curator:
+            return qs.exclude(id=user.id).order_by('-id')
+
+        return qs.filter(id=user.id)
+
+# --- НОВЫЙ КЛАСС ДЛЯ УДАЛЕНИЯ ---
+class RemoveVolunteerFromCommandView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        # pk - это ID команды
+        command = get_object_or_404(Command, pk=pk)
+        
+        # Проверка прав: удалять может только лидер этой команды или админ
+        if command.leader != request.user and not request.user.is_superuser:
+            return Response({"error": "Нет прав"}, status=status.HTTP_403_FORBIDDEN)
+
+        vol_id = request.data.get('volunteer_id')
+        if not vol_id:
+            return Response({"error": "ID волонтера не передан"}, status=status.HTTP_400_BAD_REQUEST)
+
+        volunteer = get_object_or_404(Volunteer, pk=vol_id)
+        
+        # Удаляем связь
+        command.volunteers.remove(volunteer)
+        
+        return Response({"status": "success", "message": f"{volunteer.name} удален из команды"})
 
 
 class VolunteerViewSet(viewsets.ModelViewSet):
     serializer_class = VolunteerSerializer
     permission_classes = [IsAuthenticated]
-    queryset = Volunteer.objects.none()
-    
+    queryset = Volunteer.objects.all()
+
     def get_queryset(self):
         user = self.request.user
-        if user.role in ['curator', 'admin']:
-            return Volunteer.objects.filter(
-                Q(direction__in=user.direction.all()) | Q(commands__in=user.commands.all())
-            ).distinct().order_by('-point')
+        # Если админ, куратор или тимлид - показываем ВСЕХ (чтобы можно было добавлять в команды)
+        if user.is_staff or user.role in ['admin', 'curator']:
+            return Volunteer.objects.all().order_by('-date_joined')
+        
+        # Обычный волонтер видит только себя
         return Volunteer.objects.filter(id=user.id)
-
+    
+    
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response

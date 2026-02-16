@@ -79,7 +79,7 @@ class Question(models.Model):
         ('number', 'Число'),
         ('photo', 'Фото'),
         ('video', 'Видео'),
-        ('select', 'Выбор'),
+        ('select', 'Выбор направления'),
     ]
 
     command = models.ForeignKey(

@@ -95,6 +95,72 @@ FINIK_WEBHOOK_URL = os.getenv("FINIK_WEBHOOK_URL")
 
 
 
+
+# settings.py
+
+# settings.py
+
+JAZZMIN_SETTINGS = {
+    "site_title": "Interact CRM",
+    "site_header": "Управление",
+    "site_brand": "Interact CRM",
+    "welcome_sign": "Interact Club of Bishkek",
+    
+    # 🔥 Указываем путь относительно папки static
+    "site_logo": "img/logo.png",
+    "login_logo": "img/logo.png",
+    "site_icon": "img/logo.png", # Это будет favicon в кладке браузера
+
+    "custom_css": "css/admin_dark.css",
+    
+    "icons": {
+        "auth": "fas fa-users-cog",
+        "auth.user": "fas fa-user",
+        "users.Volunteer": "fas fa-user-astronaut",
+        "commands.Command": "fas fa-rocket",
+        "commands.Application": "fas fa-file-signature",
+        "commands.Question": "fas fa-question-circle",
+        "directions.VolunteerDirection": "fas fa-map-signs",
+        "users.YellowCard": "fas fa-exclamation-triangle",
+    },
+
+    "site_logo_classes": "img-circle",
+    "order_with_respect_to": ["users", "commands", "directions"],
+    "show_ui_builder": False,
+}
+
+JAZZMIN_UI_TWEAKS = {
+    "navbar_small_text": False,
+    "footer_small_text": False,
+    "body_small_text": False,
+    "brand_small_text": False,
+    "brand_colour": "navbar-dark",
+    "accent": "accent-primary",
+    "navbar": "navbar-dark",
+    "no_navbar_border": True,
+    "navbar_fixed": False,
+    "layout_boxed": False,
+    "footer_fixed": False,
+    "sidebar_fixed": True,
+    "sidebar": "sidebar-dark-navy",
+    "sidebar_nav_small_text": False,
+    "sidebar_disable_expand": False,
+    "sidebar_nav_child_indent": False,
+    "sidebar_nav_compact_style": True,
+    "sidebar_nav_legacy_style": False,
+    "sidebar_nav_flat_style": False,
+    "theme": "superhero",
+    "dark_mode_theme": "darkly",
+    "button_classes": {
+        "primary": "btn-primary",
+        "secondary": "btn-secondary",
+        "info": "btn-info",
+        "warning": "btn-warning",
+        "danger": "btn-danger",
+        "success": "btn-success"
+    }
+}
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -223,11 +289,17 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = '/static/'
+
+# Куда собирается вся статика при deploy (не трогай, тут все верно)
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# 🔥 ДОБАВЬ ВОТ ЭТО: Папка, где лежат твои кастомные стили
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+]
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
-# Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

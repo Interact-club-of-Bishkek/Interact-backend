@@ -27,7 +27,6 @@ class CommandSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Command
-        # ВАЖНО: Убедись, что 'direction' и 'leader' здесь есть
         fields = ['id', 'title', 'slug', 'leader', 'direction', 'questions']
 
 class VolunteerSerializer(serializers.ModelSerializer):
@@ -40,10 +39,9 @@ class VolunteerSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Volunteer
-        # ВАЖНО: Я добавил 'image' в список ниже
         fields = [
             'id', 'login', 'name', 'phone_number', 'email', 
-            'image', 'image_url',   # <--- ДОБАВИЛИ 'image' СЮДА
+            'image', 'image_url', 
             'role', 'role_display', 'direction', 'commands', 
             'point', 'yellow_card', 'is_team_leader'
         ]
@@ -57,27 +55,16 @@ class VolunteerSerializer(serializers.ModelSerializer):
 
     def get_is_team_leader(self, obj):
         return Command.objects.filter(leader=obj).exists()
-    
-# --- Система Активностей ---
-# --- Команды ---
-
 
 # --- Задачи (для баллов) ---
-from rest_framework import serializers
-
 class ActivityTaskSerializer(serializers.ModelSerializer):
     command_name = serializers.CharField(source='command.title', read_only=True, default=None)
     command_id = serializers.IntegerField(source='command.id', read_only=True, default=None)
-    
-    # Добавляем оригинальное поле для EN версии
     title_en = serializers.CharField(read_only=True)
-    
-    # Направление берем из команды, если она есть
     direction_id = serializers.SerializerMethodField()
 
     class Meta:
         model = ActivityTask
-        # Добавляем title_en в список полей
         fields = [
             'id', 'title', 'title_en', 'points', 
             'is_flexible', 'command_id', 'command_name', 'direction_id'
@@ -96,28 +83,30 @@ class ActivitySubmissionSerializer(serializers.ModelSerializer):
     class Meta:
         model = ActivitySubmission
         fields = [
-            'id',
-            'task',
-            'date',           # <--- ВОТ ЭТО ГЛАВНОЕ ИЗМЕНЕНИЕ
-            'task_details',
-            'volunteer_id',
-            'volunteer_name',
-            'status',
-            'created_at',
-            'description',
-            'points_awarded'
+            'id', 'task', 'date', 'task_details',
+            'volunteer_id', 'volunteer_name',
+            'status', 'created_at', 'description', 'points_awarded'
         ]
 
 
-# --- Список для Куратора (VolunteerListView) ---
+# --- 🔥 ИСПРАВЛЕННЫЙ СПИСОК ДЛЯ КУРАТОРА ---
 class VolunteerListSerializer(serializers.ModelSerializer):
     direction = VolunteerDirectionSerializer(many=True, read_only=True)
-    local_points = serializers.IntegerField(read_only=True) # Добавили в прошлом шаге
-    yellow_card_count = serializers.IntegerField(read_only=True)
+    local_points = serializers.IntegerField(read_only=True, required=False)
+    yellow_card_count = serializers.IntegerField(read_only=True, required=False)
+    
+    # === ДОБАВИЛИ ЭТО ПОЛЕ ===
+    volunteer_commands = serializers.SerializerMethodField()
 
     class Meta:
         model = Volunteer
-        fields = ['id', 'name', 'login', 'direction', 'point', 'local_points', 'yellow_card_count']
+        fields = ['id', 'name', 'login', 'direction', 'point', 'local_points', 'yellow_card_count', 'volunteer_commands']
+
+    # === ДОБАВИЛИ ЭТОТ МЕТОД ===
+    def get_volunteer_commands(self, obj):
+        # Возвращаем список команд (id и title), в которых состоит волонтер
+        return obj.volunteer_commands.values('id', 'title')
+
 
 # --- Анкета ---
 class VolunteerApplicationSerializer(serializers.ModelSerializer):
@@ -152,5 +141,5 @@ class BulkAttendanceSerializer(serializers.Serializer):
     direction_id = serializers.IntegerField()
     date = serializers.DateField()
     records = serializers.ListField(
-        child=serializers.DictField() # Ожидаем список { "volunteer_id": 1, "status": "present" }
+        child=serializers.DictField()
     )
