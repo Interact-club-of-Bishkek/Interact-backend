@@ -268,7 +268,6 @@ class VolunteerApplicationViewSet(viewsets.ModelViewSet):
 
         user.save()
 
-
 class VolunteerListView(generics.ListAPIView):
     serializer_class = VolunteerListSerializer  
     permission_classes = [permissions.IsAuthenticated]
@@ -276,21 +275,20 @@ class VolunteerListView(generics.ListAPIView):
     def get_queryset(self):
         user = self.request.user
         
-        # Находим команды, которыми юзер реально рулит
+        # 1. Находим команды лидера
         managed_commands = Command.objects.filter(
             Q(leader=user) | Q(direction__responsible=user)
         )
 
+        # Базовый запрос
         qs = Volunteer.objects.prefetch_related('direction', 'volunteer_commands')
 
-        # 🔥 ИСПРАВЛЕНИЕ ТУТ:
-        # Мы смотрим на submissions__command (то, что выбрал волонтер), 
-        # а не на submissions__task__command (настройки самой задачи).
+        # 2. Аннотация баллов
         qs = qs.annotate(
             local_points=Coalesce(
                 Sum('submissions__points_awarded', 
                     filter=Q(
-                        submissions__command__in=managed_commands, # <-- ТЕПЕРЬ СМОТРИМ СЮДА
+                        submissions__command__in=managed_commands, 
                         submissions__status='approved' 
                     )
                 ), 
@@ -300,24 +298,13 @@ class VolunteerListView(generics.ListAPIView):
             yellow_card_count=Count('yellow_cards', distinct=True)
         )
 
-        # 3. Определяем права доступа
-        is_curator = VolunteerDirection.objects.filter(responsible=user).exists()
-        is_leader = managed_commands.exists()
-        user_role = getattr(user, 'role', '').lower()
-
-        # Если админ, куратор или лидер — даем доступ к списку
+        # 3. ПРОВЕРКА (Диагностика)
         if user.is_superuser or user.role == 'admin':
             return qs.exclude(id=user.id).order_by('-id')
 
-        if user.role == 'curator' or is_curator:
-            # Возвращаем ТОЛЬКО тех волонтеров, чье направление совпадает с направлениями куратора
-            return qs.filter(direction__responsible=user).distinct().exclude(id=user.id).order_by('-id')
-
-        if is_leader:
-            # Тимлид видит только тех, кто в его командах
-            return qs.filter(volunteer_commands__in=managed_commands).distinct().exclude(id=user.id).order_by('-id')
-
-        return qs.filter(id=user.id)
+        # --- ВРЕМЕННО: Показываем вообще всех, чтобы понять, кто есть в базе ---
+        # Как только увидишь людей, мы вернем фильтр IT
+        return qs.exclude(id=user.id).order_by('name')
 
 # --- НОВЫЙ КЛАСС ДЛЯ УДАЛЕНИЯ ---
 class RemoveVolunteerFromCommandView(APIView):
