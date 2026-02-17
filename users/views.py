@@ -106,8 +106,8 @@ class VolunteerProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = VolunteerSerializer
 
     def get_object(self):
+        # Больше ничего считать не надо, сериализатор сделает это сам
         return self.request.user
-
 
 # ---------------- ЛИЧНЫЙ КАБИНЕТ ВОЛОНТЕРА ----------------
 

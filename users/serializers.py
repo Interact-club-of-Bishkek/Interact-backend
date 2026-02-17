@@ -37,7 +37,7 @@ class VolunteerSerializer(serializers.ModelSerializer):
     
     is_team_leader = serializers.SerializerMethodField()
     
-    # 🔥 1. ДОБАВЛЯЕМ ПОЛЕ ДЛЯ ПОДСЧЕТА
+    # 🔥 1. Поле для количества карточек
     yellow_card_count = serializers.SerializerMethodField()
 
     class Meta:
@@ -47,10 +47,10 @@ class VolunteerSerializer(serializers.ModelSerializer):
             'image', 'image_url', 
             'role', 'role_display', 'direction', 'commands', 
             'point', 
-            'yellow_card_count', # 🔥 2. ВСТАВЛЯЕМ СЮДА ВМЕСТО 'yellow_card'
+            'yellow_card_count', # 🔥 2. Обязательно добавляем в список полей
             'is_team_leader'
         ]
-        read_only_fields = ['point', 'role', 'login']
+        read_only_fields = ['point', 'role', 'login', 'yellow_card_count']
 
     def get_image_url(self, obj):
         if obj.image:
@@ -61,16 +61,12 @@ class VolunteerSerializer(serializers.ModelSerializer):
     def get_is_team_leader(self, obj):
         return Command.objects.filter(leader=obj).exists()
 
-    # 🔥 3. ДОБАВЛЯЕМ ЛОГИКУ ПОДСЧЕТА
+    # 🔥 3. Считаем через related_name из models.py
     def get_yellow_card_count(self, obj):
-        # Пробуем разные варианты названия связи (зависит от models.py)
-        if hasattr(obj, 'yellow_cards'):
-            return obj.yellow_cards.count()
-        if hasattr(obj, 'yellowcard_set'): # Стандартное имя в Django, если нет related_name
-            return obj.yellowcard_set.count()
-        if hasattr(obj, 'yellow_card'): # Если связь ManyToMany
-            return obj.yellow_card.count()
-        return 0
+        # Благодаря related_name='yellow_cards' в модели YellowCard
+        return obj.yellow_cards.count()
+    
+    
 # --- Задачи (для баллов) ---
 class ActivityTaskSerializer(serializers.ModelSerializer):
     command_name = serializers.CharField(source='command.title', read_only=True, default=None)

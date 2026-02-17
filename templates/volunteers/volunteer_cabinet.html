@@ -390,7 +390,8 @@
                 document.getElementById('vName').innerText = user.name || user.login;
                 document.getElementById('vRole').innerText = user.role_display || "Volunteer";
                 document.getElementById('vPoints').innerText = user.point || 0;
-                document.getElementById('vYellowCards').innerText = user.yellow_card || 0;
+
+                document.getElementById('vYellowCards').innerText = (user.yellow_card_count !== undefined) ? user.yellow_card_count : (user.yellow_card || 0);
 
                 appData.my_direction = Array.isArray(disc.my_direction) ? disc.my_direction : (disc.my_direction ? [disc.my_direction] : []);
                 appData.my_commands = Array.isArray(disc.my_commands) ? disc.my_commands : (disc.my_commands ? [disc.my_commands] : []);
