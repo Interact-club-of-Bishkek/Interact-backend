@@ -6,7 +6,6 @@ from django.utils import timezone
 from django.db.models import Sum 
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from directions.models import VolunteerDirection 
-from commands.models import Command
 
 # --- МЕНЕДЖЕР ПОЛЬЗОВАТЕЛЕЙ (Без изменений) ---
 class VolunteerManager(BaseUserManager):
@@ -162,7 +161,7 @@ class ActivityTask(models.Model):
     )
     
     command = models.ForeignKey(
-        Command, 
+        'commands.Command',  # <--- Используем строку вместо класса
         on_delete=models.CASCADE, 
         verbose_name="Спец. Команда (опционально)", 
         null=True, blank=True, 
@@ -170,12 +169,12 @@ class ActivityTask(models.Model):
     )
 
     def __str__(self):
-        # В админке показываем оба названия для удобства менеджера
         display_title = self.title
         if self.title_en:
             display_title += f" / {self.title_en}"
             
         type_str = "ГИБКОЕ" if self.is_flexible else f"{self.points} б."
+        # Здесь тоже нужно быть аккуратным, если command None, ошибки не будет
         dest = self.command.title if self.command else "ОБЩЕЕ"
         return f"[{dest}] {display_title} ({type_str})"
 
@@ -306,10 +305,10 @@ class VolunteerApplication(models.Model):
     )
 
     commands = models.ManyToManyField(
-            Command,
-            related_name="volunteer_members", # <--- ИЗМЕНИТЕ ЭТО (было "volunteers")
-            blank=True
-        )
+                'commands.Command', # <--- Используем строку вместо класса
+                related_name="volunteer_members", 
+                blank=True
+            )
 
     class Meta:
         verbose_name = "Анкета кандидата"
