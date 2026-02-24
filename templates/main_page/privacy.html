@@ -1,0 +1,168 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Политика обработки персональных данных | Interact Club of Bishkek</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant:wght@400;600;700&family=Geologica:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        black: '#050505',
+                        'royal-blue': '#2563EB',
+                        'light-blue': '#60A5FA',
+                        'card-dark': '#121212',
+                    },
+                    fontFamily: {
+                        header: ['"Cormorant"', 'serif'],
+                        body: ['"Geologica"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        .legal-content h2 { 
+            @apply text-xl md:text-2xl font-header font-bold text-royal-blue mt-12 mb-6 uppercase tracking-widest border-b border-white/10 pb-2; 
+        }
+        .legal-content p { 
+            @apply text-gray-300 leading-relaxed mb-4 text-sm md:text-base text-justify; 
+        }
+        .legal-content ul { 
+            @apply list-none mb-6 space-y-3 text-sm md:text-base; 
+        }
+        .legal-content li { 
+            @apply flex gap-3 text-gray-400; 
+        }
+        .legal-content li::before {
+            content: "—";
+            @apply text-royal-blue font-bold;
+        }
+        .clause-number {
+            @apply font-bold text-white mr-2;
+        }
+    </style>
+</head>
+<body class="bg-black text-white font-body antialiased selection:bg-royal-blue selection:text-white">
+
+    <header class="fixed w-full top-0 z-50 py-4 bg-black/90 backdrop-blur-lg border-b border-white/5">
+        <div class="container mx-auto px-4 md:px-6 flex justify-between items-center">
+            <a href="{% url 'main' %}" class="flex items-center gap-3 group">
+                <img src="{% static 'img/logo.png' %}" alt="Logo" class="w-9 h-9 md:w-10 md:h-10 rounded-full border border-white/10 group-hover:border-royal-blue transition">
+                <span class="font-header font-bold text-base md:text-xl uppercase tracking-wider pt-1">Interact Club of Bishkek</span>
+            </a>
+            <a href="{% url 'main' %}" class="text-xs md:text-sm font-bold uppercase tracking-widest text-gray-500 hover:text-white transition">
+                <i class="fas fa-arrow-left mr-2"></i> На главную
+            </a>
+        </div>
+    </header>
+
+    <main class="pt-28 md:pt-40 pb-20">
+        <div class="container mx-auto px-4 md:px-6 max-w-4xl">
+            
+            <header class="mb-16">
+                <h1 class="text-3xl md:text-5xl lg:text-6xl font-header font-bold uppercase leading-tight">
+                    Типовая политика <br>
+                    <span class="text-royal-blue">обработки персональных данных</span>
+                </h1>
+                <div class="h-1 w-20 bg-royal-blue mt-8"></div>
+            </header>
+
+            <article class="legal-content bg-card-dark/40 p-6 md:p-12 rounded-[2.5rem] border border-white/5 shadow-2xl">
+                
+                <h2>1. Общие положения</h2>
+                <p><span class="clause-number">1.</span> Настоящая Типовая политика обработки персональных данных (далее - Политика) разработана во исполнение требований части 2 статьи 4 Закона Кыргызской Республики «Об информации персонального характера» и определяет правовые и организационные основания обработки персональных данных Interact club of Bishkek (далее - Держатель/Обработчик).</p>
+                <p><span class="clause-number">2.</span> Настоящая Политика направлена на обеспечение защиты прав и свобод субъекта персональных данных при обработке его персональных данных и распространяется на все операции с персональными данными, совершаемые Держателем/Обработчиком, как в автоматизированном режиме, так и без него.</p>
+                
+                <p><span class="clause-number">3.</span> Основные права и обязанности субъектов персональных данных:</p>
+                <p class="font-bold text-white mb-2">1) Субъекты персональных данных имеют право:</p>
+                <ul>
+                    <li>на полную информацию об их персональных данных, обрабатываемых Держатель/Обработчиком;</li>
+                    <li>на доступ к их персональным данным, включая право на получение копии любой записи, содержащей их персональные данные;</li>
+                    <li>на уточнение их персональных данных, их блокирование или уничтожение, если данные являются неполными, устаревшими или незаконно полученными;</li>
+                    <li>на принятие предусмотренных законом мер по защите своих прав.</li>
+                </ul>
+
+                <p class="font-bold text-white mb-2">2) Субъекты персональных данных обязаны:</p>
+                <ul>
+                    <li>предоставлять Держателю/Обработчику только достоверные данные о себе;</li>
+                    <li>предоставлять документы в объеме, необходимом для цели обработки;</li>
+                    <li>сообщать об уточнении (обновлении, изменении) своих персональных данных.</li>
+                </ul>
+
+                <p><span class="clause-number">4.</span> Основные права и обязанности Держателя /Обработчика.</p>
+                <p class="font-bold text-white mb-2">1) Держатель /Обработчик имеет право:</p>
+                <ul>
+                    <li>получать от субъекта персональных данных достоверные информацию и/или документы;</li>
+                    <li>уточнять предоставленные субъектом персональные данные.</li>
+                </ul>
+
+                <p class="font-bold text-white mb-2">2) Держатель /Обработчик обязан:</p>
+                <ul>
+                    <li>рассматривать обращения субъекта и давать ответы в срок, не превышающий 7 дней;</li>
+                    <li>предоставлять субъекту возможность безвозмездного доступа к его данным;</li>
+                    <li>организовывать защиту персональных данных в соответствии с законодательством КР.</li>
+                </ul>
+
+                <p><span class="clause-number">5.</span> Держатель/Обработчик собирает, использует и охраняет персональные данные в соответствии с настоящей Политикой и законодательством Кыргызской Республики.</p>
+
+                <h2>2. Объем и категории персональных данных</h2>
+                <p><span class="clause-number">6.</span> Держатель/Обработчик обрабатывает персональные данные следующих субъектов:</p>
+                <ul>
+                    <li>Граждане, участвующие в открытом конкурсе для зачисления в резерв кадров (волонтеры);</li>
+                    <li>Заявители (лица, обращающиеся с запросами);</li>
+                    <li>Получатели социальной помощи (инвалиды, пенсионеры, сироты, лица в трудной жизненной ситуации).</li>
+                </ul>
+
+                <p><span class="clause-number">7.</span> К обрабатываемым персональным данным относятся: <strong>ФИО, пол, ПИН / ИНН.</strong></p>
+                <p><span class="clause-number">8.</span> К специальным категориям персональных данных относится: <strong>Фотография.</strong></p>
+                <p><span class="clause-number">9.</span> Держатель обеспечивает соответствие объема данных заявленным целям обработки и устраняет избыточность.</p>
+
+                <h2>3. Цели сбора данных</h2>
+                <p><span class="clause-number">12.</span> Персональные данные обрабатываются в следующих целях:</p>
+                <ul>
+                    <li>Предоставление доступа Пользователю к сервисам и материалам веб-сайта;</li>
+                    <li>Назначение адресной социальной и гуманитарной помощи заявителям.</li>
+                </ul>
+
+                <h2>4. Правовые основания</h2>
+                <p><span class="clause-number">13.</span> Основаниями являются: Конституция КР, Трудовой и Гражданский кодексы КР, Законы «Об информации персонального характера» и «О СМИ», уставные документы и согласие субъекта.</p>
+
+                <h2>5. Порядок и условия обработки</h2>
+                <p><span class="clause-number">14.</span> Способ обработки: <strong>Смешанная.</strong></p>
+                <p><span class="clause-number">16.</span> Обработка осуществляется при условии получения <strong>Согласия</strong> субъекта.</p>
+                <p><span class="clause-number">22.</span> Данные не хранятся дольше, чем это необходимо для выполнения целей их сбора.</p>
+
+                <h2>6. Актуализация и уничтожение</h2>
+                <p><span class="clause-number">23.</span> В случае недостоверности данные подлежат актуализации или уничтожению.</p>
+                <p><span class="clause-number">27.</span> По достижении целей данные уничтожаются в течение <strong>двух недель</strong>.</p>
+
+                <h2>7. Заключительные положения</h2>
+                <p><span class="clause-number">29.</span> Держатель имеет право вносить изменения в Политику. Новая редакция вступает в силу с момента размещения при условии предварительного объявления за <strong>14 рабочих дней</strong>.</p>
+
+            </article>
+
+            <div class="mt-12 text-center text-gray-500 text-xs md:text-sm">
+                <p>По вопросам защиты данных обращайтесь на <a href="mailto:info@interact-club.kg" class="text-royal-blue hover:underline">info@interact-club.kg</a></p>
+            </div>
+        </div>
+    </main>
+
+    <footer class="py-10 border-t border-white/5 bg-black">
+        <div class="container mx-auto px-4 text-center">
+            <p class="text-[10px] uppercase tracking-[0.2em] text-gray-600">
+                &copy; 2026 Interact Club of Bishkek. <br class="md:hidden"> Соответствует законодательству Кыргызской Республики.
+            </p>
+        </div>
+    </footer>
+
+</body>
+</html>

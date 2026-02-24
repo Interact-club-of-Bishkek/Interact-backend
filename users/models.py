@@ -1,8 +1,11 @@
 import random
 import string
 from django.db import models
+from django.dispatch import receiver
 from django.utils import timezone   
 # Добавляем Sum сюда:
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
 from django.db.models import Sum 
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from directions.models import VolunteerDirection 
@@ -78,6 +81,7 @@ class Volunteer(AbstractBaseUser, PermissionsMixin):
             login_candidate = f"user_{random_suffix}"
             if not Volunteer.objects.filter(login=login_candidate).exists():
                 return login_candidate
+            
     def update_total_points(self):
             """Полный пересчет баллов на основе одобренных заявок"""
             # Считаем сумму points_awarded. 
@@ -366,3 +370,10 @@ class YellowCard(models.Model):
 
     def __str__(self):
         return f"Yellow Card for {self.volunteer.name}"
+    
+@receiver(post_save, sender=ActivitySubmission)
+@receiver(post_delete, sender=ActivitySubmission)
+def update_volunteer_points_on_submission_change(sender, instance, **kwargs):
+    if instance.volunteer:
+        # Вызываем твой метод, который считает только 'approved'
+        instance.volunteer.update_total_points()

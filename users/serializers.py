@@ -118,21 +118,30 @@ class ActivitySubmissionSerializer(serializers.ModelSerializer):
 # --- 🔥 ИСПРАВЛЕННЫЙ СПИСОК ДЛЯ КУРАТОРА ---
 class VolunteerListSerializer(serializers.ModelSerializer):
     direction = VolunteerDirectionSerializer(many=True, read_only=True)
-    local_points = serializers.IntegerField(read_only=True, required=False)
-    yellow_card_count = serializers.IntegerField(read_only=True, required=False)
     
-    # === ДОБАВИЛИ ЭТО ПОЛЕ ===
+    # Используем DecimalField вместо IntegerField, чтобы видеть баллы типа 0.5
+    local_points = serializers.DecimalField(max_digits=10, decimal_places=1, read_only=True)
+    
+    # === ГЛАВНОЕ ИСПРАВЛЕНИЕ ===
+    # Добавляем рассчитанное нами честное "Всего"
+    calculated_total = serializers.DecimalField(max_digits=10, decimal_places=1, read_only=True)
+    
+    yellow_card_count = serializers.IntegerField(read_only=True)
     volunteer_commands = serializers.SerializerMethodField()
 
     class Meta:
         model = Volunteer
-        fields = ['id', 'name', 'login', 'direction', 'point', 'local_points', 'yellow_card_count', 'volunteer_commands']
+        fields = [
+            'id', 'name', 'login', 'direction', 
+            'calculated_total', # Заменили 'point' на это поле
+            'local_points', 
+            'yellow_card_count', 
+            'volunteer_commands'
+        ]
 
-    # === ДОБАВИЛИ ЭТОТ МЕТОД ===
     def get_volunteer_commands(self, obj):
-        # Возвращаем список команд (id и title), в которых состоит волонтер
+        # Оптимально возвращаем список команд
         return obj.volunteer_commands.values('id', 'title')
-
 
 # --- Анкета ---
 class VolunteerApplicationSerializer(serializers.ModelSerializer):

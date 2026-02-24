@@ -1,5 +1,6 @@
 import io
 import os
+from unicodedata import decimal
 from django.db import transaction
 from django.conf import settings
 from django.http import FileResponse
@@ -40,6 +41,7 @@ from .serializers import (
     ActivitySubmissionSerializer, VolunteerDirectionSerializer, CommandSerializer,
     VolunteerListSerializer
 )
+from decimal import Decimal
 
 # ---------------- АВТОРИЗАЦИЯ И ПРОФИЛЬ ----------------
 
@@ -109,6 +111,8 @@ class VolunteerProfileView(generics.RetrieveUpdateAPIView):
         # Больше ничего считать не надо, сериализатор сделает это сам
         return self.request.user
 
+
+
 # ---------------- ЛИЧНЫЙ КАБИНЕТ ВОЛОНТЕРА ----------------
 
 class VolunteerActivityViewSet(viewsets.ModelViewSet):
@@ -120,7 +124,6 @@ class VolunteerActivityViewSet(viewsets.ModelViewSet):
         return ActivitySubmission.objects.filter(volunteer=self.request.user).select_related('task').order_by('-created_at')
 
     def perform_create(self, serializer):
-        # Явно достаем ID команды из запроса, если волонтер её выбрал
         command_id = self.request.data.get('command')
         direction_id = self.request.data.get('direction')
 
@@ -129,12 +132,66 @@ class VolunteerActivityViewSet(viewsets.ModelViewSet):
             command_id=command_id,
             direction_id=direction_id
         )
-        
-        # Если выбрана команда, но направление пустое — подтягиваем его
         if instance.command and not instance.direction:
             instance.direction = instance.command.direction
             instance.save()
 
+    # ДОБАВЬ ЭТОТ МЕТОД:
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.status != 'pending':
+            return Response(
+                {"error": "Можно отменить только заявки, которые находятся в ожидании."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        instance.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+from decimal import Decimal, InvalidOperation # Добавьте в импорты вверху
+
+class DeductPointsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        # Проверяем права: админ, куратор или лидер команды
+        is_leader = Command.objects.filter(leader=request.user).exists()
+        if request.user.role not in ['admin', 'curator', 'president'] and not is_leader:
+            return Response({"error": "Нет прав для начисления штрафов"}, status=status.HTTP_403_FORBIDDEN)
+
+        vol_id = request.data.get('volunteer_id')
+        raw_points = request.data.get('points', 0)
+        reason = request.data.get('reason', 'Штраф')
+
+        try:
+            # Преобразуем в Decimal, чтобы Django не ругался на float
+            points_to_deduct = Decimal(str(raw_points))
+        except (ValueError, TypeError, InvalidOperation):
+            return Response({"error": "Некорректная сумма баллов"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if points_to_deduct <= 0:
+            return Response({"error": "Сумма штрафа должна быть больше нуля"}, status=status.HTTP_400_BAD_REQUEST)
+
+        volunteer = get_object_or_404(Volunteer, id=vol_id)
+        
+        with transaction.atomic():
+            # Создаем или находим системное задание для штрафов
+            task, _ = ActivityTask.objects.get_or_create(
+                title="⚠️ Штраф / Списание баллов",
+                defaults={'points': 0, 'is_flexible': True}
+            )
+            
+            # Создаем запись. Отрицательное число автоматически уменьшит баланс через сигнал
+            ActivitySubmission.objects.create(
+                volunteer=volunteer,
+                task=task,
+                status='approved',
+                points_awarded=-points_to_deduct, 
+                description=f"Списание: {reason}",
+                # Если передан ID команды, привязываем штраф к ней
+                command_id=request.data.get('command_id') 
+            )
+            
+        return Response({"status": "success", "message": "Баллы успешно списаны"})
 
 class DiscoveryListView(APIView):
     permission_classes = [IsAuthenticated]
@@ -194,32 +251,8 @@ class CuratorSubmissionViewSet(viewsets.ModelViewSet):
         ).distinct().order_by('-created_at')
 
     def perform_update(self, serializer):
-        with transaction.atomic():
-            # Получаем старую версию до сохранения
-            old_instance = self.get_object()
-            was_approved = old_instance.status == 'approved'
-            
-            # Сохраняем новые данные (статус и баллы)
-            instance = serializer.save()
-
-            if instance.status == 'approved' and not was_approved:
-                volunteer = instance.volunteer
-                points = instance.points_awarded or 0
-                
-                # Обновляем баллы волонтера с защитой от NULL
-                Volunteer.objects.filter(id=volunteer.id).update(
-                    point=Coalesce(F('point'), Value(0), output_field=DecimalField()) + points
-                )
-                volunteer.refresh_from_db()
-
-            elif instance.status != 'approved' and was_approved:
-                volunteer = instance.volunteer
-                # Если куратор передумал и отклонил уже одобренную заявку — забираем баллы
-                points = old_instance.points_awarded or 0
-                Volunteer.objects.filter(id=volunteer.id).update(
-                    point=Coalesce(F('point'), Value(0), output_field=DecimalField()) - points
-                )
-                volunteer.refresh_from_db()
+            # Просто сохраняем. Пересчет баллов автоматически сделает сигнал из models.py!
+            serializer.save()
     
 class VolunteerApplicationViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
@@ -271,40 +304,30 @@ class VolunteerApplicationViewSet(viewsets.ModelViewSet):
 class VolunteerListView(generics.ListAPIView):
     serializer_class = VolunteerListSerializer  
     permission_classes = [permissions.IsAuthenticated]
-
     def get_queryset(self):
         user = self.request.user
-        
-        # 1. Находим команды лидера
-        managed_commands = Command.objects.filter(
-            Q(leader=user) | Q(direction__responsible=user)
-        )
-
-        # Базовый запрос
+        managed_commands = Command.objects.filter(Q(leader=user) | Q(direction__responsible=user))
         qs = Volunteer.objects.prefetch_related('direction', 'volunteer_commands')
 
-        # 2. Аннотация баллов
         qs = qs.annotate(
+            # Считаем ВСЕ баллы волонтера по истории (не берем из поля point)
+            calculated_total=Coalesce(
+                Sum('submissions__points_awarded', filter=Q(submissions__status='approved')),
+                Value(0),
+                output_field=DecimalField()
+            ),
+            # Считаем баллы в твоих командах
             local_points=Coalesce(
                 Sum('submissions__points_awarded', 
-                    filter=Q(
-                        submissions__command__in=managed_commands, 
-                        submissions__status='approved' 
-                    )
+                    filter=Q(submissions__command__in=managed_commands, submissions__status='approved')
                 ), 
                 Value(0), 
                 output_field=DecimalField()
             ),
             yellow_card_count=Count('yellow_cards', distinct=True)
         )
+        return qs.order_by('name')
 
-        # 3. ПРОВЕРКА (Диагностика)
-        if user.is_superuser or user.role == 'admin':
-            return qs.exclude(id=user.id).order_by('-id')
-
-        # --- ВРЕМЕННО: Показываем вообще всех, чтобы понять, кто есть в базе ---
-        # Как только увидишь людей, мы вернем фильтр IT
-        return qs.exclude(id=user.id).order_by('name')
 
 # --- НОВЫЙ КЛАСС ДЛЯ УДАЛЕНИЯ ---
 class RemoveVolunteerFromCommandView(APIView):

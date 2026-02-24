@@ -197,11 +197,63 @@
             </div>
         </div>
     </div>
-
+    <div id="cancelModal" class="modal-overlay">
+        <div class="glass-card modal-content border-red-500/20 max-w-sm text-center">
+            <div class="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4 border border-red-500/20">
+                <i class="fas fa-exclamation-triangle text-2xl text-red-500"></i>
+            </div>
+            <h3 class="text-xl font-black uppercase italic text-white mb-2" id="t-cancelHeader">Отмена заявки</h3>
+            <p class="text-xs text-gray-400 mb-8" id="t-cancelConfirmText">Вы уверены, что хотите отозвать этот отчет? Это действие нельзя будет отменить.</p>
+            
+            <div class="flex gap-3">
+                <button onclick="closeCancelModal()" class="flex-1 py-3 bg-white/5 hover:bg-white/10 text-gray-400 font-bold uppercase rounded-xl text-[10px] transition">
+                    Назад
+                </button>
+                <button id="confirmCancelBtn" class="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white font-black uppercase rounded-xl text-[10px] shadow-lg shadow-red-500/20 transition transform active:scale-95">
+                    Да, отменить
+                </button>
+            </div>
+        </div>
+    </div>
    <script>
-        const token = localStorage.getItem('access');
         let currentLang = localStorage.getItem('lang') || 'ru';
         let currentUser = null; 
+
+        // --- УМНЫЙ FETCH С АВТО-ОБНОВЛЕНИЕМ ТОКЕНА ---
+        async function apiFetch(url, options = {}) {
+            let access = localStorage.getItem('access');
+            if (!options.headers) options.headers = {};
+            if (access) options.headers['Authorization'] = `Bearer ${access}`;
+            
+            let res = await fetch(url, options);
+            
+            // Если ловим 401 (токен протух), пытаемся обновить его
+            if (res.status === 401) {
+                const refresh = localStorage.getItem('refresh');
+                if (refresh) {
+                    try {
+                        const refreshRes = await fetch('/api/token/refresh/', { 
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ refresh })
+                        });
+                        
+                        if (refreshRes.ok) {
+                            const data = await refreshRes.json();
+                            localStorage.setItem('access', data.access);
+                            options.headers['Authorization'] = `Bearer ${data.access}`;
+                            // Повторяем исходный запрос
+                            res = await fetch(url, options);
+                        } else {
+                            logout();
+                        }
+                    } catch (e) { logout(); }
+                } else {
+                    logout();
+                }
+            }
+            return res;
+        }
 
         const translations = {
             ru: {
@@ -222,7 +274,10 @@
                 editProfile: "Редактировать профиль", profName: "ФИО", profPhone: "Телефон",
                 profEmail: "Email", profPhoto: "Фото профиля", save: "Сохранить",
                 saveSuccess: "Профиль обновлен!", saveErr: "Ошибка при сохранении",
-                logout: "Выйти из аккаунта"
+                logout: "Выйти из аккаунта",
+                cancel: "Отменить",
+                cancelConfirm: "Вы уверены, что хотите отменить эту заявку?",
+                cancelSuccess: "Заявка отменена"
             },
             en: {
                 score: "Your Score", yc: "YC", newreport: "New Report",
@@ -242,7 +297,10 @@
                 editProfile: "Edit Profile", profName: "Full Name", profPhone: "Phone",
                 profEmail: "Email", profPhoto: "Profile Photo", save: "Save",
                 saveSuccess: "Profile updated!", saveErr: "Error saving profile",
-                logout: "Log Out"
+                logout: "Log Out",
+                cancel: "Cancel",
+                cancelConfirm: "Are you sure you want to cancel this request?",
+                cancelSuccess: "Request canceled"
             }
         };
 
@@ -295,7 +353,11 @@
             setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 3000);
         }
 
-        function logout() { localStorage.clear(); location.href = '/login/'; }
+        function logout() { 
+            localStorage.removeItem('access'); 
+            localStorage.removeItem('refresh');
+            location.href = '/login/'; 
+        }
 
         function openProfileModal() {
             if (currentUser) {
@@ -326,10 +388,9 @@
             if (fileInput.files.length > 0) formData.append('image', fileInput.files[0]);
 
             try {
-                const res = await fetch('/api/profile/', {
+                const res = await apiFetch('/api/profile/', {
                     method: 'PATCH',
-                    headers: { 'Authorization': `Bearer ${token}` },
-                    body: formData
+                    body: formData // Content-Type указывать не нужно для FormData
                 });
                 if (res.ok) {
                     showToast(t.saveSuccess);
@@ -357,24 +418,28 @@
         }
 
         async function init() {
-            if(!token) return location.href = '/login/';
+            if(!localStorage.getItem('access')) return location.href = '/login/';
             document.getElementById('taskDate').value = new Date().toISOString().split('T')[0];
 
             try {
                 const [uRes, dRes, hRes] = await Promise.all([
-                    fetch('/api/profile/', { headers: {'Authorization': `Bearer ${token}`}}),
-                    fetch('/api/discovery/', { headers: {'Authorization': `Bearer ${token}`}}),
-                    fetch('/api/activities/', { headers: {'Authorization': `Bearer ${token}`}})
+                    apiFetch('/api/profile/'),
+                    apiFetch('/api/discovery/'),
+                    apiFetch('/api/activities/')
                 ]);
+
                 if (uRes.status === 401 || dRes.status === 401) return logout();
+                if (!uRes.ok || !dRes.ok || !hRes.ok) throw new Error("Server Error");
+
                 const user = await uRes.json();
+                const disc = await dRes.json();
+                const hist = await hRes.json();
+
                 currentUser = user; 
 
-                // === ЛОГИКА ОТОБРАЖЕНИЯ ФОТО В ШАПКЕ ===
+                // Обновление шапки
                 const headerImg = document.getElementById('headerProfileImg');
                 const headerIcon = document.getElementById('headerProfileIcon');
-                
-                // Проверяем image_url (из сериализатора) или image
                 if (user.image_url || user.image) {
                     headerImg.src = user.image_url || user.image;
                     headerImg.classList.remove('hidden');
@@ -384,14 +449,10 @@
                     headerIcon.classList.remove('hidden');
                 }
 
-                const disc = await dRes.json();
-                const hist = await hRes.json();
-
                 document.getElementById('vName').innerText = user.name || user.login;
                 document.getElementById('vRole').innerText = user.role_display || "Volunteer";
                 document.getElementById('vPoints').innerText = user.point || 0;
-
-                document.getElementById('vYellowCards').innerText = (user.yellow_card_count !== undefined) ? user.yellow_card_count : (user.yellow_card || 0);
+                document.getElementById('vYellowCards').innerText = user.yellow_card_count ?? user.yellow_card ?? 0;
 
                 appData.my_direction = Array.isArray(disc.my_direction) ? disc.my_direction : (disc.my_direction ? [disc.my_direction] : []);
                 appData.my_commands = Array.isArray(disc.my_commands) ? disc.my_commands : (disc.my_commands ? [disc.my_commands] : []);
@@ -399,7 +460,10 @@
                 appData.history = hist;
 
                 setLang(currentLang);
-            } catch(e) { showToast(translations[currentLang].toastErr, "error"); }
+            } catch(e) { 
+                console.error(e);
+                showToast(translations[currentLang].toastErr, "error"); 
+            }
         }
 
         function renderContextSelect() {
@@ -415,15 +479,32 @@
             const contextVal = document.getElementById('contextSelect').value;
             const taskSel = document.getElementById('taskSelect');
             const t = translations[currentLang];
+            
             taskSel.innerHTML = `<option value="">${contextVal ? t.chooseTask : t.firstCtx}</option>`;
             
             if (!contextVal) return;
 
             const [type, targetId] = contextVal.split('_');
+            
             const relevantTasks = appData.available_tasks.filter(tk => {
+                // --- БЛОК ЖЕСТКОЙ ФИЛЬТРАЦИИ ШТРАФОВ ---
+                
+                // 1. Если баллы меньше или равны 0 — это не задача, а штраф
+                if (parseFloat(tk.points) <= 0) return false;
+
+                // 2. Если в названии есть слово "штраф" (на любом языке)
+                const titleLower = (tk.title || "").toLowerCase();
+                if (titleLower.includes("штраф") || titleLower.includes("penalty")) return false;
+
+                // 3. Стандартная проверка флага (на всякий случай)
+                if (tk.is_penalty === true) return false;
+
+                // --- КОНЕЦ ФИЛЬТРАЦИИ ---
+
                 const tDirId = extractId(tk, 'direction');
                 const tCmdId = extractId(tk, 'command');
                 const isGen = !tCmdId && !tDirId;
+
                 return type === 'dir' ? (tDirId === targetId || isGen) : (tCmdId === targetId || isGen);
             });
 
@@ -437,8 +518,7 @@
                 });
             }
         }
-
-function renderTables() {
+        function renderTables() {
             const container = document.getElementById('tablesContainer');
             const t = translations[currentLang];
             container.innerHTML = '';
@@ -448,53 +528,60 @@ function renderTables() {
                 const isBPending = b.status === 'pending';
                 if (isAPending && !isBPending) return -1;
                 if (!isAPending && isBPending) return 1;
-                const dateA = new Date(a.date || a.created_at);
-                const dateB = new Date(b.date || b.created_at);
-                return dateB - dateA;
+                return new Date(b.date || b.created_at) - new Date(a.date || a.created_at);
             };
 
-            // --- ТАБЛИЦА НАПРАВЛЕНИЯ (Direction + General) ---
+            // 1. Сначала выводим таблицы направлений (БЕЗ штрафов)
             appData.my_direction.forEach(dir => {
                 const dId = String(dir.id || dir);
-                const dirSubmissions = appData.history
-                    .filter(s => {
-                        const tDir = extractId(s.task_details, 'direction') || extractId(s, 'direction');
-                        const tCmd = extractId(s.task_details, 'command') || extractId(s, 'command');
-                        
-                        // 🔥 ГЛАВНОЕ УСЛОВИЕ: Показываем в направлении только если НЕТ команды
-                        const belongsToDir = (tDir === dId);
-                        const hasNoCommand = !tCmd; 
-                        const isGeneral = (!tDir && !tCmd);
-
-                        return (belongsToDir && hasNoCommand) || isGeneral;
-                    })
-                    .sort(customSort); 
+                const dirSubmissions = appData.history.filter(s => {
+                    if (s.is_penalty) return false; // Исключаем штрафы
+                    const tDir = extractId(s.task_details, 'direction') || extractId(s, 'direction');
+                    const tCmd = extractId(s.task_details, 'command') || extractId(s, 'command');
+                    return (tDir === dId && !tCmd) || (!tDir && !tCmd);
+                }).sort(customSort);
+                
                 container.innerHTML += createTableHTML(dir.name || "Direction", t.dirSub, dirSubmissions);
             });
 
-            // --- ТАБЛИЦА КОМАНДЫ (Special Team) ---
+            // 2. Затем таблицы спец-команд (БЕЗ штрафов)
             appData.my_commands.forEach(cmd => {
                 const cId = String(cmd.id || cmd);
-                const cmdSubmissions = appData.history
-                    .filter(s => {
-                        const tCmd = extractId(s.task_details, 'command') || extractId(s, 'command');
-                        return tCmd === cId;
-                    })
-                    .sort(customSort); 
+                const cmdSubmissions = appData.history.filter(s => {
+                    if (s.is_penalty) return false; // Исключаем штрафы
+                    const tCmd = extractId(s.task_details, 'command') || extractId(s, 'command');
+                    return tCmd === cId;
+                }).sort(customSort);
+                
                 container.innerHTML += createTableHTML(cmd.title, t.cmdSub, cmdSubmissions);
             });
 
-            if (container.innerHTML === '') container.innerHTML = `<div class="glass-card text-center py-10"><p class="text-gray-400">${t.historyEmpty}</p></div>`;
+            // 3. ОТДЕЛЬНЫЙ БЛОК ДЛЯ ШТРАФОВ (появляется только если они есть)
+            const penalties = appData.history.filter(s => s.is_penalty);
+            if (penalties.length > 0) {
+                container.innerHTML += createPenaltyTableHTML(penalties);
+            }
+
+            if (container.innerHTML === '') {
+                container.innerHTML = `<div class="glass-card text-center py-10"><p class="text-gray-400">${t.historyEmpty}</p></div>`;
+            }
         }
-        
         function createTableHTML(title, subtitle, submissions) {
             const t = translations[currentLang];
-            const totalPoints = submissions.filter(s => s.status === 'approved').reduce((sum, s) => sum + (s.points_awarded !== null ? parseFloat(s.points_awarded) : (parseFloat(s.task_details?.points) || 0)), 0);
+            // Считаем только одобренные баллы
+            const totalPoints = submissions
+                .filter(s => s.status === 'approved')
+                .reduce((sum, s) => sum + (s.points_awarded !== null ? parseFloat(s.points_awarded) : (parseFloat(s.task_details?.points) || 0)), 0);
             
             const rows = submissions.length === 0 ? `<tr><td colspan="3" class="text-center text-gray-500 py-6 text-xs italic">${t.noRecords}</td></tr>` : submissions.map(s => {
                 const displayPoints = (s.status === 'approved' && s.points_awarded !== null) ? s.points_awarded : (s.task_details?.points || 0);
                 const taskTitle = (currentLang === 'en' && s.task_details?.title_en) ? s.task_details.title_en : (s.task_details?.title || t.delTask);
                 const dateToDisplay = s.date ? new Date(s.date).toLocaleDateString() : new Date(s.created_at).toLocaleDateString();
+
+                // Кнопка отмены только для заявок в ожидании
+                const cancelBtn = s.status === 'pending' 
+                    ? `<button onclick="cancelSubmission(${s.id})" class="mt-2 text-[9px] text-red-500 hover:text-red-400 uppercase font-bold transition flex items-center justify-end gap-1 w-full"><i class="fas fa-trash-alt"></i> ${t.cancel}</button>` 
+                    : '';
 
                 return `
                     <tr>
@@ -503,7 +590,10 @@ function renderTables() {
                             <div class="font-bold text-white text-xs md:text-sm">${taskTitle}</div>
                             <div class="mt-1">${getStatusBadge(s.status, s.status_display)}</div>
                         </td>
-                        <td class="text-right font-black text-white">+${parseFloat(displayPoints).toFixed(1)}</td>
+                        <td class="text-right font-black text-white align-top">
+                            <div>${parseFloat(displayPoints) > 0 ? '+' : ''}${parseFloat(displayPoints).toFixed(1)}</div>
+                            ${cancelBtn}
+                        </td>
                     </tr>`;
             }).join('');
 
@@ -524,11 +614,80 @@ function renderTables() {
                     </div>
                 </div>`;
         }
+            
+        function createPenaltyTableHTML(penalties) {
+            const t = translations[currentLang];
+            const rows = penalties.map(p => {
+                const date = new Date(p.created_at).toLocaleDateString();
+                return `
+                    <tr>
+                        <td class="text-red-500/50 font-mono text-[10px]">${date}</td>
+                        <td>
+                            <div class="font-bold text-red-400 text-xs md:text-sm uppercase italic">Штраф / Penalty</div>
+                            <div class="text-[10px] text-gray-500 mt-1">${p.description || 'Нарушение регламента'}</div>
+                        </td>
+                        <td class="text-right font-black text-red-500 align-top">
+                            ${parseFloat(p.points_awarded || 0).toFixed(1)}
+                        </td>
+                    </tr>`;
+            }).join('');
 
+            return `
+                <div class="glass-card border-red-500/10">
+                    <div class="flex items-center gap-2 mb-4">
+                        <i class="fas fa-gavel text-red-500 text-xs"></i>
+                        <h2 class="text-sm font-black italic uppercase text-red-500 tracking-widest">Нарушения и взыскания</h2>
+                    </div>
+                    <table class="custom-table">${rows}</table>
+                </div>`;
+        }
         function getStatusBadge(status, text) {
             const styles = { 'approved': 'bg-green-500/10 text-green-400 border-green-500/20', 'rejected': 'bg-red-500/10 text-red-400 border-red-500/20', 'pending': 'bg-orange-500/10 text-orange-400 border-orange-500/20' };
             const icons = { 'approved': 'fa-check', 'rejected': 'fa-times', 'pending': 'fa-clock' };
             return `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[9px] font-bold uppercase tracking-wider ${styles[status] || styles['pending']}"><i class="fas ${icons[status] || 'fa-question'}"></i>${text || status}</span>`;
+        }
+
+        let submissionToCancel = null;
+
+        function closeCancelModal() {
+            document.getElementById('cancelModal').classList.remove('open');
+            submissionToCancel = null;
+        }
+
+        // Вызов модалки
+        async function cancelSubmission(id) {
+            submissionToCancel = id;
+            const modal = document.getElementById('cancelModal');
+            
+            // Перевод текстов внутри модалки
+            const t = translations[currentLang];
+            document.getElementById('t-cancelHeader').innerText = t.cancel;
+            document.getElementById('t-cancelConfirmText').innerText = t.cancelConfirm;
+            
+            modal.classList.add('open');
+            
+            // Привязываем действие к кнопке
+            document.getElementById('confirmCancelBtn').onclick = async () => {
+                const btn = document.getElementById('confirmCancelBtn');
+                btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
+                btn.disabled = true;
+
+                try {
+                    const res = await apiFetch(`/api/activities/${id}/`, { method: 'DELETE' });
+                    if (res.ok || res.status === 204) {
+                        showToast(t.cancelSuccess);
+                        closeCancelModal();
+                        init();
+                    } else {
+                        showToast("Error", "error");
+                    }
+                } catch (e) {
+                    showToast("Network Error", "error");
+                } finally {
+                    btn.innerHTML = 'Да, отменить';
+                    btn.disabled = false;
+                }
+            };
         }
 
         async function sendReport() {
@@ -545,38 +704,31 @@ function renderTables() {
 
             if (contextVal) {
                 const [type, id] = contextVal.split('_');
-                // 🔥 Обязательно преобразуем в число (parseInt)
                 if (type === 'cmd') commandId = parseInt(id);
                 if (type === 'dir') directionId = parseInt(id);
             }
-
-            // Для отладки: посмотри в консоль браузера перед отправкой
-            console.log("Отправка отчета:", { taskId, commandId, directionId });
 
             const originalText = btn.innerHTML;
             btn.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i>`;
             btn.disabled = true;
 
             try {
-                const res = await fetch('/api/activities/', { 
+                const res = await apiFetch('/api/activities/', { 
                     method: 'POST', 
-                    headers: { 
-                        'Content-Type': 'application/json', 
-                        'Authorization': `Bearer ${token}` 
-                    }, 
+                    headers: { 'Content-Type': 'application/json' }, 
                     body: JSON.stringify({ 
                         task: taskId, 
                         date: taskDate, 
                         description: document.getElementById('taskComm').value,
-                        command: commandId,    // Передаем число или null
-                        direction: directionId // Передаем число или null
+                        command: commandId,
+                        direction: directionId 
                     }) 
                 });
                 
                 if(res.ok) { 
                     showToast(t.toastSent);
                     document.getElementById('taskComm').value = ""; 
-                    init(); // Перезагружаем историю
+                    init(); 
                 } else {
                     showToast(t.toastFail, "error");
                 }
@@ -587,6 +739,7 @@ function renderTables() {
                 btn.disabled = false; 
             }
         }
+        
         init();
     </script>
 </body>

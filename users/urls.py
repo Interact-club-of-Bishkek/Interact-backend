@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
-    RemoveVolunteerFromCommandView, VolunteerLoginView, VolunteerRegisterView, VolunteerProfileView,
+    DeductPointsView, RemoveVolunteerFromCommandView, VolunteerLoginView, VolunteerRegisterView, VolunteerProfileView,
     VolunteerActivityViewSet, DiscoveryListView, CuratorSubmissionViewSet,
     VolunteerApplicationViewSet, VolunteerViewSet, VolunteerColumnsView,
     DownloadInterviewScheduleView, DownloadAcceptedNamesView,
@@ -55,6 +55,7 @@ urlpatterns = [
     path('curator-panel/', CuratorPanelView.as_view(), name='curator-panel'),
     path('board/', VolunteerBoardView.as_view(), name='board'),
     path('commands/<int:pk>/remove-volunteer/', RemoveVolunteerFromCommandView.as_view(), name='remove-volunteer'),
+    path('api/curator/penalty/', DeductPointsView.as_view(), name='deduct-points'),
     # НОВЫЙ ПУТЬ ДЛЯ ПРИСТАВА
     path('bailiff-panel/', BailiffPanelView.as_view(), name='bailiff-panel'),
     path('equity-panel/', EquityPanelView.as_view(), name='equity_panel'),

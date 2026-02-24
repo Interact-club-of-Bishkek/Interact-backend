@@ -147,7 +147,48 @@
     <script>
         let isLogin = true;
         let currentLang = localStorage.getItem('lang') || 'ru';
-        const token = () => localStorage.getItem('access');
+
+        // --- УМНЫЙ FETCH С АВТО-ОБНОВЛЕНИЕМ ТОКЕНА ---
+        async function apiFetch(url, options = {}) {
+            let access = localStorage.getItem('access');
+            if (!options.headers) options.headers = {};
+            if (access) options.headers['Authorization'] = `Bearer ${access}`;
+            
+            let res = await fetch(url, options);
+            
+            if (res.status === 401) {
+                const refresh = localStorage.getItem('refresh');
+                if (refresh) {
+                    try {
+                        // Пытаемся получить новый access токен
+                        const refreshRes = await fetch('/api/token/refresh/', { 
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ refresh })
+                        });
+                        
+                        if (refreshRes.ok) {
+                            const data = await refreshRes.json();
+                            localStorage.setItem('access', data.access);
+                            options.headers['Authorization'] = `Bearer ${data.access}`;
+                            // Повторяем изначальный запрос
+                            res = await fetch(url, options);
+                        } else {
+                            doLogout();
+                        }
+                    } catch (e) { doLogout(); }
+                } else {
+                    doLogout();
+                }
+            }
+            return res;
+        }
+
+        function doLogout() {
+            localStorage.removeItem('access');
+            localStorage.removeItem('refresh');
+            // Мы уже на странице логина, так что просто ничего не делаем или скрываем админку
+        }
 
         const translations = {
             ru: {
@@ -207,14 +248,12 @@
 
             const t = translations[lang];
             
-            // Auth section
             document.getElementById('title').innerText = isLogin ? t.loginTitle : t.regTitle;
             document.getElementById('userLogin').placeholder = t.loginPlace;
             document.getElementById('userPass').placeholder = t.passPlace;
             document.getElementById('btn-auth-text').innerText = isLogin ? t.loginBtn : t.regNextBtn;
             document.getElementById('toggleBtn').innerHTML = isLogin ? t.noAcc : t.haveAcc;
 
-            // App section
             document.getElementById('app-title').innerText = t.appTitle;
             document.getElementById('fullName').placeholder = t.namePlace;
             document.getElementById('phone').placeholder = t.phonePlace;
@@ -294,12 +333,14 @@
         }
 
         async function checkSession() {
-            const t = localStorage.getItem('access');
-            if (!t) return;
+            if (!localStorage.getItem('access')) return;
             try {
-                const res = await fetch('/api/profile/', { headers: { 'Authorization': `Bearer ${t}` } });
-                if (res.ok) { navigateUser(await res.json()); } 
-                else { localStorage.removeItem('access'); }
+                const res = await apiFetch('/api/profile/');
+                if (res.ok) { 
+                    navigateUser(await res.json()); 
+                } else {
+                    doLogout();
+                }
             } catch (e) {}
         }
 
@@ -311,7 +352,9 @@
         function backToAuth() {
             document.getElementById('appSection').classList.add('hidden');
             document.getElementById('authSection').classList.remove('hidden');
-            localStorage.clear();
+            // Вместо полного clear() удаляем только токены, чтобы сохранить язык
+            localStorage.removeItem('access');
+            localStorage.removeItem('refresh');
         }
 
         async function handleAuth(e) {
@@ -330,6 +373,7 @@
                 const data = await res.json();
                 if (res.ok) {
                     localStorage.setItem('access', data.access);
+                    if (data.refresh) localStorage.setItem('refresh', data.refresh); // Сохраняем REFRESH токен!
                     showToast(translations[currentLang].authSuccess, "success");
                     setTimeout(() => navigateUser(data), 800);
                 } else { 
@@ -347,7 +391,7 @@
             document.getElementById('appSection').classList.remove('hidden');
             document.getElementById('appSection').classList.add('fade-in');
             try {
-                const res = await fetch('/api/discovery/', { headers: {'Authorization': `Bearer ${token()}`} });
+                const res = await apiFetch('/api/discovery/');
                 const data = await res.json();
                 const optionsList = document.getElementById('optionsList');
                 optionsList.innerHTML = '';
@@ -372,9 +416,9 @@
             if(!dirId) return showToast(translations[currentLang].selectDir);
             setLoading('appBtn', true);
             try {
-                const res = await fetch('/api/applications/', {
+                const res = await apiFetch('/api/applications/', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token()}`},
+                    headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
                         full_name: document.getElementById('fullName').value,
                         phone_number: document.getElementById('phone').value,

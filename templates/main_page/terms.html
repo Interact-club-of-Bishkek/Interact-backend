@@ -1,0 +1,361 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Условия использования | Interact Club of Bishkek</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant:wght@400;600;700&family=Geologica:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="icon" type="image/png" href="{% static 'img/logo.png' %}">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        black: '#050505',       
+                        'royal-blue': '#2563EB', 
+                        'light-blue': '#60A5FA', 
+                        'card-dark': '#121212',  
+                        'almost-white': '#F5F5F5',
+                    },
+                    fontFamily: {
+                        header: ['"Cormorant"', 'serif'],
+                        body: ['"Geologica"', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+
+    <style>
+        html { scroll-behavior: smooth; }
+        
+        .btn-glow {
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+        }
+        .btn-glow:hover {
+            box-shadow: 0 4px 20px rgba(37, 99, 235, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s cubic-bezier(0.5, 0, 0, 1);
+        }
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        body { -webkit-tap-highlight-color: transparent; }
+
+        /* Стилизация скроллбара для текста */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #050505; }
+        ::-webkit-scrollbar-thumb { background: #22283A; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #2563EB; }
+    </style>
+</head>
+<body class="bg-black text-white font-body antialiased selection:bg-royal-blue selection:text-white flex flex-col min-h-screen">
+
+    <header id="navbar" class="fixed w-full top-0 z-50 transition-all duration-300 py-3 md:py-4 border-b border-transparent">
+        <div class="absolute inset-0 bg-black/90 backdrop-blur-md -z-10 opacity-0 transition-opacity duration-300" id="navbar-bg"></div>
+        <div class="container mx-auto px-4 md:px-6 flex justify-between items-center relative z-20">
+            
+            <a href="{% url 'main' %}" class="flex items-center gap-2 md:gap-3 cursor-pointer group">
+                <img src="{% static 'img/logo.png' %}" alt="Interact Club of Bishkek" class="w-9 h-9 md:w-10 md:h-10 rounded-full object-cover border border-white/10">
+                <span class="font-header font-bold text-lg md:text-xl uppercase tracking-wide group-hover:text-light-blue transition pt-1 hidden sm:block">Interact club of Bishkek</span>
+            </a>
+                
+            <nav class="hidden lg:flex items-center gap-8">
+                <a href="{% url 'about-html' %}" class="text-base font-medium hover:text-light-blue transition">О нас</a>
+                <a href="{% url 'projects-list-html' %}" class="text-base font-medium hover:text-light-blue transition">Проекты</a>
+                <a href="{% url 'sponsorship-html' %}" class="text-base font-medium hover:text-light-blue transition">Спонсорство</a>
+                <a href="{% url 'volunteer-html' %}" class="text-base font-medium hover:text-light-blue transition">Волонтёрство</a>
+            </nav>
+
+            <div class="flex items-center gap-3 md:gap-4">
+                <a href="{% url 'donate-html' %}" class="hidden md:flex items-center justify-center h-10 px-6 rounded-xl text-white font-header font-bold text-lg btn-glow shadow-lg">
+                    Хочу помочь
+                </a>
+                <div class="flex gap-2">
+                    <a href="/login/" class="w-9 h-9 md:w-10 md:h-10 rounded-full bg-white/10 hover:bg-white hover:text-black flex items-center justify-center transition flex-shrink-0">
+                        <i class="fas fa-user text-xs md:text-base"></i>
+                    </a>
+                    <button id="menu-btn" class="lg:hidden w-9 h-9 flex items-center justify-center text-lg text-white flex-shrink-0 bg-white/10 rounded-full active:scale-95 transition">
+                        <i class="fas fa-bars transition-transform duration-300"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="mobile-menu" class="hidden lg:hidden bg-black/95 backdrop-blur-xl fixed inset-0 top-[60px] z-40 p-6 flex flex-col gap-6 overflow-y-auto border-t border-white/10 pb-24">
+            <a href="{% url 'about-html' %}" class="text-3xl font-header font-bold border-b border-white/10 pb-4">О нас</a>
+            <a href="{% url 'projects-list-html' %}" class="text-3xl font-header font-bold border-b border-white/10 pb-4">Проекты</a>
+            <a href="{% url 'sponsorship-html' %}" class="text-3xl font-header font-bold border-b border-white/10 pb-4">Спонсорство</a>
+            <a href="{% url 'volunteer-html' %}" class="text-3xl font-header font-bold border-b border-white/10 pb-4">Волонтёрство</a>
+            <a href="{% url 'donate-html' %}" class="text-3xl font-header text-royal-blue font-bold pt-2">Хочу помочь</a>
+        </div>
+    </header>
+
+    <main class="flex-grow pt-[120px] pb-20">
+        <div class="container mx-auto px-4 md:px-6 max-w-4xl reveal active">
+            
+            <div class="mb-10 text-center md:text-left">
+                <span class="text-royal-blue font-bold tracking-widest uppercase text-[10px] md:text-xs mb-3 block">Документация</span>
+                <h1 class="text-4xl md:text-6xl font-header font-bold text-white uppercase mb-4">Условия использования</h1>
+                <p class="text-gray-500 text-sm">Последнее обновление: Февраль 2026</p>
+            </div>
+
+            <div class="bg-card-dark rounded-[2rem] p-6 md:p-12 border border-white/5 shadow-2xl">
+                
+                <div class="prose prose-invert max-w-none prose-headings:font-header prose-headings:font-bold prose-headings:text-white prose-p:text-gray-400 prose-p:font-light prose-p:leading-relaxed prose-a:text-light-blue prose-li:text-gray-400 prose-li:font-light space-y-8">
+                    
+                    <section>
+                        <h2 class="text-2xl md:text-3xl mb-4 border-b border-white/10 pb-2 uppercase tracking-wide">1. Общие положения</h2>
+                        <p>
+                            Добро пожаловать на официальный сайт <strong>Interact Club of Bishkek</strong>. Использование данного веб-сайта означает ваше полное согласие с настоящими Условиями использования. Если вы не согласны с какими-либо из положений, пожалуйста, прекратите использование сайта.
+                        </p>
+                        <p>
+                            Наш клуб является некоммерческой волонтерской организацией, действующей в рамках программы Rotary International. Вся информация на сайте предоставляется в ознакомительных целях для поддержки благотворительных, экологических и социальных инициатив.
+                        </p>
+                    </section>
+
+                    <section>
+                        <h2 class="text-2xl md:text-3xl mb-4 border-b border-white/10 pb-2 uppercase tracking-wide">2. Использование материалов</h2>
+                        <p>
+                            Все материалы, размещенные на сайте (тексты, фотографии, графика, логотипы и дизайн), являются интеллектуальной собственностью Interact Club of Bishkek или используются с разрешения правообладателей.
+                        </p>
+                        <ul class="list-disc list-inside space-y-2 ml-4">
+                            <li>Разрешается делиться ссылками на наши проекты в социальных сетях.</li>
+                            <li>Копирование текстов и фотографий для публикации на других ресурсах допускается только с обязательным указанием активной ссылки на наш сайт.</li>
+                            <li>Использование материалов сайта в коммерческих целях строго запрещено.</li>
+                        </ul>
+                    </section>
+
+                    <section>
+                        <h2 class="text-2xl md:text-3xl mb-4 border-b border-white/10 pb-2 uppercase tracking-wide">3. Регистрация и личный кабинет</h2>
+                        <p>
+                            Для участия в проектах в качестве волонтера может потребоваться регистрация на сайте. При создании учетной записи вы обязуетесь:
+                        </p>
+                        <ul class="list-disc list-inside space-y-2 ml-4">
+                            <li>Предоставлять достоверную и актуальную информацию о себе.</li>
+                            <li>Обеспечивать сохранность своего логина и пароля.</li>
+                            <li>Не передавать доступ к своему аккаунту третьим лицам.</li>
+                        </ul>
+                        <p>Мы оставляем за собой право заблокировать аккаунт пользователя в случае нарушения правил клуба или законов Кыргызской Республики.</p>
+                    </section>
+
+                    <section>
+                        <h2 class="text-2xl md:text-3xl mb-4 border-b border-white/10 pb-2 uppercase tracking-wide">4. Пожертвования и благотворительность</h2>
+                        <p>
+                            Мы с благодарностью принимаем финансовую помощь на реализацию наших социальных инициатив. Совершая пожертвование через наш сайт:
+                        </p>
+                        <ul class="list-disc list-inside space-y-2 ml-4">
+                            <li>Вы подтверждаете, что делаете взнос добровольно и безвозмездно.</li>
+                            <li>Все собранные средства направляются исключительно на реализацию проектов клуба (помощь детским домам, экологические акции и т.д.).</li>
+                            <li>Добровольные пожертвования не подлежат возврату.</li>
+                        </ul>
+                        <p>Отчеты о потраченных средствах регулярно публикуются на наших официальных страницах в социальных сетях и в итогах года на сайте.</p>
+                    </section>
+
+                    <section>
+                        <h2 class="text-2xl md:text-3xl mb-4 border-b border-white/10 pb-2 uppercase tracking-wide">5. Ограничение ответственности</h2>
+                        <p>
+                            Команда Interact Club of Bishkek делает все возможное, чтобы информация на сайте была точной и актуальной. Однако мы не несем ответственности за:
+                        </p>
+                        <ul class="list-disc list-inside space-y-2 ml-4">
+                            <li>Временные технические сбои в работе сайта.</li>
+                            <li>Содержание внешних ресурсов, ссылки на которые могут присутствовать на сайте.</li>
+                            <li>Любые прямые или косвенные убытки, возникшие в результате использования информации с нашего сайта.</li>
+                        </ul>
+                    </section>
+
+                    <section>
+                        <h2 class="text-2xl md:text-3xl mb-4 border-b border-white/10 pb-2 uppercase tracking-wide">6. Внесение изменений</h2>
+                        <p>
+                            Мы оставляем за собой право в любое время изменять настоящие Условия использования. Обновленная версия вступает в силу с момента ее публикации на этой странице. Рекомендуем периодически проверять эту страницу на наличие изменений.
+                        </p>
+                    </section>
+
+                    <section>
+                        <h2 class="text-2xl md:text-3xl mb-4 border-b border-white/10 pb-2 uppercase tracking-wide">7. Обратная связь</h2>
+                        <p>
+                            Если у вас возникли вопросы касательно настоящих Условий использования, проектов клуба или вы хотите предложить партнерство, пожалуйста, свяжитесь с нами:
+                        </p>
+                        <p class="mt-4">
+                            <strong>Email:</strong> <a href="mailto:info@interact-club.kg" class="hover:text-white transition">info@interact-club.kg</a><br>
+                            <strong>Телефон:</strong> <a href="tel:+996557038848" class="hover:text-white transition">+996 557 038 848</a>
+                        </p>
+                    </section>
+
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-[#09152E] border-t border-white/10 pt-12 pb-12 mt-auto">
+        <div class="container mx-auto px-4 md:px-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 md:gap-8 text-center md:text-left items-start">
+                
+                <div class="flex flex-col items-center md:items-start">
+                    <div class="flex items-center gap-3 mb-4">
+                        <img src="{% static 'img/logo.png' %}" alt="Interact" class="w-10 h-10 rounded-full border border-white/10">
+                        <span class="font-header font-bold text-lg uppercase leading-tight text-left">Interact Club<br>of Bishkek</span>
+                    </div>
+                    <p class="text-xs text-gray-400 leading-relaxed mb-4 max-w-xs">Наш клуб — часть международной организации Rotary International. Мы создаем позитивные изменения.</p>
+                </div>
+
+                <div class="flex flex-col items-center md:items-start lg:pl-8 pt-2">
+                    <h4 class="text-sm font-bold mb-4 uppercase tracking-wider text-white">Навигация</h4>
+                    <div class="flex flex-col gap-3 text-sm text-gray-400">
+                        <a href="{% url 'about-html' %}" class="hover:text-light-blue transition">О нас</a>
+                        <a href="{% url 'projects-list-html' %}" class="hover:text-light-blue transition">Проекты</a>
+                        <a href="{% url 'sponsorship-html' %}" class="hover:text-light-blue transition">Спонсорство</a>
+                        <a href="{% url 'volunteer-html' %}" class="hover:text-light-blue transition">Волонтёрство</a>
+                    </div>
+                </div>
+
+                <div class="flex flex-col items-center md:items-start pt-2 w-full">
+                    <h4 class="text-sm font-bold mb-6 uppercase tracking-wider text-white text-center md:text-left w-full">Статистика проектов</h4>
+                    <div id="chart-loader" class="text-[10px] text-gray-500 animate-pulse">Загрузка графика...</div>
+                    <div id="chart-container" class="hidden w-full flex items-center justify-center md:justify-start gap-4 lg:gap-5">
+                        <div class="relative w-[110px] h-[110px] flex-shrink-0 drop-shadow-lg">
+                            <canvas id="projectsChart"></canvas>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-0.5">
+                                <span id="chart-total-num" class="text-2xl font-bold font-body text-white tracking-tighter leading-none mb-0.5 drop-shadow-md">0</span>
+                                <span class="text-[7px] text-gray-400 uppercase tracking-widest">Всего</span>
+                            </div>
+                        </div>
+                        <div class="flex flex-col flex-grow max-w-[180px]">
+                            <div id="chart-legend" class="text-gray-300 w-full mb-3"></div>
+                            <div class="border-t border-white/10 pt-2 flex flex-col w-full">
+                                <span class="text-[8px] text-gray-400 mb-1 uppercase tracking-widest">Собрано средств</span>
+                                <div id="chart-total-amount" class="text-xl font-bold font-body text-light-blue tracking-wide leading-none">
+                                    0 <span class="text-[10px] text-gray-500 font-normal">сом</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col items-center md:items-end lg:text-right pt-2">
+                    <h4 class="text-sm font-bold mb-4 uppercase tracking-wider text-white">Контакты</h4>
+                    <a href="mailto:info@interact-club.kg" class="block text-sm text-light-blue hover:text-white mb-2 transition">info@interact-club.kg</a>
+                    <a href="tel:+996557038848" class="block text-xl font-body font-bold text-white tracking-wider mb-5 hover:text-light-blue transition">+996 557 038 848</a>
+                    <div class="flex gap-3 justify-center md:justify-end">
+                        <a href="https://www.instagram.com/interactbishkek/" target="_blank" class="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center hover:bg-light-blue transition text-white"><i class="fab fa-instagram"></i></a>
+                        <a href="https://t.me/interact_club_kg_bot" target="_blank" class="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center hover:bg-light-blue transition text-white"><i class="fab fa-telegram-plane"></i></a>
+                        <a href="https://tiktok.com/@interactbishkek" target="_blank" class="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center hover:bg-light-blue transition text-white"><i class="fab fa-tiktok"></i></a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="border-t border-white/10 mt-12 pt-6 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] text-gray-500">
+                <p>&copy; 2026 Interact Club of Bishkek. Все права защищены.</p>
+                <div class="flex gap-4">
+                    <a href="{% url 'privacy-html' %}" class="hover:text-white transition">Политика конфиденциальности</a>
+                    <a href="#" class="text-white">Условия использования</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            
+            // --- UI: Navbar & Menu ---
+            const menuBtn = document.getElementById('menu-btn');
+            const mobileMenu = document.getElementById('mobile-menu');
+            const navbarBg = document.getElementById('navbar-bg');
+
+            if (menuBtn) {
+                menuBtn.addEventListener('click', () => {
+                    mobileMenu.classList.toggle('hidden');
+                    const icon = menuBtn.querySelector('i');
+                    if (mobileMenu.classList.contains('hidden')) {
+                        icon.classList.replace('fa-times', 'fa-bars');
+                        document.body.style.overflow = '';
+                    } else {
+                        icon.classList.replace('fa-bars', 'fa-times');
+                        document.body.style.overflow = 'hidden';
+                    }
+                });
+            }
+
+            window.addEventListener('scroll', () => {
+                if(window.scrollY > 20) navbarBg.classList.replace('opacity-0', 'opacity-100');
+                else navbarBg.classList.replace('opacity-100', 'opacity-0');
+            });
+
+            const observer = new IntersectionObserver(entries => {
+                entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('active'); });
+            }, { threshold: 0.1 });
+            document.querySelectorAll('.reveal').forEach(r => observer.observe(r));
+
+            // --- ФУНКЦИЯ ДЛЯ ГРАФИКА В ФУТЕРЕ ---
+            async function loadChartStats() {
+                try {
+                    const response = await fetch('/api/year-results/');
+                    if (response.ok) {
+                        const data = await response.json();
+                        const res = Array.isArray(data) ? data[0] : data;
+                        if (res) {
+                            const statsData = [
+                                { label: 'Фандрайзинг', value: res.fundraising || 0, color: '#3B82F6' },
+                                { label: 'Образование', value: res.education || 0, color: '#1D4ED8' },
+                                { label: 'Культура', value: res.cultural || 0, color: '#60A5FA' },
+                                { label: 'Спорт', value: res.sport || 0, color: '#1E3A8A' },
+                                { label: 'Киберспорт', value: res.cyber_sport || 0, color: '#93C5FD' }
+                            ];
+                            const activeStats = statsData.filter(item => item.value > 0);
+                            const totalProjects = activeStats.reduce((acc, curr) => acc + curr.value, 0);
+                            const totalAmount = res.total_amount ? res.total_amount.toLocaleString('ru-RU') : '0';
+                            
+                            document.getElementById('chart-total-num').innerText = totalProjects;
+                            document.getElementById('chart-total-amount').innerHTML = `${totalAmount} <span class="text-[10px] text-gray-500 font-normal ml-0.5">сом</span>`;
+
+                            const ctx = document.getElementById('projectsChart').getContext('2d');
+                            new Chart(ctx, {
+                                type: 'doughnut',
+                                data: {
+                                    labels: activeStats.map(i => i.label),
+                                    datasets: [{
+                                        data: activeStats.map(i => i.value),
+                                        backgroundColor: activeStats.map(i => i.color),
+                                        borderWidth: 0
+                                    }]
+                                },
+                                options: { cutout: '72%', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                            });
+
+                            const legendContainer = document.getElementById('chart-legend');
+                            legendContainer.innerHTML = activeStats.map(item => `
+                                <div class="flex items-center justify-between w-full mb-1.5">
+                                    <div class="flex items-center">
+                                        <span class="inline-block w-2 h-2 rounded-full mr-2.5 flex-shrink-0" style="background-color: ${item.color};"></span>
+                                        <span class="truncate text-[10px] md:text-[11px]">${item.label}</span>
+                                    </div>
+                                    <span class="font-bold text-[10px] text-white bg-white/10 px-2 py-0.5 rounded ml-2">${item.value}</span>
+                                </div>
+                            `).join('');
+                            document.getElementById('chart-loader').classList.add('hidden');
+                            document.getElementById('chart-container').classList.replace('hidden', 'flex');
+                        }
+                    }
+                } catch (e) { console.error(e); }
+            }
+            loadChartStats();
+
+        });
+    </script>
+</body>
+</html>

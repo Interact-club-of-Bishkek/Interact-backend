@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Project, YearResult
+from .models import FAQ, Partner, Project, TeamMember, YearResult, HeroSlide
 from directions.models import ProjectDirection
 from django.utils import timezone
 
@@ -72,3 +72,26 @@ class YearResultSerializer(serializers.ModelSerializer):
     class Meta:
         model = YearResult
         fields = '__all__'
+
+
+
+class HeroSlideSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HeroSlide
+        fields = ['id', 'badge', 'title', 'description', 'image', 'button_text', 'button_url']
+
+
+class TeamMemberSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TeamMember
+        fields = '__all__'
+
+class FAQSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FAQ
+        fields = '__all__'
+
+class PartnerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Partner
+        fields = ['id', 'name', 'logo', 'link']

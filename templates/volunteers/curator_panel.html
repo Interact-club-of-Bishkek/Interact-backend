@@ -199,6 +199,33 @@
         </div>
     </div>
 
+    <div id="penaltyModal" class="hidden fixed inset-0 bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 z-[400]">
+        <div class="glass-card w-full max-w-sm p-8 text-center bg-[#0f172a] border border-orange-500/20 shadow-[0_0_50px_rgba(249,115,22,0.15)] relative transform transition-all scale-100">
+            <div class="w-16 h-16 rounded-full bg-orange-500/10 flex items-center justify-center mx-auto mb-6 border border-orange-500/20 shadow-[0_0_20px_rgba(249,115,22,0.1)]">
+                <i class="fas fa-exclamation-triangle text-2xl text-orange-500"></i>
+            </div>
+            
+            <h3 class="text-xl font-black uppercase italic text-white mb-2">Выписать штраф</h3>
+            <p class="text-xs text-gray-400 mb-6">Кому: <span id="penaltyVolName" class="text-white font-bold">...</span></p>
+
+            <div class="text-left space-y-4 mb-8">
+                <div>
+                    <label class="text-[10px] font-bold text-gray-500 uppercase ml-1 block mb-1">Сколько баллов списать?</label>
+                    <input type="number" id="penaltyPoints" class="w-full bg-[#1e293b] border border-white/10 rounded-xl px-4 py-3 text-orange-400 font-black text-lg focus:border-orange-500 focus:outline-none transition appearance-none" placeholder="Например: 5" min="0.5" step="0.5">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-gray-500 uppercase ml-1 block mb-1">Причина (опционально)</label>
+                    <input type="text" id="penaltyReason" class="w-full bg-[#1e293b] border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-orange-500 focus:outline-none transition" placeholder="Пропуск смены, опоздание...">
+                </div>
+            </div>
+
+            <div class="flex gap-3">
+                <button onclick="closePenaltyModal()" class="flex-1 py-3 bg-white/5 hover:bg-white/10 text-gray-400 font-bold uppercase rounded-xl text-[10px] transition">Отмена</button>
+                <button onclick="submitPenalty()" id="btnConfirmPenalty" class="flex-1 py-3 bg-orange-500 hover:bg-orange-600 text-white font-black uppercase rounded-xl text-[10px] shadow-lg shadow-orange-500/20 transition transform active:scale-95">Списать баллы</button>
+            </div>
+        </div>
+    </div>
+
     <div id="searchModal" class="hidden fixed inset-0 bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 z-[300]">
         <div class="glass-card w-full max-w-lg p-0 relative bg-[#0b1121] border-primary/20 flex flex-col max-h-[90vh] overflow-hidden">
             <div class="p-6 border-b border-white/5 bg-[#0f172a]">
@@ -251,6 +278,13 @@
     </div>
 
     <script>
+
+    function formatPoints(num) {
+        const val = parseFloat(num || 0);
+        // Если число целое (напр. 10.0), вернет "10", если дробное (напр. 10.5), вернет "10.5"
+        return Number.isInteger(val) ? val.toString() : val.toFixed(1);
+    }
+
     const token = localStorage.getItem('access');
     const API = {
         profile: '/api/profile/',
@@ -276,6 +310,7 @@
 
     let selectedVolIds = new Set();
     let deleteTarget = { volId: null, cmdId: null };
+    let penaltyTargetId = null;
 
     let questionMap = {};
     const extractId = (obj, fieldName) => {
@@ -383,37 +418,27 @@
     //  ЛОГИКА ТАБЛИЦЫ ВОЛОНТЕРОВ И УДАЛЕНИЯ
     // ============================================
 
-    function renderVolunteers() {
+function renderVolunteers() {
         const table = document.getElementById('vTable');
         if (!table) return;
 
         const isAdmin = state.user.role === 'admin';
         const isCurator = state.user.role === 'curator';
-        
-        // Получаем ID твоих направлений из профиля
         const myDirIds = getIds(state.user.direction); 
         const myManagedTeamIds = state.myManagedTeams.map(t => String(t.id));
 
         let myVolunteers = [];
-
         if (isAdmin) {
-            // Админ видит всех
             myVolunteers = state.volunteers;
         } else if (isCurator) {
-            // 🔥 КУРАТОР: Фильтруем тех, кто относится к его направлениям
             myVolunteers = state.volunteers.filter(v => {
                 const vDirIds = getIds(v.direction);
-                // Если у волонтера есть направление, совпадающее с кураторским
                 const hasDirMatch = vDirIds.some(id => myDirIds.includes(id));
-                
-                // Также на всякий случай проверяем, не в твоей ли он команде (managed)
                 const vCmdIds = getIds(v.volunteer_commands || v.commands);
                 const hasCmdMatch = vCmdIds.some(id => myManagedTeamIds.includes(id));
-
                 return hasDirMatch || hasCmdMatch;
             });
         } else {
-            // ТИМЛИД: Видит только тех, кто в его командах
             myVolunteers = state.volunteers.filter(v => {
                 const vCmdIds = getIds(v.volunteer_commands || v.commands);
                 return vCmdIds.some(id => myManagedTeamIds.includes(id));
@@ -421,54 +446,62 @@
         }
 
         table.innerHTML = myVolunteers.map(v => {
-            const totalPoints = parseFloat(v.point || 0).toFixed(1);
-            const localPoints = parseFloat(v.local_points || 0).toFixed(1);
-            const vCommands = v.volunteer_commands || v.commands || [];
+            // ГЛАВНОЕ ИСПРАВЛЕНИЕ: берем calculated_total из твоего нового Serializer
+            const totalPoints = formatPoints(v.calculated_total); 
+            const localPoints = formatPoints(v.local_points);
             
-            // Для кнопки удаления: ищем команду, которой управляет текущий юзер
+            const vCommands = v.volunteer_commands || v.commands || [];
             const myManagedIds = state.myManagedTeams.map(t => String(t.id));
             const targetCmd = vCommands.find(c => myManagedIds.includes(String(c.id || c)));
             const targetCmdId = targetCmd ? String(targetCmd.id || targetCmd) : null;
             const targetCmdName = targetCmd ? (targetCmd.title || 'Команда') : 'Команда';
-            
             const safeName = (v.name || v.login || 'User').replace(/'/g, "\\'");
 
             return `
             <tr class="hover:bg-white/5 transition border-b border-white/5 group">
                 <td class="py-3 px-4">
                     <div class="font-black uppercase text-sm italic text-white leading-none">${v.name || v.login || 'Без имени'}</div>
-                    <div class="text-[10px] text-gray-500 font-mono mt-1">${v.login}</div>
+                    <div class="text-[10px] text-gray-400 font-mono mt-1 tracking-tight">${v.login}</div>
                 </td>
                 <td class="py-3 px-4">
                     <div class="flex flex-wrap gap-1">
                         ${vCommands.length > 0 
-                            ? vCommands.map(c => `<span class="bg-white/5 text-gray-400 text-[8px] px-2 py-0.5 rounded font-black uppercase">${c.title || c.name || 'Команда'}</span>`).join('')
+                            ? vCommands.map(c => `<span class="bg-white/10 text-gray-300 text-[8px] px-2 py-0.5 rounded font-black uppercase border border-white/5">${c.title || c.name || 'Команда'}</span>`).join('')
                             : '<span class="text-[8px] text-gray-600 italic">Без команды</span>'
                         }
                     </div>
                 </td>
                 <td class="py-3 px-4">
-                    <div class="flex items-center gap-2">
-                        <div class="flex flex-col items-center">
-                            <span class="text-primary font-black text-sm">${localPoints}</span>
-                            <span class="text-[8px] text-primary/50 uppercase">В команде</span>
+                    <div class="flex items-center gap-3">
+                        <div class="flex flex-col items-center min-w-[40px]">
+                            <span class="text-primary font-black text-sm leading-none">${localPoints}</span>
+                            <span class="text-[7px] text-primary/60 uppercase font-bold mt-1">В команде</span>
                         </div>
-                        <span class="text-gray-600">/</span>
-                        <div class="flex flex-col items-center">
-                            <span class="text-white font-bold text-xs">${totalPoints}</span>
-                            <span class="text-[8px] text-gray-600 uppercase">Всего</span>
+                        <div class="w-[1px] h-6 bg-white/10"></div>
+                        <div class="flex flex-col items-center min-w-[40px]">
+                            <span class="text-white font-black text-sm leading-none">${totalPoints}</span>
+                            <span class="text-[7px] text-gray-500 uppercase font-bold mt-1">Всего</span>
                         </div>
                     </div>
                 </td>
-                <td class="py-3 px-4 text-right font-black ${v.yellow_card_count > 0 ? 'text-red-400' : 'text-gray-600'}">
-                    ${v.yellow_card_count || 0} <i class="fas fa-exclamation-triangle text-[10px] ml-1 opacity-50"></i>
+                <td class="py-3 px-4 text-right">
+                    <div class="inline-flex items-center gap-1 px-2 py-1 rounded bg-red-500/5 border border-red-500/10">
+                        <span class="font-black text-xs ${v.yellow_card_count > 0 ? 'text-red-500' : 'text-gray-700'}">${v.yellow_card_count || 0}</span>
+                        <i class="fas fa-exclamation-triangle text-[10px] ${v.yellow_card_count > 0 ? 'text-red-500/50' : 'text-gray-800'}"></i>
+                    </div>
                 </td>
                 <td class="py-3 px-4 text-right">
-                    ${targetCmdId ? 
-                        `<button onclick="openDeleteModal(${v.id}, ${targetCmdId}, '${safeName}', '${targetCmdName}')" 
-                            class="w-8 h-8 rounded-lg bg-white text-red-600 hover:bg-red-50 transition flex items-center justify-center border border-white ml-auto">
-                            <i class="fas fa-trash-alt text-xs"></i>
-                        </button>` : ''}
+                    <div class="flex justify-end gap-2">
+                        <button onclick="openPenaltyModal(${v.id}, '${safeName}')" 
+                            class="w-8 h-8 rounded-lg bg-orange-500/10 text-orange-500 hover:bg-orange-500 hover:text-white transition flex items-center justify-center border border-orange-500/20" title="Штраф">
+                            <i class="fas fa-minus text-xs"></i>
+                        </button>
+                        ${targetCmdId ? 
+                            `<button onclick="openDeleteModal(${v.id}, ${targetCmdId}, '${safeName}', '${targetCmdName}')" 
+                                class="w-8 h-8 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition flex items-center justify-center border border-red-500/20" title="Удалить">
+                                <i class="fas fa-trash-alt text-[10px]"></i>
+                            </button>` : ''}
+                    </div>
                 </td>
             </tr>`;
         }).join('');
@@ -522,6 +555,78 @@
         }
     }
 
+    // --- ШТРАФЫ ---
+    function openPenaltyModal(volId, volName) {
+        penaltyTargetId = volId;
+        document.getElementById('penaltyVolName').innerText = volName;
+        document.getElementById('penaltyPoints').value = '';
+        document.getElementById('penaltyReason').value = '';
+        
+        const btn = document.getElementById('btnConfirmPenalty');
+        btn.innerText = 'Списать баллы';
+        btn.disabled = false;
+        
+        document.getElementById('penaltyModal').classList.remove('hidden');
+    }
+
+    function closePenaltyModal() {
+        document.getElementById('penaltyModal').classList.add('hidden');
+        penaltyTargetId = null;
+    }
+
+// Функция для получения самого свежего токена из хранилища
+    function getFreshToken() {
+        return localStorage.getItem('access');
+    }
+
+    async function submitPenalty() {
+        if (!penaltyTargetId) return;
+        
+        const points = document.getElementById('penaltyPoints').value;
+        const reason = document.getElementById('penaltyReason').value;
+
+        if (!points || points <= 0) {
+            showToast('Укажите сумму баллов');
+            return;
+        }
+
+        const btn = document.getElementById('btnConfirmPenalty');
+        btn.innerText = 'Списание...';
+        btn.disabled = true;
+
+        try {
+            const res = await fetch(`/api/curator/penalty/`, { 
+                method: 'POST',
+                headers: { 
+                    // ВСЕГДА берем актуальный токен из localStorage прямо перед запросом
+                    'Authorization': `Bearer ${getFreshToken()}`, 
+                    'Content-Type': 'application/json' 
+                },
+                body: JSON.stringify({ 
+                    volunteer_id: penaltyTargetId,
+                    points: points, 
+                    reason: reason 
+                })
+            });
+            
+            if (res.ok) {
+                showToast(`⚠️ Баллы списаны`);
+                closePenaltyModal();
+                setTimeout(loadAllData, 500); 
+            } else if (res.status === 401) {
+                showToast('Сессия истекла. Перезайдите в аккаунт', 'error');
+                // Опционально: редирект на логин через пару секунд
+            } else {
+                const d = await res.json();
+                showToast(d.error || 'Ошибка', 'error');
+                btn.disabled = false;
+                btn.innerText = 'Повторить';
+            }
+        } catch (e) { 
+            showToast('Ошибка сети', 'error');
+            btn.disabled = false;
+        }
+    }
     // ============================================
 
     function openSearchModal() {
@@ -598,7 +703,6 @@
         
         if (count > 0) {
             btn.disabled = false;
-            // ДЕЛАЕМ КНОПКУ БЕЛОЙ (СВЕТЛОЙ)
             btn.classList.remove('bg-white/5', 'text-gray-500', 'cursor-not-allowed');
             btn.classList.add('bg-white', 'text-black', 'hover:bg-gray-200', 'shadow-[0_0_15px_rgba(255,255,255,0.2)]');
             btn.innerText = `Добавить выбранных (${count})`;
@@ -674,6 +778,7 @@
         document.getElementById('selectedLabel').innerText = title;
         filterAndRenderApps();
     }
+    
     function switchAppSubTab(tab) {
         state.appSubTab = tab;
 
@@ -965,7 +1070,7 @@
                         </div>
                         ${isFlex 
                             ? `<div class="relative flex items-center"><i class="fas fa-pen text-[10px] text-primary/30 absolute left-3 group-focus-within/input:text-primary transition-colors"></i><input type="number" id="pts-${s.id}" class="w-24 bg-[#0f172a] border-2 border-primary/20 rounded-xl pl-8 pr-3 py-2 text-primary font-black text-lg outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all hover:bg-[#1e293b] appearance-none" value="${s.task_details.points}" step="0.5"></div>`
-                            : `<div class="score-badge text-xl px-4 py-2 bg-primary/10 border border-primary/20 rounded-xl">+${parseFloat(s.task_details?.points || 0)}</div>`
+                            : `<div class="score-badge text-xl px-4 py-2 bg-primary/10 border border-primary/20 rounded-xl">${s.task_details?.points > 0 ? '+' : ''}${formatPoints(s.task_details?.points)}</div>`
                         }
                     </div>
                     <div class="grid grid-cols-2 gap-2">
@@ -976,6 +1081,7 @@
             </div>`;
         }).join('');
     }
+
     function switchTab(tab) {
         document.querySelectorAll('.section-view').forEach(s => s.classList.add('hidden'));
         document.getElementById(`sec${tab.charAt(0).toUpperCase()+tab.slice(1)}`).classList.remove('hidden');
