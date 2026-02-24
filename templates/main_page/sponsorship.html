@@ -78,6 +78,17 @@
         .accordion-content.open {
             opacity: 1;
         }
+
+        @media (max-width: 768px) {
+            #requisites-text + button {
+                position: relative !important;
+                top: auto;
+                right: auto;
+                margin-top: 1rem;
+                width: 100%;
+                text-align: center;
+            }
+        }
         
         body { -webkit-tap-highlight-color: transparent; }
         .toast-enter { transform: translateY(0); opacity: 1; }
@@ -90,11 +101,13 @@
         <div class="absolute inset-0 bg-black/90 backdrop-blur-md -z-10 opacity-0 transition-opacity duration-300" id="navbar-bg"></div>
         <div class="container mx-auto px-4 md:px-6 flex justify-between items-center relative z-20">
             
-            <a href="{% url 'main' %}" class="flex items-center gap-2 md:gap-3 cursor-pointer group">
-                <img src="{% static 'img/logo.png' %}" alt="Interact Club of Bishkek" class="w-9 h-9 md:w-10 md:h-10 rounded-full object-cover border border-white/10">
-                <span class="font-header font-bold text-lg md:text-xl uppercase tracking-wide group-hover:text-light-blue transition pt-1 hidden sm:block">Interact club of Bishkek</span>
+            <a href="{% url 'main' %}" class="flex items-center gap-2 md:gap-3 cursor-pointer group max-w-[calc(100%-60px)] overflow-hidden">
+                <img src="{% static 'img/logo.png' %}" alt="Interact Club of Bishkek" class="w-9 h-9 md:w-10 md:h-10 rounded-full object-cover border border-white/10 flex-shrink-0">
+                <span class="font-header font-bold text-lg md:text-xl uppercase tracking-wide group-hover:text-light-blue transition pt-1 break-words max-w-[120px] sm:max-w-[180px] md:max-w-[250px]">
+                    Interact club of Bishkek
+                </span>
             </a>
-                
+                            
             <nav class="hidden lg:flex items-center gap-8">
                 <a href="{% url 'about-html' %}" class="text-base font-medium hover:text-light-blue transition">О нас</a>
                 <a href="{% url 'projects-list-html' %}" class="text-base font-medium hover:text-light-blue transition">Проекты</a>
@@ -127,12 +140,21 @@
     </header>
 
     <main class="flex-grow pt-[72px] md:pt-[88px]">
-        <section class="relative h-[40vh] sm:h-[50vh] md:h-screen flex items-center justify-center overflow-hidden">
+        <section class="relative min-h-[60vh] sm:min-h-[70vh] md:h-screen flex items-center justify-center overflow-hidden px-4">
+            <!-- Тёмный overlay -->
             <div class="absolute inset-0 bg-black/40 z-10"></div>
-            <img src="{% static 'img/sponsor.jpg' %}" class="absolute inset-0 w-full h-full object-cover opacity-40" alt="Charity Support">
-            <div class="container mx-auto px-6 relative z-20 text-center reveal active">
-                <h1 class="text-5xl md:text-8xl font-header font-bold uppercase mb-4 text-white drop-shadow-lg">Благотворителям</h1>
-                <p class="max-w-2xl mx-auto text-gray-200 text-sm md:text-lg font-light leading-relaxed">
+
+            <!-- Фоновое изображение -->
+            <img src="{% static 'img/sponsor.jpg' %}" 
+                class="absolute inset-0 w-full h-full object-cover opacity-40"
+                alt="Charity Support">
+
+            <!-- Контент -->
+            <div class="container mx-auto px-4 md:px-6 relative z-20 text-center">
+                <h1 class="text-3xl xs:text-4xl sm:text-5xl md:text-7xl font-header font-bold uppercase mb-4 text-white drop-shadow-lg break-words">
+                    Благотворителям
+                </h1>
+                <p class="max-w-2xl mx-auto text-gray-200 text-sm sm:text-base md:text-lg font-light leading-relaxed">
                     Ваша поддержка помогает нам менять мир к лучшему и реализовывать значимые проекты.
                 </p>
             </div>
