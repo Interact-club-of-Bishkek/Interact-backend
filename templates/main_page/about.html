@@ -143,35 +143,46 @@
             </div>
         </section>
 
-        <section class="pb-12 md:pb-20 bg-black px-4">
-            <div class="flex flex-col md:flex-row justify-center items-start gap-6 md:gap-8 max-w-6xl mx-auto">
-
-                <div class="w-full md:w-1/2 max-w-[450px] mx-auto">
-                    <div class="relative w-full rounded-xl overflow-hidden border border-white/10 bg-white shadow-2xl aspect-[1/1.414]">
-                        <iframe 
-                            src="{% static 'files/gos_doc-1.pdf' %}#view=FitH" 
-                            class="absolute top-0 left-0 w-full h-full border-none"
-                            title="Страница 1">
-                        </iframe>
-                    </div>
-                    <a href="{% static 'files/gos_doc-1.pdf' %}" target="_blank" class="mt-4 flex items-center justify-center gap-2 text-xs text-gray-400 hover:text-white transition uppercase tracking-widest font-bold">
-                        <i class="fas fa-expand-alt"></i> Открыть полностью
-                    </a>
+        <section class="py-12 md:py-20 bg-black border-t border-white/5">
+            <div class="container mx-auto px-4 md:px-6 reveal active">
+                
+                <div class="text-center mb-10 md:mb-14">
+                    <span class="text-royal-blue font-bold tracking-widest uppercase text-[10px] md:text-xs mb-2 block">Официальный статус</span>
+                    <h2 class="text-3xl md:text-5xl font-header font-bold text-white uppercase tracking-tight">Мы юридически <span class="text-light-blue">заверены</span></h2>
+                    <p class="mt-4 text-gray-400 text-xs sm:text-sm md:text-base font-body max-w-lg mx-auto leading-relaxed">
+                        Наша благотворительная деятельность официально зарегистрирована. Мы работаем прозрачно, открыто и несем полную ответственность.
+                    </p>
                 </div>
 
-                <div class="w-full md:w-1/2 max-w-[450px] mx-auto mt-4 md:mt-0">
-                    <div class="relative w-full rounded-xl overflow-hidden border border-white/10 bg-white shadow-2xl aspect-[1/1.414]">
-                        <iframe 
-                            src="{% static 'files/gos_doc-2.pdf' %}#view=FitH" 
-                            class="absolute top-0 left-0 w-full h-full border-none"
-                            title="Страница 2">
-                        </iframe>
-                    </div>
-                    <a href="{% static 'files/gos_doc-2.pdf' %}" target="_blank" class="mt-4 flex items-center justify-center gap-2 text-xs text-gray-400 hover:text-white transition uppercase tracking-widest font-bold">
-                        <i class="fas fa-expand-alt"></i> Открыть полностью
-                    </a>
-                </div>
+                <div class="flex flex-col md:flex-row justify-center items-center gap-8 md:gap-12">
 
+                    <div class="relative w-full max-w-[260px] md:max-w-[300px] aspect-[1/1.414] rounded-xl overflow-hidden shadow-2xl border border-white/10 hover:scale-105 hover:border-royal-blue/50 transition-all duration-300 bg-white group">
+                        
+                        <iframe src="{% static 'files/gos_doc-1.pdf' %}#toolbar=0&navpanes=0&view=FitH" 
+                                class="absolute top-0 left-0 w-full h-full border-none pointer-events-none"
+                                title="Свидетельство 1"></iframe>
+                        
+                        <a href="{% static 'files/gos_doc-1.pdf' %}" target="_blank" rel="noopener noreferrer" class="absolute inset-0 z-10 flex items-center justify-center bg-black/0 group-hover:bg-black/40 transition-colors duration-300">
+                            <span class="opacity-0 group-hover:opacity-100 bg-royal-blue text-white px-5 py-2.5 rounded-lg text-xs font-bold tracking-wider uppercase transition-opacity shadow-lg">
+                                <i class="fas fa-external-link-alt mr-2"></i> Открыть
+                            </span>
+                        </a>
+                    </div>
+
+                    <div class="relative w-full max-w-[260px] md:max-w-[300px] aspect-[1/1.414] rounded-xl overflow-hidden shadow-2xl border border-white/10 hover:scale-105 hover:border-royal-blue/50 transition-all duration-300 bg-white group">
+                        
+                        <iframe src="{% static 'files/gos_doc-2.pdf' %}#toolbar=0&navpanes=0&view=FitH" 
+                                class="absolute top-0 left-0 w-full h-full border-none pointer-events-none"
+                                title="Свидетельство 2"></iframe>
+                        
+                        <a href="{% static 'files/gos_doc-2.pdf' %}" target="_blank" rel="noopener noreferrer" class="absolute inset-0 z-10 flex items-center justify-center bg-black/0 group-hover:bg-black/40 transition-colors duration-300">
+                            <span class="opacity-0 group-hover:opacity-100 bg-royal-blue text-white px-5 py-2.5 rounded-lg text-xs font-bold tracking-wider uppercase transition-opacity shadow-lg">
+                                <i class="fas fa-external-link-alt mr-2"></i> Открыть
+                            </span>
+                        </a>
+                    </div>
+
+                </div>
             </div>
         </section>
 

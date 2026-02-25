@@ -310,22 +310,26 @@ class VolunteerListView(generics.ListAPIView):
         qs = Volunteer.objects.prefetch_related('direction', 'volunteer_commands')
 
         qs = qs.annotate(
-            # Считаем ВСЕ баллы волонтера по истории (не берем из поля point)
-            calculated_total=Coalesce(
-                Sum('submissions__points_awarded', filter=Q(submissions__status='approved')),
-                Value(0),
-                output_field=DecimalField()
-            ),
-            # Считаем баллы в твоих командах
-            local_points=Coalesce(
-                Sum('submissions__points_awarded', 
-                    filter=Q(submissions__command__in=managed_commands, submissions__status='approved')
-                ), 
-                Value(0), 
-                output_field=DecimalField()
-            ),
-            yellow_card_count=Count('yellow_cards', distinct=True)
-        )
+                    # Считаем ВСЕ баллы волонтера по истории (points_awarded ИЛИ task__points)
+                    calculated_total=Coalesce(
+                        Sum(
+                            Coalesce('submissions__points_awarded', 'submissions__task__points', output_field=DecimalField()), 
+                            filter=Q(submissions__status='approved')
+                        ),
+                        Value(0),
+                        output_field=DecimalField()
+                    ),
+                    # Считаем баллы в твоих командах
+                    local_points=Coalesce(
+                        Sum(
+                            Coalesce('submissions__points_awarded', 'submissions__task__points', output_field=DecimalField()), 
+                            filter=Q(submissions__command__in=managed_commands, submissions__status='approved')
+                        ), 
+                        Value(0), 
+                        output_field=DecimalField()
+                    ),
+                    yellow_card_count=Count('yellow_cards', distinct=True)
+                )
         return qs.order_by('name')
 
 

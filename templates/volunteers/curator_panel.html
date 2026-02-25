@@ -418,94 +418,99 @@
     //  ЛОГИКА ТАБЛИЦЫ ВОЛОНТЕРОВ И УДАЛЕНИЯ
     // ============================================
 
-function renderVolunteers() {
-        const table = document.getElementById('vTable');
-        if (!table) return;
+    function renderVolunteers() {
+            const table = document.getElementById('vTable');
+            if (!table) return;
 
-        const isAdmin = state.user.role === 'admin';
-        const isCurator = state.user.role === 'curator';
-        const myDirIds = getIds(state.user.direction); 
-        const myManagedTeamIds = state.myManagedTeams.map(t => String(t.id));
+            const isAdmin = state.user.role === 'admin';
+            const isCurator = state.user.role === 'curator';
+            const myDirIds = getIds(state.user.direction); 
+            const myManagedTeamIds = state.myManagedTeams.map(t => String(t.id));
 
-        let myVolunteers = [];
-        if (isAdmin) {
-            myVolunteers = state.volunteers;
-        } else if (isCurator) {
-            myVolunteers = state.volunteers.filter(v => {
-                const vDirIds = getIds(v.direction);
-                const hasDirMatch = vDirIds.some(id => myDirIds.includes(id));
-                const vCmdIds = getIds(v.volunteer_commands || v.commands);
-                const hasCmdMatch = vCmdIds.some(id => myManagedTeamIds.includes(id));
-                return hasDirMatch || hasCmdMatch;
-            });
-        } else {
-            myVolunteers = state.volunteers.filter(v => {
-                const vCmdIds = getIds(v.volunteer_commands || v.commands);
-                return vCmdIds.some(id => myManagedTeamIds.includes(id));
-            });
+            let myVolunteers = [];
+            if (isAdmin) {
+                myVolunteers = state.volunteers;
+            } else if (isCurator) {
+                myVolunteers = state.volunteers.filter(v => {
+                    // ИСКЛЮЧАЕМ САМОГО СЕБЯ
+                    if (String(v.id) === String(state.user.id)) return false;
+                    
+                    const vDirIds = getIds(v.direction);
+                    const hasDirMatch = vDirIds.some(id => myDirIds.includes(id));
+                    const vCmdIds = getIds(v.volunteer_commands || v.commands);
+                    const hasCmdMatch = vCmdIds.some(id => myManagedTeamIds.includes(id));
+                    return hasDirMatch || hasCmdMatch;
+                });
+            } else {
+                myVolunteers = state.volunteers.filter(v => {
+                    // ИСКЛЮЧАЕМ САМОГО СЕБЯ
+                    if (String(v.id) === String(state.user.id)) return false;
+
+                    const vCmdIds = getIds(v.volunteer_commands || v.commands);
+                    return vCmdIds.some(id => myManagedTeamIds.includes(id));
+                });
+            }
+
+            table.innerHTML = myVolunteers.map(v => {
+                const totalPoints = formatPoints(v.calculated_total); 
+                const localPoints = formatPoints(v.local_points);
+                
+                const vCommands = v.volunteer_commands || v.commands || [];
+                const myManagedIds = state.myManagedTeams.map(t => String(t.id));
+                const targetCmd = vCommands.find(c => myManagedIds.includes(String(c.id || c)));
+                const targetCmdId = targetCmd ? String(targetCmd.id || targetCmd) : null;
+                const targetCmdName = targetCmd ? (targetCmd.title || 'Команда') : 'Команда';
+                const safeName = (v.name || v.login || 'User').replace(/'/g, "\\'");
+
+                return `
+                <tr class="hover:bg-white/5 transition border-b border-white/5 group">
+                    <td class="py-3 px-4">
+                        <div class="font-black uppercase text-sm italic text-white leading-none">${v.name || v.login || 'Без имени'}</div>
+                        <div class="text-[10px] text-gray-400 font-mono mt-1 tracking-tight">${v.login}</div>
+                    </td>
+                    <td class="py-3 px-4">
+                        <div class="flex flex-wrap gap-1">
+                            ${vCommands.length > 0 
+                                ? vCommands.map(c => `<span class="bg-white/10 text-gray-300 text-[8px] px-2 py-0.5 rounded font-black uppercase border border-white/5">${c.title || c.name || 'Команда'}</span>`).join('')
+                                : '<span class="text-[8px] text-gray-600 italic">Без команды</span>'
+                            }
+                        </div>
+                    </td>
+                    <td class="py-3 px-4">
+                        <div class="flex items-center gap-3">
+                            <div class="flex flex-col items-center min-w-[40px]">
+                                <span class="text-primary font-black text-sm leading-none">${localPoints}</span>
+                                <span class="text-[7px] text-primary/60 uppercase font-bold mt-1">В команде</span>
+                            </div>
+                            <div class="w-[1px] h-6 bg-white/10"></div>
+                            <div class="flex flex-col items-center min-w-[40px]">
+                                <span class="text-white font-black text-sm leading-none">${totalPoints}</span>
+                                <span class="text-[7px] text-gray-500 uppercase font-bold mt-1">Всего</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="py-3 px-4 text-right">
+                        <div class="inline-flex items-center gap-1 px-2 py-1 rounded bg-red-500/5 border border-red-500/10">
+                            <span class="font-black text-xs ${v.yellow_card_count > 0 ? 'text-red-500' : 'text-gray-700'}">${v.yellow_card_count || 0}</span>
+                            <i class="fas fa-exclamation-triangle text-[10px] ${v.yellow_card_count > 0 ? 'text-red-500/50' : 'text-gray-800'}"></i>
+                        </div>
+                    </td>
+                    <td class="py-3 px-4 text-right">
+                        <div class="flex justify-end gap-2">
+                            <button onclick="openPenaltyModal(${v.id}, '${safeName}')" 
+                                class="w-8 h-8 rounded-lg bg-orange-500/10 text-orange-500 hover:bg-orange-500 hover:text-white transition flex items-center justify-center border border-orange-500/20" title="Штраф">
+                                <i class="fas fa-minus text-xs"></i>
+                            </button>
+                            ${targetCmdId ? 
+                                `<button onclick="openDeleteModal(${v.id}, ${targetCmdId}, '${safeName}', '${targetCmdName}')" 
+                                    class="w-8 h-8 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition flex items-center justify-center border border-red-500/20" title="Удалить">
+                                    <i class="fas fa-trash-alt text-[10px]"></i>
+                                </button>` : ''}
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
         }
-
-        table.innerHTML = myVolunteers.map(v => {
-            // ГЛАВНОЕ ИСПРАВЛЕНИЕ: берем calculated_total из твоего нового Serializer
-            const totalPoints = formatPoints(v.calculated_total); 
-            const localPoints = formatPoints(v.local_points);
-            
-            const vCommands = v.volunteer_commands || v.commands || [];
-            const myManagedIds = state.myManagedTeams.map(t => String(t.id));
-            const targetCmd = vCommands.find(c => myManagedIds.includes(String(c.id || c)));
-            const targetCmdId = targetCmd ? String(targetCmd.id || targetCmd) : null;
-            const targetCmdName = targetCmd ? (targetCmd.title || 'Команда') : 'Команда';
-            const safeName = (v.name || v.login || 'User').replace(/'/g, "\\'");
-
-            return `
-            <tr class="hover:bg-white/5 transition border-b border-white/5 group">
-                <td class="py-3 px-4">
-                    <div class="font-black uppercase text-sm italic text-white leading-none">${v.name || v.login || 'Без имени'}</div>
-                    <div class="text-[10px] text-gray-400 font-mono mt-1 tracking-tight">${v.login}</div>
-                </td>
-                <td class="py-3 px-4">
-                    <div class="flex flex-wrap gap-1">
-                        ${vCommands.length > 0 
-                            ? vCommands.map(c => `<span class="bg-white/10 text-gray-300 text-[8px] px-2 py-0.5 rounded font-black uppercase border border-white/5">${c.title || c.name || 'Команда'}</span>`).join('')
-                            : '<span class="text-[8px] text-gray-600 italic">Без команды</span>'
-                        }
-                    </div>
-                </td>
-                <td class="py-3 px-4">
-                    <div class="flex items-center gap-3">
-                        <div class="flex flex-col items-center min-w-[40px]">
-                            <span class="text-primary font-black text-sm leading-none">${localPoints}</span>
-                            <span class="text-[7px] text-primary/60 uppercase font-bold mt-1">В команде</span>
-                        </div>
-                        <div class="w-[1px] h-6 bg-white/10"></div>
-                        <div class="flex flex-col items-center min-w-[40px]">
-                            <span class="text-white font-black text-sm leading-none">${totalPoints}</span>
-                            <span class="text-[7px] text-gray-500 uppercase font-bold mt-1">Всего</span>
-                        </div>
-                    </div>
-                </td>
-                <td class="py-3 px-4 text-right">
-                    <div class="inline-flex items-center gap-1 px-2 py-1 rounded bg-red-500/5 border border-red-500/10">
-                        <span class="font-black text-xs ${v.yellow_card_count > 0 ? 'text-red-500' : 'text-gray-700'}">${v.yellow_card_count || 0}</span>
-                        <i class="fas fa-exclamation-triangle text-[10px] ${v.yellow_card_count > 0 ? 'text-red-500/50' : 'text-gray-800'}"></i>
-                    </div>
-                </td>
-                <td class="py-3 px-4 text-right">
-                    <div class="flex justify-end gap-2">
-                        <button onclick="openPenaltyModal(${v.id}, '${safeName}')" 
-                            class="w-8 h-8 rounded-lg bg-orange-500/10 text-orange-500 hover:bg-orange-500 hover:text-white transition flex items-center justify-center border border-orange-500/20" title="Штраф">
-                            <i class="fas fa-minus text-xs"></i>
-                        </button>
-                        ${targetCmdId ? 
-                            `<button onclick="openDeleteModal(${v.id}, ${targetCmdId}, '${safeName}', '${targetCmdName}')" 
-                                class="w-8 h-8 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition flex items-center justify-center border border-red-500/20" title="Удалить">
-                                <i class="fas fa-trash-alt text-[10px]"></i>
-                            </button>` : ''}
-                    </div>
-                </td>
-            </tr>`;
-        }).join('');
-    }
 
     // --- УДАЛЕНИЕ ---
     function openDeleteModal(volId, cmdId, volName, cmdName) {

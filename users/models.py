@@ -6,7 +6,7 @@ from django.utils import timezone
 # Добавляем Sum сюда:
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
-from django.db.models import Sum 
+from django.db.models import DecimalField, Sum 
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from directions.models import VolunteerDirection 
 
@@ -84,10 +84,11 @@ class Volunteer(AbstractBaseUser, PermissionsMixin):
             
     def update_total_points(self):
             """Полный пересчет баллов на основе одобренных заявок"""
-            # Считаем сумму points_awarded. 
-            # Если points_awarded была пустой (null), берем points из задачи (task)
+            # Coalesce берет points_awarded, а если там None -> берет task__points
             total = self.submissions.filter(status='approved').aggregate(
-                total=Sum('points_awarded')
+                total=Sum(
+                    Coalesce('points_awarded', 'task__points', output_field=DecimalField())
+                )
             )['total'] or 0
             
             self.point = total
