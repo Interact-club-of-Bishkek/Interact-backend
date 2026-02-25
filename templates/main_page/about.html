@@ -143,31 +143,33 @@
             </div>
         </section>
 
-        <section class="pb-12 md:pb-20 bg-black">
-            <div class="flex flex-col md:flex-row justify-center items-start gap-8">
+        <section class="pb-12 md:pb-20 bg-black px-4">
+            <div class="flex flex-col md:flex-row justify-center items-start gap-6 md:gap-8 max-w-6xl mx-auto">
 
-                <!-- Документ 1 -->
-                <div class="w-full md:w-1/2 max-w-[500px]">
-                    <div class="relative w-full rounded-xl overflow-hidden border border-white/10 bg-white shadow-2xl" style="padding-top: 141.4%;">
+                <div class="w-full md:w-1/2 max-w-[450px] mx-auto">
+                    <div class="relative w-full rounded-xl overflow-hidden border border-white/10 bg-white shadow-2xl aspect-[1/1.414]">
                         <iframe 
-                            src="{% static 'files/gos_doc-1.pdf' %}#view=FitH&toolbar=0&navpanes=0" 
+                            src="{% static 'files/gos_doc-1.pdf' %}#view=FitH" 
                             class="absolute top-0 left-0 w-full h-full border-none"
-                            title="Страница 1"
-                            style="min-height: 500px;">
+                            title="Страница 1">
                         </iframe>
                     </div>
+                    <a href="{% static 'files/gos_doc-1.pdf' %}" target="_blank" class="mt-4 flex items-center justify-center gap-2 text-xs text-gray-400 hover:text-white transition uppercase tracking-widest font-bold">
+                        <i class="fas fa-expand-alt"></i> Открыть полностью
+                    </a>
                 </div>
 
-                <!-- Документ 2 -->
-                <div class="w-full md:w-1/2 max-w-[500px] mt-8 md:mt-0">
-                    <div class="relative w-full rounded-xl overflow-hidden border border-white/10 bg-white shadow-2xl" style="padding-top: 141.4%;">
+                <div class="w-full md:w-1/2 max-w-[450px] mx-auto mt-4 md:mt-0">
+                    <div class="relative w-full rounded-xl overflow-hidden border border-white/10 bg-white shadow-2xl aspect-[1/1.414]">
                         <iframe 
-                            src="{% static 'files/gos_doc-2.pdf' %}#view=FitH&toolbar=0&navpanes=0" 
+                            src="{% static 'files/gos_doc-2.pdf' %}#view=FitH" 
                             class="absolute top-0 left-0 w-full h-full border-none"
-                            title="Страница 2"
-                            style="min-height: 500px;">
+                            title="Страница 2">
                         </iframe>
                     </div>
+                    <a href="{% static 'files/gos_doc-2.pdf' %}" target="_blank" class="mt-4 flex items-center justify-center gap-2 text-xs text-gray-400 hover:text-white transition uppercase tracking-widest font-bold">
+                        <i class="fas fa-expand-alt"></i> Открыть полностью
+                    </a>
                 </div>
 
             </div>
