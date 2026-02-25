@@ -156,31 +156,31 @@
 
                 <div class="flex flex-col md:flex-row justify-center items-center gap-8 md:gap-12">
 
-                    <div class="relative w-full max-w-[260px] md:max-w-[300px] aspect-[1/1.414] rounded-xl overflow-hidden shadow-2xl border border-white/10 hover:scale-105 hover:border-royal-blue/50 transition-all duration-300 bg-white group">
+                    <a href="{% static 'files/gos_doc-1.pdf' %}" target="_blank" rel="noopener noreferrer" 
+                    class="relative w-full max-w-[280px] md:max-w-[320px] rounded-xl overflow-hidden shadow-2xl border border-white/10 group block bg-white cursor-pointer">
                         
-                        <iframe src="{% static 'files/gos_doc-1.pdf' %}#toolbar=0&navpanes=0&view=FitH" 
-                                class="absolute top-0 left-0 w-full h-full border-none pointer-events-none"
-                                title="Свидетельство 1"></iframe>
+                        <img src="{% static 'files/gos_doc-1.jpg' %}" alt="Свидетельство 1" 
+                            class="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-105">
                         
-                        <a href="{% static 'files/gos_doc-1.pdf' %}" target="_blank" rel="noopener noreferrer" class="absolute inset-0 z-10 flex items-center justify-center bg-black/0 group-hover:bg-black/40 transition-colors duration-300">
-                            <span class="opacity-0 group-hover:opacity-100 bg-royal-blue text-white px-5 py-2.5 rounded-lg text-xs font-bold tracking-wider uppercase transition-opacity shadow-lg">
-                                <i class="fas fa-external-link-alt mr-2"></i> Открыть
+                        <div class="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/0 group-hover:bg-black/40 transition-colors duration-300">
+                            <span class="opacity-0 group-hover:opacity-100 bg-royal-blue text-white px-5 py-2.5 rounded-xl text-xs font-bold tracking-wider uppercase shadow-lg flex items-center transition-all duration-300 transform translate-y-4 group-hover:translate-y-0">
+                                <i class="fas fa-external-link-alt mr-2"></i> Открыть PDF
                             </span>
-                        </a>
-                    </div>
+                        </div>
+                    </a>
 
-                    <div class="relative w-full max-w-[260px] md:max-w-[300px] aspect-[1/1.414] rounded-xl overflow-hidden shadow-2xl border border-white/10 hover:scale-105 hover:border-royal-blue/50 transition-all duration-300 bg-white group">
+                    <a href="{% static 'files/gos_doc-2.pdf' %}" target="_blank" rel="noopener noreferrer" 
+                    class="relative w-full max-w-[280px] md:max-w-[320px] rounded-xl overflow-hidden shadow-2xl border border-white/10 group block bg-white cursor-pointer">
                         
-                        <iframe src="{% static 'files/gos_doc-2.pdf' %}#toolbar=0&navpanes=0&view=FitH" 
-                                class="absolute top-0 left-0 w-full h-full border-none pointer-events-none"
-                                title="Свидетельство 2"></iframe>
+                        <img src="{% static 'files/gos_doc-2.jpg' %}" alt="Свидетельство 2" 
+                            class="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-105">
                         
-                        <a href="{% static 'files/gos_doc-2.pdf' %}" target="_blank" rel="noopener noreferrer" class="absolute inset-0 z-10 flex items-center justify-center bg-black/0 group-hover:bg-black/40 transition-colors duration-300">
-                            <span class="opacity-0 group-hover:opacity-100 bg-royal-blue text-white px-5 py-2.5 rounded-lg text-xs font-bold tracking-wider uppercase transition-opacity shadow-lg">
-                                <i class="fas fa-external-link-alt mr-2"></i> Открыть
+                        <div class="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/0 group-hover:bg-black/40 transition-colors duration-300">
+                            <span class="opacity-0 group-hover:opacity-100 bg-royal-blue text-white px-5 py-2.5 rounded-xl text-xs font-bold tracking-wider uppercase shadow-lg flex items-center transition-all duration-300 transform translate-y-4 group-hover:translate-y-0">
+                                <i class="fas fa-external-link-alt mr-2"></i> Открыть PDF
                             </span>
-                        </a>
-                    </div>
+                        </div>
+                    </a>
 
                 </div>
             </div>
