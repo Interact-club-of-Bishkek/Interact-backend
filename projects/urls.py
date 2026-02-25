@@ -46,7 +46,7 @@ urlpatterns = [
     path('sponsorship/', sponsorship_page, name='sponsorship-html'),
     path('volunteer/', volunteer_page, name='volunteer-html'),
     path('privacy-policy/', privacy_page, name='privacy-html'),
-    path('test/', test_page, name='test-html'),
+    # path('test/', test_page, name='test-html'),
     path('terms-of-use/', terms_page, name='terms-html'),
 
     # 2. Последние проекты (была ошибка 404)

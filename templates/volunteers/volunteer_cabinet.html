@@ -475,7 +475,7 @@
             if (appData.my_direction.length === 0 && appData.my_commands.length === 0) sel.innerHTML = `<option value="">${t.emptyCtx}</option>`;
         }
 
-        function updateTaskDropdown() {
+function updateTaskDropdown() {
             const contextVal = document.getElementById('contextSelect').value;
             const taskSel = document.getElementById('taskSelect');
             const t = translations[currentLang];
@@ -489,14 +489,11 @@
             const relevantTasks = appData.available_tasks.filter(tk => {
                 // --- БЛОК ЖЕСТКОЙ ФИЛЬТРАЦИИ ШТРАФОВ ---
                 
-                // 1. Если баллы меньше или равны 0 — это не задача, а штраф
-                if (parseFloat(tk.points) <= 0) return false;
-
-                // 2. Если в названии есть слово "штраф" (на любом языке)
+                // Проверяем только по названию (если есть слово штраф/penalty)
                 const titleLower = (tk.title || "").toLowerCase();
                 if (titleLower.includes("штраф") || titleLower.includes("penalty")) return false;
 
-                // 3. Стандартная проверка флага (на всякий случай)
+                // Стандартная проверка флага (если бэкенд отдает is_penalty)
                 if (tk.is_penalty === true) return false;
 
                 // --- КОНЕЦ ФИЛЬТРАЦИИ ---
@@ -514,10 +511,15 @@
                 relevantTasks.forEach(tk => {
                     const displayTitle = (currentLang === 'en' && tk.title_en) ? tk.title_en : tk.title;
                     const isGen = (!tk.command_id && !tk.direction_id) ? t.general : "";
-                    taskSel.innerHTML += `<option value="${tk.id}">${displayTitle}${isGen} (+${tk.points})</option>`;
+                    
+                    // Если баллы 0 (плавающие), то пишем "(Плавающие)" вместо "(+0)"
+                    const pointsDisplay = parseFloat(tk.points) > 0 ? `(+${tk.points})` : "(Гибкие баллы)";
+                    
+                    taskSel.innerHTML += `<option value="${tk.id}">${displayTitle}${isGen} ${pointsDisplay}</option>`;
                 });
             }
         }
+        
         function renderTables() {
             const container = document.getElementById('tablesContainer');
             const t = translations[currentLang];
