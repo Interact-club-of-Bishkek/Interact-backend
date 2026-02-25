@@ -19,7 +19,7 @@ from .views import (
     FAQListView,
     sponsorship_page,
     terms_page,
-    test_page,
+    # test_page,
     volunteer_page
 )
 
