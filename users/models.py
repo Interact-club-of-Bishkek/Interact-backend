@@ -9,6 +9,7 @@ from django.dispatch import receiver
 from django.db.models import DecimalField, Sum 
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from directions.models import VolunteerDirection 
+from django.db.models.functions import Coalesce
 
 # --- МЕНЕДЖЕР ПОЛЬЗОВАТЕЛЕЙ (Без изменений) ---
 class VolunteerManager(BaseUserManager):
