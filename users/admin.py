@@ -108,7 +108,11 @@ class VolunteerAdmin(admin.ModelAdmin):
         )
 
     def point_display(self, obj):
-        return format_html('<span style="color: #f59e0b; font-weight: bold;">★ {}</span>', obj.point)
+            return format_html('<span style="color: #f59e0b; font-weight: bold;">★ {}</span>', obj.point)
+    
+    # 🔥 Делаем колонку сортируемой по полю 'point' в БД
+    point_display.admin_order_field = 'point' 
+    point_display.short_description = 'Баллы' # Заодно даем красивое имя колонке
 
     def is_active_icon(self, obj):
         return "✅" if obj.is_active else "❌"
