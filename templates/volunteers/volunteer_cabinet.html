@@ -578,7 +578,30 @@ function updateTaskDropdown() {
             const rows = submissions.length === 0 ? `<tr><td colspan="3" class="text-center text-gray-500 py-6 text-xs italic">${t.noRecords}</td></tr>` : submissions.map(s => {
                 const displayPoints = (s.status === 'approved' && s.points_awarded !== null) ? s.points_awarded : (s.task_details?.points || 0);
                 const taskTitle = (currentLang === 'en' && s.task_details?.title_en) ? s.task_details.title_en : (s.task_details?.title || t.delTask);
-                const dateToDisplay = s.date ? new Date(s.date).toLocaleDateString() : new Date(s.created_at).toLocaleDateString();
+                
+                // --- ПАРСИНГ ДАТЫ ---
+                const dateObj = s.date ? new Date(s.date) : new Date(s.created_at);
+                const day = dateObj.getDate().toString().padStart(2, '0');
+                // Получаем короткий месяц (Jan, Feb / Янв, Фев)
+                const monthStr = dateObj.toLocaleDateString(currentLang === 'en' ? 'en-US' : 'ru-RU', { month: 'short' })
+                    .replace('.', '')
+                    .slice(0, 3)
+                    .toUpperCase();
+
+                // --- ДИЗАЙН СКРОЛЛА (БУДИЛЬНИК) ---
+                const dateScrollWidget = `
+                    <div class="relative flex items-center rounded-md border border-white/10 bg-black/40 overflow-hidden w-[64px] shadow-[inset_0_4px_8px_rgba(0,0,0,0.6)] shrink-0">
+                        <div class="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/80 pointer-events-none"></div>
+                        <div class="absolute top-1/2 left-0 right-0 h-[1px] bg-white/5 -translate-y-1/2 pointer-events-none"></div>
+                        
+                        <div class="flex-1 py-1.5 flex justify-center items-center border-r border-white/5 relative z-10">
+                            <span class="text-[14px] font-black text-white leading-none tracking-tighter">${day}</span>
+                        </div>
+                        <div class="flex-1 py-1.5 flex justify-center items-center relative z-10">
+                            <span class="text-[9px] font-bold text-gray-400 uppercase leading-none">${monthStr}</span>
+                        </div>
+                    </div>
+                `;
 
                 // Кнопка отмены только для заявок в ожидании
                 const cancelBtn = s.status === 'pending' 
@@ -587,7 +610,7 @@ function updateTaskDropdown() {
 
                 return `
                     <tr>
-                        <td class="text-gray-400 font-mono text-[10px]">${dateToDisplay}</td>
+                        <td class="pr-3 align-top pt-1 w-[75px]">${dateScrollWidget}</td>
                         <td>
                             <div class="font-bold text-white text-xs md:text-sm">${taskTitle}</div>
                             <div class="mt-1">${getStatusBadge(s.status, s.status_display)}</div>
@@ -612,18 +635,40 @@ function updateTaskDropdown() {
                         </div>
                     </div>
                     <div class="overflow-x-auto">
-                        <table class="custom-table">${rows}</table>
+                        <table class="custom-table w-full text-left">${rows}</table>
                     </div>
                 </div>`;
         }
-            
+
         function createPenaltyTableHTML(penalties) {
             const t = translations[currentLang];
             const rows = penalties.map(p => {
-                const date = new Date(p.created_at).toLocaleDateString();
+                // Парсинг даты для штрафов
+                const dateObj = new Date(p.created_at);
+                const day = dateObj.getDate().toString().padStart(2, '0');
+                const monthStr = dateObj.toLocaleDateString(currentLang === 'en' ? 'en-US' : 'ru-RU', { month: 'short' })
+                    .replace('.', '')
+                    .slice(0, 3)
+                    .toUpperCase();
+
+                // Скролл-виджет в красных тонах
+                const dateScrollWidget = `
+                    <div class="relative flex items-center rounded-md border border-red-500/20 bg-red-950/40 overflow-hidden w-[64px] shadow-[inset_0_4px_8px_rgba(0,0,0,0.6)] shrink-0">
+                        <div class="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/80 pointer-events-none"></div>
+                        <div class="absolute top-1/2 left-0 right-0 h-[1px] bg-red-500/10 -translate-y-1/2 pointer-events-none"></div>
+                        
+                        <div class="flex-1 py-1.5 flex justify-center items-center border-r border-red-500/10 relative z-10">
+                            <span class="text-[14px] font-black text-red-500 leading-none tracking-tighter">${day}</span>
+                        </div>
+                        <div class="flex-1 py-1.5 flex justify-center items-center relative z-10">
+                            <span class="text-[9px] font-bold text-red-400/80 uppercase leading-none">${monthStr}</span>
+                        </div>
+                    </div>
+                `;
+
                 return `
                     <tr>
-                        <td class="text-red-500/50 font-mono text-[10px]">${date}</td>
+                        <td class="pr-3 align-top pt-1 w-[75px]">${dateScrollWidget}</td>
                         <td>
                             <div class="font-bold text-red-400 text-xs md:text-sm uppercase italic">Штраф / Penalty</div>
                             <div class="text-[10px] text-gray-500 mt-1">${p.description || 'Нарушение регламента'}</div>
@@ -640,7 +685,7 @@ function updateTaskDropdown() {
                         <i class="fas fa-gavel text-red-500 text-xs"></i>
                         <h2 class="text-sm font-black italic uppercase text-red-500 tracking-widest">Нарушения и взыскания</h2>
                     </div>
-                    <table class="custom-table">${rows}</table>
+                    <table class="custom-table w-full text-left">${rows}</table>
                 </div>`;
         }
         function getStatusBadge(status, text) {
