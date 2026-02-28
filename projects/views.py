@@ -109,7 +109,7 @@ class PartnerListView(generics.ListAPIView):
     permission_classes = [AllowAny]
     # HTML Views
 def main_page(request):
-    return render(request, 'main_page/test.html')
+    return render(request, 'main_page/main.html')
 
 # def test_page(request):
 #     return render(request, 'main_page/test.html')
