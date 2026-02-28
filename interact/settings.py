@@ -61,7 +61,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     'django.contrib.sites', # Убедись, что это тоже есть (обычно нужно для sitemap)
-    'django.contrib.sitemaps'
+    'django.contrib.sitemaps',
 
     'rest_framework',
 
