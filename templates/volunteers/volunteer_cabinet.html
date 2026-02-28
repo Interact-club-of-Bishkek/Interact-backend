@@ -40,31 +40,46 @@
             background-repeat: no-repeat; background-position: right 1rem center; background-size: 1.2em; padding-right: 2.5rem;
         }
 
-        .hide-scrollbar {
-            -ms-overflow-style: none;
+        .picker-viewport {
+            position: relative;
+            display: flex;
+            height: 120px;
+            width: 100%;
+            max-width: 200px; /* Твой размер */
+            margin: 0 auto 16px;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+            /* Маска: делает края прозрачными, а центр 100% четким */
+            -webkit-mask-image: linear-gradient(to bottom, transparent, black 40%, black 60%, transparent);
+            mask-image: linear-gradient(to bottom, transparent, black 40%, black 60%, transparent);
+        }
+
+        /* Колонки */
+        .picker-column {
+            flex: 1 0 50%; /* Запрещаем менять ширину */
+            height: 100%;
+            overflow-y: scroll;
+            scroll-snap-type: y mandatory;
             scrollbar-width: none;
-            /* Создаем мягкое затухание по краям прямо через маску */
-            -webkit-mask-image: linear-gradient(
-                to bottom,
-                transparent,
-                black 20%,
-                black 80%,
-                transparent
-            );
-            mask-image: linear-gradient(
-                to bottom,
-                transparent,
-                black 20%,
-                black 80%,
-                transparent
-            );
+            -ms-overflow-style: none;
         }
-        .hide-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
-        #scroll-days, #scroll-months {
-            scroll-snap-type: y mandatory; /* Заставляет скролл останавливаться ровно на элементе */
-            overscroll-behavior-y: contain;
+        .picker-column::-webkit-scrollbar { display: none; }
+
+        /* Та самая рамка (линза) */
+        .picker-selection {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 40px;
+            transform: translateY(-50%);
+            background: rgba(0, 198, 255, 0.05); /* Твой primary */
+            border-top: 1px solid rgba(0, 198, 255, 0.3);
+            border-bottom: 1px solid rgba(0, 198, 255, 0.3);
+            pointer-events: none;
+            z-index: 10;
         }
 
         .scroll-item {
@@ -72,25 +87,28 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            scroll-snap-align: center; /* Центрирует элемент при остановке */
-            scroll-snap-stop: always;
-            transition: all 0.3s cubic-bezier(0.2, 1, 0.3, 1);
-            cursor: pointer;
+            scroll-snap-align: center;
+            transition: all 0.2s ease;
+            user-select: none;
         }
-        /* Эффект увеличения активного элемента в центре */
+
+        /* Активное состояние — ЧЕТКОЕ */
         .scroll-item.active {
             color: var(--primary);
-            transform: scale(1.2);
-            font-weight: 900;
-            text-shadow: 0 0 15px rgba(0, 198, 255, 0.5);
-            filter: blur(0);
+            font-weight: 800;
+            transform: scale(1.1);
             opacity: 1;
+            filter: none; /* Убираем блюр нафиг */
         }
+
+        /* Неактивное состояние — ПРОЗРАЧНОЕ */
         .scroll-item:not(.active) {
-            color: rgba(255,255,255,0.2);
-            filter: blur(0.5px);
+            color: white;
+            opacity: 0.2;
+            transform: scale(0.9);
+            filter: none; /* Убираем мыло */
         }
-        
+            
         select.input-field:hover { border-color: rgba(0, 198, 255, 0.5); }
         select.input-field option { background-color: #0f172a; color: white; padding: 12px; }
 
@@ -230,13 +248,13 @@
                     <label class="text-[10px] font-bold text-gray-400 uppercase ml-2 mb-2 block tracking-wider" id="t-stepDate">Дата выполнения</label>
                     <input type="hidden" id="taskDate" value="">
 
-                    <div class="relative flex h-[120px] w-full max-w-[200px] mx-auto rounded-xl border border-white/10 bg-black/60 overflow-hidden shadow-[inset_0_4px_12px_rgba(0,0,0,0.7)] mb-4">
-                        <div class="absolute top-1/2 left-0 right-0 h-[40px] border-y border-primary/30 bg-primary/5 -translate-y-1/2 pointer-events-none z-10 backdrop-blur-[2px]"></div>
-                        <div class="absolute inset-0 bg-gradient-to-b from-black/90 via-transparent to-black/90 pointer-events-none z-20"></div>
+                    <div class="picker-viewport">
+                        <div class="picker-selection"></div>
 
-                        <div id="scroll-days" class="flex-1 overflow-y-scroll snap-y snap-mandatory hide-scrollbar pt-[40px] pb-[40px] text-center z-0">
+                        <div id="scroll-days" class="picker-column pt-[40px] pb-[40px] text-center">
                             </div>
-                        <div id="scroll-months" class="flex-1 overflow-y-scroll snap-y snap-mandatory hide-scrollbar pt-[40px] pb-[40px] text-center border-l border-white/5 z-0">
+
+                        <div id="scroll-months" class="picker-column pt-[40px] pb-[40px] text-center border-l border-white/5">
                             </div>
                     </div>
 
