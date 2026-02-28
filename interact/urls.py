@@ -40,28 +40,29 @@ sitemaps = {
 }
 
 # ------------------ Main URL Patterns ------------------
+# ------------------ Main URL Patterns ------------------
 urlpatterns = [
     path('admin/', admin.site.urls),
     
+    # 🔥 ПЕРЕНОСИМ SITEMAP СЮДА, НА САМЫЙ ВЕРХ!
+    path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
+
     # Подключаем роутер (ViewSet'ы)
     path('api/', include(router.urls)),
 
-    # Подключаем urls из приложений (APIViews и обычные Views)
+    # Подключаем urls из приложений
     path('', include('users.urls')),      # Auth, Profile, Board, Bot
     path('', include('projects.urls')),   # Main page, Projects API
     path('', include('teatre.urls')),     # Booking
     path('', include('logs.urls')),       # Logs
-    path('', include('commands.urls')),       # Logs
-
+    path('', include('commands.urls')),   # Commands
+    
     path('finik/', include('finik.urls')), # Payments
 
     # ------------------ Swagger ------------------
     re_path(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
-
-
-    path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
 
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT) \
   + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
