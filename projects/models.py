@@ -52,9 +52,10 @@ class Project(LoggableModel):
         verbose_name_plural = 'Проекты'
 
     def get_absolute_url(self):
-        # Обязательно замени 'project_detail' на то имя URL, 
-        # которое у тебя прописано в urls.py для страницы проекта!
-        return reverse('project_detail', args=[str(self.id)])
+            from django.urls import reverse
+            # Берем базовую ссылку на HTML-страницу и приклеиваем к ней ID проекта
+            base_url = reverse('project-details-html')
+            return f"{base_url}?id={self.id}"
 
 class Partner(models.Model):
     name = models.CharField(max_length=200, verbose_name='Название партнера')

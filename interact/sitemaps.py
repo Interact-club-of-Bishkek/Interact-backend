@@ -8,11 +8,18 @@ class StaticViewSitemap(Sitemap):
     changefreq = 'weekly'
 
     def items(self):
-        return ['home'] # твои статические пути
+        # Используем РЕАЛЬНЫЕ имена из твоего urls.py
+        return [
+            'main', 
+            'about-html', 
+            'donate-html', 
+            'volunteer-html', 
+            'sponsorship-html', 
+            'projects-list-html'
+        ]
 
     def location(self, item):
         return reverse(item)
-
 # 🔥 НОВЫЙ КЛАСС ДЛЯ ПРОЕКТОВ:
 class ProjectSitemap(Sitemap):
     changefreq = 'weekly'
