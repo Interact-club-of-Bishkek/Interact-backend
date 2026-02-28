@@ -43,23 +43,48 @@
         .hide-scrollbar {
             -ms-overflow-style: none;
             scrollbar-width: none;
+            /* Создаем мягкое затухание по краям прямо через маску */
+            -webkit-mask-image: linear-gradient(
+                to bottom,
+                transparent,
+                black 20%,
+                black 80%,
+                transparent
+            );
+            mask-image: linear-gradient(
+                to bottom,
+                transparent,
+                black 20%,
+                black 80%,
+                transparent
+            );
         }
         .hide-scrollbar::-webkit-scrollbar {
             display: none;
         }
+        #scroll-days, #scroll-months {
+            scroll-snap-type: y mandatory; /* Заставляет скролл останавливаться ровно на элементе */
+            overscroll-behavior-y: contain;
+        }
+
         .scroll-item {
             height: 40px;
             display: flex;
             align-items: center;
             justify-content: center;
-            scroll-snap-align: center;
-            transition: all 0.2s;
+            scroll-snap-align: center; /* Центрирует элемент при остановке */
+            scroll-snap-stop: always;
+            transition: all 0.3s cubic-bezier(0.2, 1, 0.3, 1);
+            cursor: pointer;
         }
         /* Эффект увеличения активного элемента в центре */
         .scroll-item.active {
-            color: #fff;
-            transform: scale(1.1);
+            color: var(--primary);
+            transform: scale(1.2);
+            font-weight: 900;
+            text-shadow: 0 0 15px rgba(0, 198, 255, 0.5);
             filter: blur(0);
+            opacity: 1;
         }
         .scroll-item:not(.active) {
             color: rgba(255,255,255,0.2);
