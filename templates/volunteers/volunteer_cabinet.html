@@ -58,7 +58,9 @@
 
         /* Колонки */
         .picker-column {
-            flex: 1 0 50%; /* Запрещаем менять ширину */
+            flex: 0 0 50%; /* Жестко 50% и не позволяем сжиматься */
+            width: 50%;    /* Дублируем для надежности */
+            min-width: 50%;
             height: 100%;
             overflow-y: scroll;
             scroll-snap-type: y mandatory;
@@ -90,8 +92,7 @@
             scroll-snap-align: center;
             transition: all 0.2s ease;
             user-select: none;
-            font-variant-numeric: tabular-nums; 
-            font-family: 'Courier New', monospace;
+            
         }
 
         /* Активное состояние — ЧЕТКОЕ */
