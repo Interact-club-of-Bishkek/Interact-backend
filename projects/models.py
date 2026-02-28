@@ -1,4 +1,5 @@
 from django.db import models
+from django.urls import reverse
 from directions.models import ProjectDirection
 from logs.loggable_model import LoggableModel
 from django.utils import timezone
@@ -50,6 +51,10 @@ class Project(LoggableModel):
         verbose_name = 'Проект'
         verbose_name_plural = 'Проекты'
 
+    def get_absolute_url(self):
+        # Обязательно замени 'project_detail' на то имя URL, 
+        # которое у тебя прописано в urls.py для страницы проекта!
+        return reverse('project_detail', args=[str(self.id)])
 
 class Partner(models.Model):
     name = models.CharField(max_length=200, verbose_name='Название партнера')

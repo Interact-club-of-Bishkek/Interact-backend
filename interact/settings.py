@@ -60,6 +60,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
+    'django.contrib.sites', # Убедись, что это тоже есть (обычно нужно для sitemap)
+    'django.contrib.sitemaps'
+
     'rest_framework',
 
     'users',
@@ -73,6 +76,8 @@ INSTALLED_APPS = [
 
 
 ]
+
+SITE_ID = 1
 
 with open(BASE_DIR / "keys/finik_private.pem", "r") as f:
     FINIK_PRIVATE_PEM = f.read()
