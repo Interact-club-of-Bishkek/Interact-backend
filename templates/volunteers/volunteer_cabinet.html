@@ -724,9 +724,22 @@
                 container.innerHTML = `<div class="glass-card text-center py-10"><p class="text-gray-400">${t.historyEmpty}</p></div>`;
             }
         }
+// НОВАЯ ФУНКЦИЯ: Открытие и закрытие деталей
+        function toggleDetails(detailId, iconId) {
+            const detailRow = document.getElementById(detailId);
+            const icon = document.getElementById(iconId);
+            
+            if (detailRow.classList.contains('hidden')) {
+                detailRow.classList.remove('hidden');
+                icon.style.transform = 'rotate(180deg)';
+            } else {
+                detailRow.classList.add('hidden');
+                icon.style.transform = 'rotate(0deg)';
+            }
+        }
+
         function createTableHTML(title, subtitle, submissions) {
             const t = translations[currentLang];
-            // Считаем только одобренные баллы
             const totalPoints = submissions
                 .filter(s => s.status === 'approved')
                 .reduce((sum, s) => sum + (s.points_awarded !== null ? parseFloat(s.points_awarded) : (parseFloat(s.task_details?.points) || 0)), 0);
@@ -735,21 +748,20 @@
                 const displayPoints = (s.status === 'approved' && s.points_awarded !== null) ? s.points_awarded : (s.task_details?.points || 0);
                 const taskTitle = (currentLang === 'en' && s.task_details?.title_en) ? s.task_details.title_en : (s.task_details?.title || t.delTask);
                 
-                // --- ПАРСИНГ ДАТЫ ---
+                // ЗАЩИТА ОТ ВЗЛОМА (Экранируем текст перед вставкой в HTML)
+                const escapeHTML = (str) => str ? str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;") : '';
+                const userComment = escapeHTML(s.description) || '<span class="italic text-gray-600">Нет комментария</span>';
+                const taskDesc = escapeHTML(s.task_details?.description);
+
                 const dateObj = s.date ? new Date(s.date) : new Date(s.created_at);
                 const day = dateObj.getDate().toString().padStart(2, '0');
-                // Получаем короткий месяц (Jan, Feb / Янв, Фев)
                 const monthStr = dateObj.toLocaleDateString(currentLang === 'en' ? 'en-US' : 'ru-RU', { month: 'short' })
-                    .replace('.', '')
-                    .slice(0, 3)
-                    .toUpperCase();
+                    .replace('.', '').slice(0, 3).toUpperCase();
 
-                // --- ДИЗАЙН СКРОЛЛА (БУДИЛЬНИК) ---
                 const dateScrollWidget = `
                     <div class="relative flex items-center rounded-md border border-white/10 bg-black/40 overflow-hidden w-[64px] shadow-[inset_0_4px_8px_rgba(0,0,0,0.6)] shrink-0">
                         <div class="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/80 pointer-events-none"></div>
                         <div class="absolute top-1/2 left-0 right-0 h-[1px] bg-white/5 -translate-y-1/2 pointer-events-none"></div>
-                        
                         <div class="flex-1 py-1.5 flex justify-center items-center border-r border-white/5 relative z-10">
                             <span class="text-[14px] font-black text-white leading-none tracking-tighter">${day}</span>
                         </div>
@@ -759,19 +771,37 @@
                     </div>
                 `;
 
-                // Кнопка отмены только для заявок в ожидании
+                // event.stopPropagation() не дает строке развернуться, если мы кликаем на кнопку "Отменить"
                 const cancelBtn = s.status === 'pending' 
-                    ? `<button onclick="cancelSubmission(${s.id})" class="mt-2 text-[9px] text-red-500 hover:text-red-400 uppercase font-bold transition flex items-center justify-end gap-1 w-full"><i class="fas fa-trash-alt"></i> ${t.cancel}</button>` 
+                    ? `<button onclick="event.stopPropagation(); cancelSubmission(${s.id})" class="mt-2 text-[9px] text-red-500 hover:text-red-400 uppercase font-bold transition flex items-center justify-end gap-1 w-full"><i class="fas fa-trash-alt"></i> ${t.cancel}</button>` 
                     : '';
 
+                // Главная строка теперь <tr class="cursor-pointer ..."> и имеет функцию onclick
                 return `
-                    <tr>
-                        <td class="pr-3 align-top pt-1 w-[75px]">${dateScrollWidget}</td>
-                        <td>
-                            <div class="font-bold text-white text-xs md:text-sm">${taskTitle}</div>
-                            <div class="mt-1">${getStatusBadge(s.status, s.status_display)}</div>
+                    <tr class="cursor-pointer group hover:bg-white/5 transition-colors" onclick="toggleDetails('detail-${s.id}', 'icon-${s.id}')">
+                        <td class="pr-3 align-top pt-3 w-[75px]">${dateScrollWidget}</td>
+                        <td class="align-top pt-3 pb-3">
+                            <div class="flex items-center gap-2">
+                                <div class="font-bold text-white text-xs md:text-sm leading-tight">${taskTitle}</div>
+                                <div class="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center shrink-0">
+                                    <i id="icon-${s.id}" class="fas fa-chevron-down text-[8px] text-primary transition-transform duration-300"></i>
+                                </div>
+                            </div>
+                            <div class="mt-2">${getStatusBadge(s.status, s.status_display)}</div>
+                            
+                            <div id="detail-${s.id}" class="hidden mt-4 pt-4 border-t border-white/10 space-y-3 pr-2 animate-fade-in">
+                                ${taskDesc ? `
+                                <div>
+                                    <span class="text-[9px] font-bold text-primary/70 uppercase tracking-widest block mb-1">О задаче:</span>
+                                    <div class="text-xs text-gray-300 leading-relaxed">${taskDesc}</div>
+                                </div>` : ''}
+                                <div>
+                                    <span class="text-[9px] font-bold text-primary/70 uppercase tracking-widest block mb-1">Ваш отчет:</span>
+                                    <div class="bg-black/30 p-3 rounded-xl border border-white/5 text-xs text-gray-300 break-all shadow-inner">${userComment}</div>
+                                </div>
+                            </div>
                         </td>
-                        <td class="text-right font-black text-white align-top">
+                        <td class="text-right font-black text-white align-top pt-3 pb-3 w-[60px]">
                             <div>${parseFloat(displayPoints) > 0 ? '+' : ''}${parseFloat(displayPoints).toFixed(1)}</div>
                             ${cancelBtn}
                         </td>
@@ -799,20 +829,18 @@
         function createPenaltyTableHTML(penalties) {
             const t = translations[currentLang];
             const rows = penalties.map(p => {
-                // Парсинг даты для штрафов
                 const dateObj = new Date(p.created_at);
                 const day = dateObj.getDate().toString().padStart(2, '0');
                 const monthStr = dateObj.toLocaleDateString(currentLang === 'en' ? 'en-US' : 'ru-RU', { month: 'short' })
-                    .replace('.', '')
-                    .slice(0, 3)
-                    .toUpperCase();
+                    .replace('.', '').slice(0, 3).toUpperCase();
 
-                // Скролл-виджет в красных тонах
+                const escapeHTML = (str) => str ? str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;") : '';
+                const desc = escapeHTML(p.description) || 'Нарушение регламента';
+
                 const dateScrollWidget = `
                     <div class="relative flex items-center rounded-md border border-red-500/20 bg-red-950/40 overflow-hidden w-[64px] shadow-[inset_0_4px_8px_rgba(0,0,0,0.6)] shrink-0">
                         <div class="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/80 pointer-events-none"></div>
                         <div class="absolute top-1/2 left-0 right-0 h-[1px] bg-red-500/10 -translate-y-1/2 pointer-events-none"></div>
-                        
                         <div class="flex-1 py-1.5 flex justify-center items-center border-r border-red-500/10 relative z-10">
                             <span class="text-[14px] font-black text-red-500 leading-none tracking-tighter">${day}</span>
                         </div>
@@ -823,14 +851,23 @@
                 `;
 
                 return `
-                    <tr>
-                        <td class="pr-3 align-top pt-1 w-[75px]">${dateScrollWidget}</td>
-                        <td>
-                            <div class="font-bold text-red-400 text-xs md:text-sm uppercase italic">Штраф / Penalty</div>
-                            <div class="text-[10px] text-gray-500 mt-1">${p.description || 'Нарушение регламента'}</div>
+                    <tr class="cursor-pointer group hover:bg-red-500/5 transition-colors" onclick="toggleDetails('pen-detail-${p.id}', 'pen-icon-${p.id}')">
+                        <td class="pr-3 align-top pt-3 w-[75px]">${dateScrollWidget}</td>
+                        <td class="align-top pt-3 pb-3">
+                            <div class="flex items-center gap-2 font-bold text-red-400 text-xs md:text-sm uppercase italic">
+                                Штраф / Penalty
+                                <div class="w-5 h-5 rounded-full bg-red-500/10 flex items-center justify-center shrink-0">
+                                    <i id="pen-icon-${p.id}" class="fas fa-chevron-down text-[8px] text-red-500 transition-transform duration-300"></i>
+                                </div>
+                            </div>
+                            
+                            <div id="pen-detail-${p.id}" class="hidden mt-4 pt-4 border-t border-red-500/10">
+                                <span class="text-[9px] font-bold text-red-500/70 uppercase tracking-widest block mb-1">Причина взыскания:</span>
+                                <div class="bg-red-950/30 p-3 rounded-xl border border-red-500/10 text-xs text-gray-300 shadow-inner break-all">${desc}</div>
+                            </div>
                         </td>
-                        <td class="text-right font-black text-red-500 align-top">
-                            ${parseFloat(p.points_awarded || 0).toFixed(1)}
+                        <td class="text-right font-black text-red-500 align-top pt-3 pb-3 w-[60px]">
+                            -${parseFloat(p.points_awarded || 0).toFixed(1)}
                         </td>
                     </tr>`;
             }).join('');

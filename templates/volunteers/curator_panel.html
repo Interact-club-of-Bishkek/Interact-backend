@@ -277,11 +277,17 @@
         </div>
     </div>
 
+    <div id="volModal" class="hidden fixed inset-0 bg-black/95 backdrop-blur-xl flex items-center justify-center p-2 md:p-6 z-[200]">
+        <div class="glass-card w-full max-w-3xl rounded-[30px] p-6 md:p-8 max-h-[90vh] flex flex-col relative border-white/10 shadow-2xl bg-[#0b1121]">
+            <button onclick="closeVolModal()" class="absolute top-6 right-6 text-gray-500 hover:text-white transition z-50"><i class="fas fa-times text-2xl"></i></button>
+            <div id="volModalContent" class="flex-1 overflow-hidden flex flex-col"></div>
+        </div>
+    </div>
+
     <script>
 
     function formatPoints(num) {
         const val = parseFloat(num || 0);
-        // Если число целое (напр. 10.0), вернет "10", если дробное (напр. 10.5), вернет "10.5"
         return Number.isInteger(val) ? val.toString() : val.toFixed(1);
     }
 
@@ -358,7 +364,6 @@
     async function loadAllData() {
         try {
             const h = { 'Authorization': `Bearer ${token}` };
-            // Добавил ?limit=1000, чтобы бэкенд отдавал сразу все данные, а не только первые 10 штук
             const [sub, vol, cmd, app] = await Promise.all([
                 fetch(API.submissions + '?limit=1000', { headers: h }).then(r => r.json()),
                 fetch(API.volunteers + '?limit=1000', { headers: h }).then(r => r.json()),
@@ -366,7 +371,6 @@
                 fetch(API.apps + '?limit=1000', { headers: h }).then(r => r.json())
             ]);
 
-            // 🔥 ИСПРАВЛЕНИЕ ЗАЯВОК: Умная распаковка пагинации Django для ВСЕХ данных
             state.submissions = Array.isArray(sub) ? sub : (sub.results || []);
             state.volunteers = Array.isArray(vol) ? vol : (vol.results || []);
             state.commands = Array.isArray(cmd) ? cmd : (cmd.results || []);
@@ -409,6 +413,7 @@
             filterAndRenderApps();
         } catch (e) { console.error("Load Data Error:", e); }
     }
+
     // ============================================
     //  ЛОГИКА ТАБЛИЦЫ ВОЛОНТЕРОВ И УДАЛЕНИЯ
     // ============================================
@@ -427,9 +432,7 @@
                 myVolunteers = state.volunteers;
             } else if (isCurator) {
                 myVolunteers = state.volunteers.filter(v => {
-                    // ИСКЛЮЧАЕМ САМОГО СЕБЯ
                     if (String(v.id) === String(state.user.id)) return false;
-                    
                     const vDirIds = getIds(v.direction);
                     const hasDirMatch = vDirIds.some(id => myDirIds.includes(id));
                     const vCmdIds = getIds(v.volunteer_commands || v.commands);
@@ -438,16 +441,13 @@
                 });
             } else {
                 myVolunteers = state.volunteers.filter(v => {
-                    // ИСКЛЮЧАЕМ САМОГО СЕБЯ
                     if (String(v.id) === String(state.user.id)) return false;
-
                     const vCmdIds = getIds(v.volunteer_commands || v.commands);
                     return vCmdIds.some(id => myManagedTeamIds.includes(id));
                 });
             }
 
             table.innerHTML = myVolunteers.map(v => {
-                // 🔥 ИСПРАВЛЕНИЕ БАЛЛОВ: Берем реальное поле 'point' из БД
                 const totalPoints = formatPoints(v.point ?? v.calculated_total ?? 0); 
                 const localPoints = formatPoints(v.local_points ?? 0);
                 
@@ -459,7 +459,7 @@
                 const safeName = (v.name || v.login || 'User').replace(/'/g, "\\'");
 
                 return `
-                <tr class="hover:bg-white/5 transition border-b border-white/5 group">
+                <tr class="cursor-pointer hover:bg-white/5 transition border-b border-white/5 group" onclick="openVolModal(${v.id})">
                     <td class="py-3 px-4">
                         <div class="font-black uppercase text-sm italic text-white leading-none">${v.name || v.login || 'Без имени'}</div>
                         <div class="text-[10px] text-gray-400 font-mono mt-1 tracking-tight">${v.login}</div>
@@ -493,12 +493,12 @@
                     </td>
                     <td class="py-3 px-4 text-right">
                         <div class="flex justify-end gap-2">
-                            <button onclick="openPenaltyModal(${v.id}, '${safeName}')" 
+                            <button onclick="event.stopPropagation(); openPenaltyModal(${v.id}, '${safeName}')" 
                                 class="w-8 h-8 rounded-lg bg-orange-500/10 text-orange-500 hover:bg-orange-500 hover:text-white transition flex items-center justify-center border border-orange-500/20" title="Штраф">
                                 <i class="fas fa-minus text-xs"></i>
                             </button>
                             ${targetCmdId ? 
-                                `<button onclick="openDeleteModal(${v.id}, ${targetCmdId}, '${safeName}', '${targetCmdName}')" 
+                                `<button onclick="event.stopPropagation(); openDeleteModal(${v.id}, ${targetCmdId}, '${safeName}', '${targetCmdName}')" 
                                     class="w-8 h-8 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition flex items-center justify-center border border-red-500/20" title="Удалить">
                                     <i class="fas fa-trash-alt text-[10px]"></i>
                                 </button>` : ''}
@@ -507,6 +507,108 @@
                 </tr>`;
             }).join('');
         }
+
+    // --- НОВОЕ: Открытие профиля волонтера ---
+    function openVolModal(volId) {
+        const v = state.volunteers.find(vol => vol.id === volId);
+        if(!v) return;
+
+        const totalPoints = formatPoints(v.point ?? v.calculated_total ?? 0); 
+        const localPoints = formatPoints(v.local_points ?? 0);
+        const yCards = v.yellow_card_count || 0;
+        
+        // Поиск заявок этого волонтера (на всякий случай сверяем по нескольким возможным ключам)
+        const history = state.submissions.filter(s => 
+            String(s.volunteer) === String(v.id) || 
+            String(s.volunteer_id) === String(v.id) || 
+            (s.volunteer_details && String(s.volunteer_details.id) === String(v.id)) ||
+            (s.volunteer_name && s.volunteer_name === v.name)
+        ).sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+
+        let historyHtml = '';
+        if (history.length === 0) {
+            historyHtml = '<div class="text-center py-10 text-gray-500 text-xs uppercase font-bold">История отчетов пуста</div>';
+        } else {
+            historyHtml = history.map(s => {
+                const dateObj = new Date(s.created_at);
+                const day = dateObj.getDate().toString().padStart(2, '0');
+                const monthStr = dateObj.toLocaleDateString('ru-RU', { month: 'short' }).replace('.', '').slice(0, 3).toUpperCase();
+                
+                const taskTitle = s.task_details?.title || 'Задание';
+                const points = (s.status === 'approved' && s.points_awarded !== null) ? s.points_awarded : (s.task_details?.points || 0);
+                
+                const statusStyles = {
+                    'approved': 'bg-green-500/10 text-green-400 border-green-500/20',
+                    'rejected': 'bg-red-500/10 text-red-400 border-red-500/20',
+                    'pending': 'bg-orange-500/10 text-orange-400 border-orange-500/20'
+                };
+                const statusIcons = { 'approved': 'fa-check', 'rejected': 'fa-times', 'pending': 'fa-clock' };
+                const badgeStyle = statusStyles[s.status] || statusStyles['pending'];
+                const badgeIcon = statusIcons[s.status] || 'fa-question';
+                const statusText = s.status_display || s.status;
+
+                return `
+                <div class="flex items-center justify-between p-4 border-b border-white/5 bg-black/20 rounded-xl mb-2 hover:bg-white/5 transition">
+                    <div class="flex items-center gap-4">
+                        <div class="flex flex-col items-center justify-center w-12 h-12 bg-black/40 rounded-lg border border-white/10 shrink-0">
+                            <span class="text-sm font-black text-white leading-none">${day}</span>
+                            <span class="text-[8px] font-bold text-gray-400 uppercase mt-1">${monthStr}</span>
+                        </div>
+                        <div>
+                            <p class="text-sm font-bold text-white mb-1 leading-tight">${taskTitle}</p>
+                            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[9px] font-bold uppercase tracking-wider ${badgeStyle}">
+                                <i class="fas ${badgeIcon}"></i> ${statusText}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="text-right shrink-0 ml-4">
+                        <p class="text-lg font-black ${s.status === 'approved' ? 'text-primary' : 'text-gray-500'}">${parseFloat(points) > 0 && s.status === 'approved' ? '+' : ''}${parseFloat(points).toFixed(1)}</p>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        document.getElementById('volModalContent').innerHTML = `
+            <div class="flex items-start gap-5 mb-8 pb-6 border-b border-white/10 shrink-0">
+                <div class="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-blue-600/20 border border-primary/30 flex items-center justify-center text-primary font-black text-3xl italic shrink-0">
+                    ${(v.name || v.login || '?').charAt(0).toUpperCase()}
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-2xl font-black text-white uppercase italic leading-none mb-1">${v.name || 'Без имени'}</h3>
+                    <p class="text-[10px] text-gray-400 font-mono mb-3">${v.login}</p>
+                    <div class="flex flex-wrap gap-4 mt-2">
+                        <div class="bg-white/5 px-4 py-2 rounded-xl border border-white/5">
+                            <p class="text-[9px] text-gray-500 uppercase font-black tracking-widest">Баллы</p>
+                            <p class="text-lg font-black text-primary">${totalPoints}</p>
+                        </div>
+                        <div class="bg-white/5 px-4 py-2 rounded-xl border border-white/5">
+                            <p class="text-[9px] text-gray-500 uppercase font-black tracking-widest">В команде</p>
+                            <p class="text-lg font-black text-white">${localPoints}</p>
+                        </div>
+                        <div class="bg-red-500/5 px-4 py-2 rounded-xl border border-red-500/10">
+                            <p class="text-[9px] text-red-500/50 uppercase font-black tracking-widest">Нарушения</p>
+                            <p class="text-lg font-black ${yCards > 0 ? 'text-red-500' : 'text-gray-600'}">${yCards}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex-1 overflow-hidden flex flex-col min-h-0">
+                <h4 class="text-xs font-black uppercase text-gray-500 tracking-widest mb-4 shrink-0">История заявок (отчеты)</h4>
+                <div class="custom-scrollbar pr-2 overflow-y-auto flex-1">
+                    ${historyHtml}
+                </div>
+            </div>
+        `;
+        document.getElementById('volModal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeVolModal() {
+        document.getElementById('volModal').classList.add('hidden');
+        document.body.style.overflow = 'auto';
+    }
 
     // --- УДАЛЕНИЕ ---
     function openDeleteModal(volId, cmdId, volName, cmdName) {
@@ -575,7 +677,6 @@
         penaltyTargetId = null;
     }
 
-// Функция для получения самого свежего токена из хранилища
     function getFreshToken() {
         return localStorage.getItem('access');
     }
@@ -599,7 +700,6 @@
             const res = await fetch(`/api/curator/penalty/`, { 
                 method: 'POST',
                 headers: { 
-                    // ВСЕГДА берем актуальный токен из localStorage прямо перед запросом
                     'Authorization': `Bearer ${getFreshToken()}`, 
                     'Content-Type': 'application/json' 
                 },
@@ -616,7 +716,6 @@
                 setTimeout(loadAllData, 500); 
             } else if (res.status === 401) {
                 showToast('Сессия истекла. Перезайдите в аккаунт', 'error');
-                // Опционально: редирект на логин через пару секунд
             } else {
                 const d = await res.json();
                 showToast(d.error || 'Ошибка', 'error');
@@ -628,6 +727,7 @@
             btn.disabled = false;
         }
     }
+
     // ============================================
 
     function openSearchModal() {
@@ -1009,7 +1109,6 @@
         
         if (status === 'approved') {
             const pointsInput = document.getElementById(`pts-${id}`);
-            // Если есть инпут — берем из него, если нет — берем стандартные баллы задачи
             body.points_awarded = pointsInput 
                 ? parseFloat(pointsInput.value) 
                 : parseFloat(submission.task_details.points);
@@ -1030,7 +1129,7 @@
         }).then(res => {
             if (res.ok) {
                 showToast('Успешно обновлено');
-                loadAllData(); // Перезагружаем, чтобы увидеть обновленные баллы волонтера
+                loadAllData();
             }
         });
     }
@@ -1039,8 +1138,6 @@
         const container = document.getElementById('secReq');
         if (!container) return;
 
-        // Бэкенд уже прислал только ТЕ заявки, которые куратор имеет право видеть.
-        // Нам нужно только отфильтровать их по статусу 'pending'.
         const pending = state.submissions.filter(s => s.status === 'pending');
 
         if (pending.length === 0) {
@@ -1092,10 +1189,10 @@
 
     function closeModal() { document.getElementById('modal').classList.add('hidden'); document.body.style.overflow = 'auto'; }
     function logout() { localStorage.removeItem('access'); location.href='/login/'; }
-    function showToast(msg) {
+    function showToast(msg, type = 'success') {
         const toast = document.createElement('div');
-        toast.className = 'toast show';
-        toast.innerHTML = `<i class="fas fa-check-circle text-primary text-xl"></i> <span class="font-bold text-sm">${msg}</span>`;
+        toast.className = `toast show ${type === 'error' ? 'border-red-500' : ''}`;
+        toast.innerHTML = `<i class="fas ${type === 'error' ? 'fa-exclamation-circle text-red-500' : 'fa-check-circle text-primary'} text-xl"></i> <span class="font-bold text-sm">${msg}</span>`;
         document.getElementById('toast-container').appendChild(toast);
         setTimeout(() => toast.remove(), 3000);
     }
