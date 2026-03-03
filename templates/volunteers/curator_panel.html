@@ -358,23 +358,19 @@
     async function loadAllData() {
         try {
             const h = { 'Authorization': `Bearer ${token}` };
+            // Добавил ?limit=1000, чтобы бэкенд отдавал сразу все данные, а не только первые 10 штук
             const [sub, vol, cmd, app] = await Promise.all([
-                fetch(API.submissions, { headers: h }).then(r => r.json()),
-                fetch(API.volunteers, { headers: h }).then(r => r.json()),
-                fetch(API.commands, { headers: h }).then(r => r.json()),
-                fetch(API.apps, { headers: h }).then(r => r.json())
+                fetch(API.submissions + '?limit=1000', { headers: h }).then(r => r.json()),
+                fetch(API.volunteers + '?limit=1000', { headers: h }).then(r => r.json()),
+                fetch(API.commands + '?limit=1000', { headers: h }).then(r => r.json()),
+                fetch(API.apps + '?limit=1000', { headers: h }).then(r => r.json())
             ]);
 
-            state.submissions = sub;
-            if (Array.isArray(vol)) {
-                state.volunteers = vol;
-            } else if (vol.results) {
-                state.volunteers = vol.results;
-            } else {
-                state.volunteers = [];
-            }
-            state.commands = cmd;
-            state.apps = app;
+            // 🔥 ИСПРАВЛЕНИЕ ЗАЯВОК: Умная распаковка пагинации Django для ВСЕХ данных
+            state.submissions = Array.isArray(sub) ? sub : (sub.results || []);
+            state.volunteers = Array.isArray(vol) ? vol : (vol.results || []);
+            state.commands = Array.isArray(cmd) ? cmd : (cmd.results || []);
+            state.apps = Array.isArray(app) ? app : (app.results || []);
             
             questionMap = {};
             state.commands.forEach(c => c.questions?.forEach(q => questionMap[`q_${q.id}`] = q.label));
@@ -386,16 +382,16 @@
             const myDirIds = getIds(state.user.direction);
 
             if (state.user.role === 'admin') {
-                dbTeams = cmd; leadTeams = cmd;
+                dbTeams = state.commands; leadTeams = state.commands;
                 label.innerText = "Все направления (Admin)";
             } else if (state.user.role === 'curator') {
-                dbTeams = cmd.filter(c => myDirIds.includes(extractId(c, 'direction')));
-                leadTeams = cmd.filter(c => String(c.leader?.id || c.leader) === String(state.user.id));
+                dbTeams = state.commands.filter(c => myDirIds.includes(extractId(c, 'direction')));
+                leadTeams = state.commands.filter(c => String(c.leader?.id || c.leader) === String(state.user.id));
                 const dirs = Array.isArray(state.user.direction) ? state.user.direction : [state.user.direction];
                 const dirNames = dirs.map(d => d.name || d.title).filter(Boolean);
                 label.innerText = dirNames.length > 0 ? dirNames.join(' / ') : "Направление не привязано";
             } else {
-                dbTeams = cmd.filter(c => String(c.leader?.id || c.leader) === String(state.user.id));
+                dbTeams = state.commands.filter(c => String(c.leader?.id || c.leader) === String(state.user.id));
                 leadTeams = dbTeams;
                 label.innerText = dbTeams.map(t => t.title).join(' / ') || "Команда не назначена";
             }
@@ -413,7 +409,6 @@
             filterAndRenderApps();
         } catch (e) { console.error("Load Data Error:", e); }
     }
-
     // ============================================
     //  ЛОГИКА ТАБЛИЦЫ ВОЛОНТЕРОВ И УДАЛЕНИЯ
     // ============================================
@@ -452,8 +447,9 @@
             }
 
             table.innerHTML = myVolunteers.map(v => {
-                const totalPoints = formatPoints(v.calculated_total); 
-                const localPoints = formatPoints(v.local_points);
+                // 🔥 ИСПРАВЛЕНИЕ БАЛЛОВ: Берем реальное поле 'point' из БД
+                const totalPoints = formatPoints(v.point ?? v.calculated_total ?? 0); 
+                const localPoints = formatPoints(v.local_points ?? 0);
                 
                 const vCommands = v.volunteer_commands || v.commands || [];
                 const myManagedIds = state.myManagedTeams.map(t => String(t.id));
