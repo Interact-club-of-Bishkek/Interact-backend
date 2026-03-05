@@ -499,8 +499,8 @@
         document.addEventListener('DOMContentLoaded', () => {
             
             const projectsPageUrl = "{% url 'projects-list-html' %}";
-            const projectDetailsBaseUrl = "{% url 'project-details-html' %}";
-            
+            const projectUrlTemplate = "{% url 'project-details-html' slug='SLUG_PLACEHOLDER' %}";
+
             const apiProjectsUrl = '/api/projects/recent/';
             const apiHeroSlidesUrl = '/api/hero-slides/';
             const apiYearResultsUrl = '/api/year-results/';
@@ -726,10 +726,8 @@
                     recentProjects.forEach(p => {
                         const dateObj = new Date(p.time_start);
                         const dateStr = dateObj.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
-                        const timeStr = dateObj.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-                        const priceLabel = (p.price === 0 || p.price === null) ? 'Бесплатно' : `${p.price} сом`;
                         const location = p.address ? p.address.split(',')[0] : 'Онлайн';
-                        const directionName = (p.direction_detail && p.direction_detail.name) ? p.direction_detail.name : (p.category || 'Проект');
+                        const priceLabel = (p.price === 0 || p.price === null) ? 'Бесплатно' : `${p.price} сом`;
                         
                         let imgHtml = '';
                         if (p.image) {
@@ -738,8 +736,11 @@
                             imgHtml = `<div class="w-full h-full flex items-center justify-center bg-[#121212] text-gray-600"><i class="fas fa-image text-4xl"></i></div>`;
                         }
 
+                        // ЗДЕСЬ МЫ ЗАМЕНЯЕМ ЗАГЛУШКУ НА РЕАЛЬНЫЙ СЛАГ ПРОЕКТА
+                        const projectUrl = projectUrlTemplate.replace('SLUG_PLACEHOLDER', p.slug);
+
                         html += `
-                            <div class="snap-center w-[280px] md:w-[320px] bg-card-dark rounded-[2rem] p-5 border border-white/5 hover:border-royal-blue/50 transition-all duration-500 cursor-pointer group flex flex-col h-[580px] flex-shrink-0" onclick="location.href='${projectDetailsBaseUrl}?id=${p.id}'">
+                            <div class="snap-center w-[280px] md:w-[320px] bg-card-dark rounded-[2rem] p-5 border border-white/5 hover:border-royal-blue/50 transition-all duration-500 cursor-pointer group flex flex-col h-[580px] flex-shrink-0" onclick="location.href='${projectUrl}'">
                             
                             <div class="aspect-[4/5] w-full rounded-2xl overflow-hidden mb-5 relative flex-shrink-0 bg-black border border-white/5">
                                 ${imgHtml}

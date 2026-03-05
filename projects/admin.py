@@ -5,16 +5,19 @@ from django.utils import timezone
 
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
-    list_display = ("name", "category_verbose", "direction", "price", "time_start", "time_end", "image_tag", "is_archived")
+    list_display = ("name", "slug", "category_verbose", "direction", "price", "time_start", "time_end", "image_tag", "is_archived")
     list_filter = ("category", "direction", "is_archived")
-    search_fields = ("name", "title", "address", "phone_number")
+    search_fields = ("name", "slug", "title", "address", "phone_number")
     ordering = ("-time_start",)
     save_on_top = True
+
+    # 🔥 ДОБАВЛЯЕМ ЭТУ СТРОКУ ДЛЯ АВТОЗАПОЛНЕНИЯ:
+    prepopulated_fields = {"slug": ("name",)}
 
     fieldsets = (
         ("Основная информация", {
             "fields": (
-                "name", "title", "image", "direction", "category", "price",
+                "name", "slug", "title", "image", "direction", "category", "price",
                 "time_start", "time_end", "phone_number", "address", "is_archived"
             )
         }),
@@ -35,7 +38,6 @@ class ProjectAdmin(admin.ModelAdmin):
         if obj.time_end and obj.time_end < timezone.now():
             obj.is_archived = True
         super().save_model(request, obj, form, change)
-
 
 @admin.register(YearResult)
 class YearResultAdmin(admin.ModelAdmin):

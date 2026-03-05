@@ -3,6 +3,7 @@ from django.urls import reverse
 from directions.models import ProjectDirection
 from logs.loggable_model import LoggableModel
 from django.utils import timezone
+from django.utils.text import slugify
 
 
 
@@ -18,6 +19,7 @@ class Project(LoggableModel):
     image = models.ImageField(verbose_name='Обложка', upload_to='project/')
     name = models.CharField(verbose_name='Название проекта', max_length=100)
     title = models.TextField(verbose_name='Описание проекта', max_length=5000)
+    slug = models.SlugField(unique=True, blank=True)
     direction = models.ForeignKey(
         ProjectDirection,
         on_delete=models.CASCADE,
@@ -52,10 +54,14 @@ class Project(LoggableModel):
         verbose_name_plural = 'Проекты'
 
     def get_absolute_url(self):
-            from django.urls import reverse
-            # Берем базовую ссылку на HTML-страницу и приклеиваем к ней ID проекта
-            base_url = reverse('project-details-html')
-            return f"{base_url}?id={self.id}"
+        from django.urls import reverse
+        return reverse('project-detail', kwargs={'slug': self.slug})
+        
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            # allow_unicode=True позволяет сохранять кириллицу в ссылках (будет /projects/сбор-макулатуры/)
+            self.slug = slugify(self.name, allow_unicode=True) 
+        super().save(*args, **kwargs)
 
 class Partner(models.Model):
     name = models.CharField(max_length=200, verbose_name='Название партнера')

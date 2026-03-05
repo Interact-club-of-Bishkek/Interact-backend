@@ -1,14 +1,12 @@
 from django.contrib.sitemaps import Sitemap
 from django.urls import reverse
-from projects.models import Project # Импортируем твою модель проектов
+from projects.models import Project # Убедись, что импорт правильный (точка означает текущую папку)
 
-# (Тут твой StaticViewSitemap для главной страницы, который мы делали ранее)
 class StaticViewSitemap(Sitemap):
     priority = 1.0
     changefreq = 'weekly'
 
     def items(self):
-        # Используем РЕАЛЬНЫЕ имена из твоего urls.py
         return [
             'main', 
             'about-html', 
@@ -20,15 +18,20 @@ class StaticViewSitemap(Sitemap):
 
     def location(self, item):
         return reverse(item)
-# 🔥 НОВЫЙ КЛАСС ДЛЯ ПРОЕКТОВ:
+
+# 🔥 КЛАСС ДЛЯ ПРОЕКТОВ:
 class ProjectSitemap(Sitemap):
     changefreq = 'weekly'
-    priority = 0.8 # Чуть ниже главной, но всё равно высокий приоритет
+    priority = 0.8
 
     def items(self):
-        # Отдаем Гуглу только актуальные проекты (is_archived=False)
+        # Отдаем Гуглу только актуальные проекты
         return Project.objects.filter(is_archived=False).order_by('-created_at')
 
     def lastmod(self, obj):
-        # Гугл будет знать, когда ты в последний раз редактировал проект
         return obj.updated_at
+        
+    # ДОБАВЛЯЕМ ЭТОТ МЕТОД:
+    def location(self, obj):
+        # Берем имя пути из твоего urls.py и передаем slug проекта
+        return reverse('project-details-html', kwargs={'slug': obj.slug})
