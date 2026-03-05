@@ -58,7 +58,7 @@ urlpatterns = [
     # Если на главной странице (или где-то еще) JS делает fetch('/api/projects/'), 
     # тебе нужно вернуть сюда ProjectListView.as_view()!
     # Если этот путь больше нигде не запрашивается из JS, его можно просто закомментировать.
-    path('api/projects/', views.projects_list_page, name='projects-list-html'),
+    path('projects/', views.projects_list_page, name='projects-list-html'),
 
     path('api/projects/create/', ProjectCreateAPIView.as_view(), name='project-create'),
     path('api/projects/archive/', ProjectArchiveListView.as_view(), name='projects-archive'),
