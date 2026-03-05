@@ -60,7 +60,7 @@ class Project(LoggableModel):
     def save(self, *args, **kwargs):
         if not self.slug:
             # allow_unicode=True позволяет сохранять кириллицу в ссылках (будет /projects/сбор-макулатуры/)
-            self.slug = slugify(self.name, allow_unicode=True) 
+            self.slug = slugify(self.name) 
         super().save(*args, **kwargs)
 
 class Partner(models.Model):

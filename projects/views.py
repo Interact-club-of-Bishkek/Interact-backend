@@ -41,18 +41,21 @@ def project_details_page(request, slug):
 
 
 # 3. Страница всех проектов (Каталог)
+# Сама VIEW для страницы "Все проекты" (Каталог)
 def projects_list_page(request):
-    # 1. Автоматически архивируем прошедшие проекты перед выводом
+    # 1. Проверяем даты и прячем старые проекты в архив
     archive_expired_projects()
 
-    # 2. Достаем все актуальные проекты
+    # 2. Достаем все актуальные проекты из БД. 
+    # select_related("direction") нужен, чтобы база не тормозила при запросе категорий
     projects = Project.objects.select_related("direction").filter(
         is_archived=False
     ).order_by("direction__name", "time_start")
 
-    # 3. Группируем проекты по направлениям
+    # 3. Группируем проекты по направлениям в словарь
     grouped_projects = {}
     for p in projects:
+        # Если у проекта есть направление — берем его имя, если нет — кидаем в "Разное"
         dir_name = p.direction.name if p.direction else "Разное"
         
         if dir_name not in grouped_projects:
@@ -60,8 +63,8 @@ def projects_list_page(request):
             
         grouped_projects[dir_name].append(p)
 
+    # 4. Отдаем наш словарь в твой HTML-шаблон
     return render(request, 'main_page/projects.html', {'grouped_projects': grouped_projects})
-
 
 # --- ОСТАЛЬНЫЕ API ENDPOINTS ---
 
