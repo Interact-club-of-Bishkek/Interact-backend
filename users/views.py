@@ -45,6 +45,8 @@ from decimal import Decimal
 
 # ---------------- АВТОРИЗАЦИЯ И ПРОФИЛЬ ----------------
 
+
+
 class VolunteerLoginView(APIView):
     permission_classes = [AllowAny]
 
@@ -384,7 +386,7 @@ from django.db import transaction
 class AttendanceViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
 
-    # 1. ПОЛУЧЕНИЕ ЖУРНАЛА
+    # 1. ПОЛУЧЕНИЕ ЖУРНАЛА (Осталось без изменений)
     @action(detail=False, methods=['get'])
     def month_journal(self, request):
         direction_id = request.query_params.get('direction_id')
@@ -398,13 +400,11 @@ class AttendanceViewSet(viewsets.ViewSet):
         except ValueError:
             return Response({"error": "Неверный формат даты"}, status=400)
 
-        # --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
         # Фильтруем: только те, у кого role='volunteer'
         volunteers = Volunteer.objects.filter(
             direction__id=direction_id, 
             role='volunteer'
         ).order_by('name')
-        # -----------------------
         
         # Получаем записи посещаемости
         logs = Attendance.objects.filter(
@@ -440,7 +440,7 @@ class AttendanceViewSet(viewsets.ViewSet):
             "volunteers": vol_list
         })
 
-    # 2. СОХРАНЕНИЕ
+    # 2. СОХРАНЕНИЕ (Осталось без изменений)
     @action(detail=False, methods=['post'])
     def mark_bulk(self, request):
         data = request.data
@@ -472,6 +472,60 @@ class AttendanceViewSet(viewsets.ViewSet):
                 saved_count += 1
             
         return Response({"message": "Сохранено"})
+
+    # 3. НОВЫЙ ЭНДПОИНТ: СТАТИСТИКА И РЕЙТИНГ ЗА МЕСЯЦ
+    @action(detail=False, methods=['get'])
+    def stats_by_month(self, request):
+        month_str = request.query_params.get('month')
+        if not month_str:
+            return Response({"error": "Нужен параметр month (YYYY-MM)"}, status=400)
+            
+        try:
+            year, month = map(int, month_str.split('-'))
+        except ValueError:
+            return Response({"error": "Неверный формат даты"}, status=400)
+
+        # Получаем все направления
+        directions = VolunteerDirection.objects.all()
+        data = []
+
+        for current_dir in directions:
+            # Находим волонтеров этого направления и считаем их баллы ТОЛЬКО за выбранный месяц
+            vols = Volunteer.objects.filter(
+                direction=current_dir, 
+                role='volunteer'
+            ).annotate(
+                score=Coalesce(
+                    Sum(
+                        Coalesce('submissions__points_awarded', 'submissions__task__points', output_field=DecimalField()),
+                        filter=Q(
+                            submissions__status='approved',
+                            submissions__created_at__year=year,
+                            submissions__created_at__month=month
+                        )
+                    ),
+                    Value(0),
+                    output_field=DecimalField()
+                )
+            ).order_by('-score', 'name') # Сортируем от большего балла к меньшему
+
+            vol_list = []
+            for v in vols:
+                vol_list.append({
+                    "id": v.id,
+                    "name": v.name or v.login,
+                    "score": float(v.score) # Переводим Decimal в float для JSON
+                })
+
+            # Добавляем направление в итоговый ответ, только если в нём есть волонтеры
+            if vol_list:
+                data.append({
+                    "direction_id": current_dir.id,
+                    "direction_name": current_dir.name,
+                    "volunteers": vol_list
+                })
+
+        return Response(data)
     
 class BailiffPanelView(TemplateView):
     template_name = "volunteers/bailiff_panel.html"
