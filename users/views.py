@@ -476,48 +476,50 @@ class AttendanceViewSet(viewsets.ViewSet):
     # 3. НОВЫЙ ЭНДПОИНТ: СТАТИСТИКА И РЕЙТИНГ ЗА МЕСЯЦ
     @action(detail=False, methods=['get'])
     def stats_by_month(self, request):
-        month_str = request.query_params.get('month')
-        if not month_str:
-            return Response({"error": "Нужен параметр month (YYYY-MM)"}, status=400)
-            
-        try:
-            year, month = map(int, month_str.split('-'))
-        except ValueError:
-            return Response({"error": "Неверный формат даты"}, status=400)
-
         # Получаем все направления
         directions = VolunteerDirection.objects.all()
         data = []
 
         for current_dir in directions:
-            # Находим волонтеров этого направления и считаем их баллы ТОЛЬКО за выбранный месяц
+            # СЧИТАЕМ БАЛЛЫ ИДЕАЛЬНО: точно так же, как в VolunteerListView
             vols = Volunteer.objects.filter(
                 direction=current_dir, 
                 role='volunteer'
             ).annotate(
-                score=Coalesce(
+                total_score=Coalesce(
                     Sum(
-                        Coalesce('submissions__points_awarded', 'submissions__task__points', output_field=DecimalField()),
-                        filter=Q(
-                            submissions__status='approved',
-                            submissions__created_at__year=year,
-                            submissions__created_at__month=month
-                        )
+                        Coalesce('submissions__points_awarded', 'submissions__task__points', output_field=DecimalField()), 
+                        filter=Q(submissions__status='approved')
                     ),
                     Value(0),
                     output_field=DecimalField()
                 )
-            ).order_by('-score', 'name') # Сортируем от большего балла к меньшему
+            ).prefetch_related('submissions', 'submissions__task')
 
             vol_list = []
             for v in vols:
+                # 1. Берем ИДЕАЛЬНУЮ сумму, которую посчитала база данных
+                score = float(v.total_score)
+
+                # 2. Собираем список заданий для всплывающего окна (модалки)
+                approved_subs = [s for s in v.submissions.all() if s.status == 'approved']
+                tasks_data = []
+                for sub in approved_subs:
+                    p = sub.points_awarded if sub.points_awarded is not None else (sub.task.points if sub.task else 0)
+                    tasks_data.append({
+                        "title": sub.task.title if sub.task else "Без названия",
+                        "points": float(p),
+                        "date": sub.created_at.strftime('%Y-%m-%d')
+                    })
+
                 vol_list.append({
                     "id": v.id,
                     "name": v.name or v.login,
-                    "score": float(v.score) # Переводим Decimal в float для JSON
+                    "score": score,
+                    "tasks": tasks_data
                 })
 
-            # Добавляем направление в итоговый ответ, только если в нём есть волонтеры
+            # Оставляем только те направления, где есть волонтеры
             if vol_list:
                 data.append({
                     "direction_id": current_dir.id,
