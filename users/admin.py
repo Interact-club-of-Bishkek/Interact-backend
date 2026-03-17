@@ -49,16 +49,32 @@ class YellowCardInline(admin.TabularInline):
 
 @admin.register(Volunteer)
 class VolunteerAdmin(admin.ModelAdmin):
-    list_display = ('get_avatar', 'name_display', 'display_password', 'role_badge', 'point_display', 'is_active_icon')
+    # 1. Добавляем 'get_rank' самым первым в list_display
+    list_display = ('get_rank', 'get_avatar', 'name_display', 'display_password', 'role_badge', 'point_display', 'is_active_icon')
     list_display_links = ('get_avatar', 'name_display')
     list_filter = ('role', 'is_active', 'direction')
     search_fields = ('name', 'login', 'phone_number', 'email')
     filter_horizontal = ('direction', 'groups', 'user_permissions')
     inlines = [YellowCardInline, ActivitySubmissionInline]
     
-    # 🔥 ИСПРАВЛЕНИЕ: Добавляем кастомные методы сюда статично
-    readonly_fields = ('last_login', 'get_avatar_large', 'yellow_card_count_display') 
+    # 2. Метод для вычисления места
+    def get_rank(self, obj):
+        # Подстраховка: если баллы пустые, считаем как 0
+        current_points = obj.point or 0
+        
+        # Считаем, сколько волонтеров имеют СТРОГО БОЛЬШЕ баллов.
+        # Если ни у кого нет больше баллов, запрос вернет 0. Значит 0 + 1 = 1-е место!
+        higher_points_count = type(obj).objects.filter(point__gt=current_points).count()
+        
+        return f"{higher_points_count + 1}"
     
+    # 3. Настройки колонки
+    get_rank.short_description = 'Место'
+    get_rank.admin_order_field = '-point'  # Делает заголовок кликабельным (сразу сортирует по баллам)
+
+    # 🔥 ИСПРАВЛЕНИЕ: Добавляем кастомные методы сюда статично
+    readonly_fields = ('last_login', 'get_avatar_large', 'yellow_card_count_display')
+
     save_on_top = True
 
     fieldsets = (
