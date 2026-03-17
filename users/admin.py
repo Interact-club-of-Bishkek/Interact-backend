@@ -139,7 +139,7 @@ class VolunteerAdmin(admin.ModelAdmin):
 @admin.register(ActivitySubmission)
 class ActivitySubmissionAdmin(admin.ModelAdmin):
     list_display = ('volunteer_display', 'task_display', 'status_badge', 'points_awarded', 'created_at')
-    list_filter = ('status', 'created_at', 'task__command')
+    list_filter = ('status', 'created_at', 'task', 'task__command')
     search_fields = ('volunteer__name', 'task__title')
     autocomplete_fields = ['volunteer', 'task']
     actions = ['approve_selected', 'reject_selected']
