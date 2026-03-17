@@ -40,26 +40,29 @@
             background-repeat: no-repeat; background-position: right 1rem center; background-size: 1.2em; padding-right: 2.5rem;
         }
 
+        /* Убираем стрелочки у input type="number" */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type="number"] { -moz-appearance: textfield; }
+
         .picker-viewport {
             position: relative;
             display: flex;
             height: 120px;
             width: 100%;
-            max-width: 200px; /* Твой размер */
+            max-width: 200px;
             margin: 0 auto 16px;
             background: rgba(0, 0, 0, 0.6);
             border-radius: 12px;
             border: 1px solid rgba(255, 255, 255, 0.1);
             overflow: hidden;
-            /* Маска: делает края прозрачными, а центр 100% четким */
             -webkit-mask-image: linear-gradient(to bottom, transparent, black 40%, black 60%, transparent);
             mask-image: linear-gradient(to bottom, transparent, black 40%, black 60%, transparent);
         }
 
-        /* Колонки */
         .picker-column {
-            flex: 0 0 50%; /* Жестко 50% и не позволяем сжиматься */
-            width: 50%;    /* Дублируем для надежности */
+            flex: 0 0 50%;
+            width: 50%;
             min-width: 50%;
             height: 100%;
             overflow-y: scroll;
@@ -69,7 +72,6 @@
         }
         .picker-column::-webkit-scrollbar { display: none; }
 
-        /* Та самая рамка (линза) */
         .picker-selection {
             position: absolute;
             top: 50%;
@@ -77,7 +79,7 @@
             right: 0;
             height: 40px;
             transform: translateY(-50%);
-            background: rgba(0, 198, 255, 0.05); /* Твой primary */
+            background: rgba(0, 198, 255, 0.05);
             border-top: 1px solid rgba(0, 198, 255, 0.3);
             border-bottom: 1px solid rgba(0, 198, 255, 0.3);
             pointer-events: none;
@@ -92,24 +94,21 @@
             scroll-snap-align: center;
             transition: all 0.2s ease;
             user-select: none;
-            
         }
 
-        /* Активное состояние — ЧЕТКОЕ */
         .scroll-item.active {
             color: var(--primary);
             font-weight: 800;
             transform: scale(1.1);
             opacity: 1;
-            filter: none; /* Убираем блюр нафиг */
+            filter: none;
         }
 
-        /* Неактивное состояние — ПРОЗРАЧНОЕ */
         .scroll-item:not(.active) {
             color: white;
             opacity: 0.2;
             transform: scale(0.9);
-            filter: none; /* Убираем мыло */
+            filter: none;
         }
             
         select.input-field:hover { border-color: rgba(0, 198, 255, 0.5); }
@@ -198,6 +197,25 @@
         </div>
     </div>
 
+    <div id="cancelModal" class="modal-overlay">
+        <div class="glass-card modal-content border-red-500/20 max-w-sm text-center">
+            <div class="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4 border border-red-500/20">
+                <i class="fas fa-exclamation-triangle text-2xl text-red-500"></i>
+            </div>
+            <h3 class="text-xl font-black uppercase italic text-white mb-2" id="t-cancelHeader">Отмена заявки</h3>
+            <p class="text-xs text-gray-400 mb-8" id="t-cancelConfirmText">Вы уверены, что хотите отозвать этот отчет? Это действие нельзя будет отменить.</p>
+            
+            <div class="flex gap-3">
+                <button onclick="closeCancelModal()" class="flex-1 py-3 bg-white/5 hover:bg-white/10 text-gray-400 font-bold uppercase rounded-xl text-[10px] transition">
+                    Назад
+                </button>
+                <button id="confirmCancelBtn" class="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white font-black uppercase rounded-xl text-[10px] shadow-lg shadow-red-500/20 transition transform active:scale-95">
+                    Да, отменить
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div class="max-w-6xl mx-auto">
         <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
             <div class="flex items-start gap-4">
@@ -246,7 +264,25 @@
                     <select id="contextSelect" class="input-field" onchange="updateTaskDropdown()"></select>
 
                     <label class="text-[10px] font-bold text-gray-400 uppercase ml-2 mb-2 block tracking-wider" id="t-step2">2. Какое задание?</label>
-                    <select id="taskSelect" class="input-field"></select>
+                    <select id="taskSelect" class="input-field" onchange="updateCalc()"></select>
+
+                    <label class="text-[10px] font-bold text-gray-400 uppercase ml-2 mb-2 block tracking-wider" id="t-stepQty">Количество</label>
+                    <div class="flex items-center gap-3 mb-6 bg-black/20 p-2 border border-white/5 rounded-2xl">
+                        <button type="button" onclick="changeQty(-1)" class="w-10 h-10 shrink-0 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white flex items-center justify-center transition active:scale-95">
+                            <i class="fas fa-minus text-xs"></i>
+                        </button>
+                        <input type="number" id="taskQty" value="1" min="1" class="w-full bg-transparent text-center font-black text-xl text-white outline-none" oninput="updateCalc()">
+                        <button type="button" onclick="changeQty(1)" class="w-10 h-10 shrink-0 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white flex items-center justify-center transition active:scale-95">
+                            <i class="fas fa-plus text-xs"></i>
+                        </button>
+                        
+                        <div class="w-px h-8 bg-white/10 mx-2 shrink-0"></div>
+                        
+                        <div class="shrink-0 pr-4 text-right">
+                             <p class="text-[9px] text-gray-500 uppercase font-bold tracking-widest" id="t-calcLabel">Итого</p>
+                             <p class="text-primary font-black text-lg italic leading-none"><span id="calcTotalPoints">0</span></p>
+                        </div>
+                    </div>
 
                     <label class="text-[10px] font-bold text-gray-400 uppercase ml-2 mb-2 block tracking-wider" id="t-stepDate">Дата выполнения</label>
                     <input type="hidden" id="taskDate" value="">
@@ -279,29 +315,11 @@
             </div>
         </div>
     </div>
-    <div id="cancelModal" class="modal-overlay">
-        <div class="glass-card modal-content border-red-500/20 max-w-sm text-center">
-            <div class="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4 border border-red-500/20">
-                <i class="fas fa-exclamation-triangle text-2xl text-red-500"></i>
-            </div>
-            <h3 class="text-xl font-black uppercase italic text-white mb-2" id="t-cancelHeader">Отмена заявки</h3>
-            <p class="text-xs text-gray-400 mb-8" id="t-cancelConfirmText">Вы уверены, что хотите отозвать этот отчет? Это действие нельзя будет отменить.</p>
-            
-            <div class="flex gap-3">
-                <button onclick="closeCancelModal()" class="flex-1 py-3 bg-white/5 hover:bg-white/10 text-gray-400 font-bold uppercase rounded-xl text-[10px] transition">
-                    Назад
-                </button>
-                <button id="confirmCancelBtn" class="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white font-black uppercase rounded-xl text-[10px] shadow-lg shadow-red-500/20 transition transform active:scale-95">
-                    Да, отменить
-                </button>
-            </div>
-        </div>
-    </div>
+    
    <script>
         let currentLang = localStorage.getItem('lang') || 'ru';
         let currentUser = null; 
 
-        // --- УМНЫЙ FETCH С АВТО-ОБНОВЛЕНИЕМ ТОКЕНА ---
         async function apiFetch(url, options = {}) {
             let access = localStorage.getItem('access');
             if (!options.headers) options.headers = {};
@@ -309,7 +327,6 @@
             
             let res = await fetch(url, options);
             
-            // Если ловим 401 (токен протух), пытаемся обновить его
             if (res.status === 401) {
                 const refresh = localStorage.getItem('refresh');
                 if (refresh) {
@@ -324,7 +341,6 @@
                             const data = await refreshRes.json();
                             localStorage.setItem('access', data.access);
                             options.headers['Authorization'] = `Bearer ${data.access}`;
-                            // Повторяем исходный запрос
                             res = await fetch(url, options);
                         } else {
                             logout();
@@ -341,6 +357,7 @@
             ru: {
                 score: "Ваш счет", yc: "ЖК", newreport: "Новый отчет",
                 step1: "1. Куда отправляем?", step2: "2. Какое задание?",
+                stepQty: "Количество (шт.)", calcLabel: "Итого",
                 stepDate: "Дата выполнения",
                 step3: "3. Ссылка / Описание", send: "Отправить",
                 sync: "Синхронизация данных...", loading: "Загрузка...",
@@ -364,6 +381,7 @@
             en: {
                 score: "Your Score", yc: "YC", newreport: "New Report",
                 step1: "1. Where to send?", step2: "2. Which task?",
+                stepQty: "Quantity", calcLabel: "Total",
                 stepDate: "Execution Date",
                 step3: "3. Link / Description", send: "Submit",
                 sync: "Syncing data...", loading: "Loading...",
@@ -398,6 +416,8 @@
             document.getElementById('t-newreport').innerText = t.newreport;
             document.getElementById('t-step1').innerText = t.step1;
             document.getElementById('t-step2').innerText = t.step2;
+            document.getElementById('t-stepQty').innerText = t.stepQty;
+            document.getElementById('t-calcLabel').innerText = t.calcLabel;
             document.getElementById('t-stepDate').innerText = t.stepDate;
             document.getElementById('t-step3').innerText = t.step3;
             document.getElementById('t-send').innerText = t.send;
@@ -472,7 +492,7 @@
             try {
                 const res = await apiFetch('/api/profile/', {
                     method: 'PATCH',
-                    body: formData // Content-Type указывать не нужно для FormData
+                    body: formData 
                 });
                 if (res.ok) {
                     showToast(t.saveSuccess);
@@ -519,7 +539,6 @@
 
                 currentUser = user; 
 
-                // Обновление шапки
                 const headerImg = document.getElementById('headerProfileImg');
                 const headerIcon = document.getElementById('headerProfileIcon');
                 if (user.image_url || user.image) {
@@ -557,28 +576,24 @@
             if (appData.my_direction.length === 0 && appData.my_commands.length === 0) sel.innerHTML = `<option value="">${t.emptyCtx}</option>`;
         }
 
-    function updateTaskDropdown() {
+        function updateTaskDropdown() {
             const contextVal = document.getElementById('contextSelect').value;
             const taskSel = document.getElementById('taskSelect');
             const t = translations[currentLang];
             
             taskSel.innerHTML = `<option value="">${contextVal ? t.chooseTask : t.firstCtx}</option>`;
             
-            if (!contextVal) return;
+            if (!contextVal) {
+                updateCalc();
+                return;
+            }
 
             const [type, targetId] = contextVal.split('_');
             
             const relevantTasks = appData.available_tasks.filter(tk => {
-                // --- БЛОК ЖЕСТКОЙ ФИЛЬТРАЦИИ ШТРАФОВ ---
-                
-                // Проверяем только по названию (если есть слово штраф/penalty)
                 const titleLower = (tk.title || "").toLowerCase();
                 if (titleLower.includes("штраф") || titleLower.includes("penalty")) return false;
-
-                // Стандартная проверка флага (если бэкенд отдает is_penalty)
                 if (tk.is_penalty === true) return false;
-
-                // --- КОНЕЦ ФИЛЬТРАЦИИ ---
 
                 const tDirId = extractId(tk, 'direction');
                 const tCmdId = extractId(tk, 'command');
@@ -593,12 +608,40 @@
                 relevantTasks.forEach(tk => {
                     const displayTitle = (currentLang === 'en' && tk.title_en) ? tk.title_en : tk.title;
                     const isGen = (!tk.command_id && !tk.direction_id) ? t.general : "";
-                    
-                    // Если баллы 0 (плавающие), то пишем "(Плавающие)" вместо "(+0)"
                     const pointsDisplay = parseFloat(tk.points) > 0 ? `(+${tk.points})` : "(Гибкие баллы)";
                     
-                    taskSel.innerHTML += `<option value="${tk.id}">${displayTitle}${isGen} ${pointsDisplay}</option>`;
+                    // Сохраняем баллы в data-points
+                    taskSel.innerHTML += `<option value="${tk.id}" data-points="${tk.points}">${displayTitle}${isGen} ${pointsDisplay}</option>`;
                 });
+            }
+            updateCalc();
+        }
+
+        // --- ЛОГИКА КАЛЬКУЛЯТОРА И КОЛИЧЕСТВА ---
+        function changeQty(delta) {
+            const input = document.getElementById('taskQty');
+            let val = parseInt(input.value) || 1;
+            val += delta;
+            if (val < 1) val = 1; // Защита от отрицательных чисел и нуля
+            input.value = val;
+            updateCalc();
+        }
+
+        function updateCalc() {
+            const sel = document.getElementById('taskSelect');
+            const qty = parseInt(document.getElementById('taskQty').value) || 1;
+            const ptLabel = document.getElementById('calcTotalPoints');
+            
+            if (!sel.value || sel.selectedIndex === -1 || !sel.options[sel.selectedIndex].getAttribute('data-points')) {
+                ptLabel.innerText = "0";
+                return;
+            }
+            
+            const points = parseFloat(sel.options[sel.selectedIndex].getAttribute('data-points')) || 0;
+            if (points === 0) {
+                ptLabel.innerText = "???"; // Если баллы гибкие
+            } else {
+                ptLabel.innerText = (points * qty).toFixed(1);
             }
         }
 
@@ -611,12 +654,10 @@
             const monthsEn = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
             const months = currentLang === 'en' ? monthsEn : monthsRu;
 
-            // 1. Функция для определения дней в месяце
             function getDaysInMonth(month, year) {
                 return new Date(year, month, 0).getDate();
             }
 
-            // 2. Рендер месяцев (делаем один раз)
             scrollMonths.innerHTML = '';
             months.forEach((m, i) => {
                 const mon = document.createElement('div');
@@ -625,7 +666,6 @@
                 scrollMonths.appendChild(mon);
             });
 
-            // 3. Функция обновления списка дней
             function updateDaysList() {
                 const currentMonthIdx = Math.round(scrollMonths.scrollTop / 40) + 1;
                 const currentYear = new Date().getFullYear();
@@ -645,7 +685,7 @@
             }
 
             function updateSelectedDate() {
-                updateDaysList(); // Проверяем количество дней при каждом сдвиге месяца
+                updateDaysList(); 
                 
                 const dIdx = Math.round(scrollDays.scrollTop / 40);
                 const mIdx = Math.round(scrollMonths.scrollTop / 40);
@@ -666,7 +706,6 @@
             scrollDays.onscroll = updateSelectedDate;
             scrollMonths.onscroll = updateSelectedDate;
 
-            // Начальная установка
             const now = new Date();
             updateDaysList(); 
             setTimeout(() => {
@@ -689,11 +728,10 @@
                 return new Date(b.date || b.created_at) - new Date(a.date || a.created_at);
             };
 
-            // 1. Сначала выводим таблицы направлений (БЕЗ штрафов)
             appData.my_direction.forEach(dir => {
                 const dId = String(dir.id || dir);
                 const dirSubmissions = appData.history.filter(s => {
-                    if (s.is_penalty) return false; // Исключаем штрафы
+                    if (s.is_penalty) return false; 
                     const tDir = extractId(s.task_details, 'direction') || extractId(s, 'direction');
                     const tCmd = extractId(s.task_details, 'command') || extractId(s, 'command');
                     return (tDir === dId && !tCmd) || (!tDir && !tCmd);
@@ -702,11 +740,10 @@
                 container.innerHTML += createTableHTML(dir.name || "Direction", t.dirSub, dirSubmissions);
             });
 
-            // 2. Затем таблицы спец-команд (БЕЗ штрафов)
             appData.my_commands.forEach(cmd => {
                 const cId = String(cmd.id || cmd);
                 const cmdSubmissions = appData.history.filter(s => {
-                    if (s.is_penalty) return false; // Исключаем штрафы
+                    if (s.is_penalty) return false; 
                     const tCmd = extractId(s.task_details, 'command') || extractId(s, 'command');
                     return tCmd === cId;
                 }).sort(customSort);
@@ -714,7 +751,6 @@
                 container.innerHTML += createTableHTML(cmd.title, t.cmdSub, cmdSubmissions);
             });
 
-            // 3. ОТДЕЛЬНЫЙ БЛОК ДЛЯ ШТРАФОВ (появляется только если они есть)
             const penalties = appData.history.filter(s => s.is_penalty);
             if (penalties.length > 0) {
                 container.innerHTML += createPenaltyTableHTML(penalties);
@@ -724,7 +760,7 @@
                 container.innerHTML = `<div class="glass-card text-center py-10"><p class="text-gray-400">${t.historyEmpty}</p></div>`;
             }
         }
-// НОВАЯ ФУНКЦИЯ: Открытие и закрытие деталей
+
         function toggleDetails(detailId, iconId) {
             const detailRow = document.getElementById(detailId);
             const icon = document.getElementById(iconId);
@@ -738,17 +774,36 @@
             }
         }
 
-        function createTableHTML(title, subtitle, submissions) {
+function createTableHTML(title, subtitle, submissions) {
             const t = translations[currentLang];
+            
+            // 1. ИСПРАВЛЕНО: Теперь общая сумма таблицы учитывает количество (quantity)
             const totalPoints = submissions
                 .filter(s => s.status === 'approved')
-                .reduce((sum, s) => sum + (s.points_awarded !== null ? parseFloat(s.points_awarded) : (parseFloat(s.task_details?.points) || 0)), 0);
+                .reduce((sum, s) => {
+                    const sQty = parseInt(s.quantity) || 1;
+                    const pts = s.points_awarded !== null 
+                        ? parseFloat(s.points_awarded) 
+                        : (parseFloat(s.task_details?.points) || 0) * sQty;
+                    return sum + pts;
+                }, 0);
             
             const rows = submissions.length === 0 ? `<tr><td colspan="3" class="text-center text-gray-500 py-6 text-xs italic">${t.noRecords}</td></tr>` : submissions.map(s => {
-                const displayPoints = (s.status === 'approved' && s.points_awarded !== null) ? s.points_awarded : (s.task_details?.points || 0);
+                
+                // 2. ИСПРАВЛЕНО: Четко получаем множитель
+                const sQty = parseInt(s.quantity) || 1;
+                
+                // 3. ИСПРАВЛЕНО: Всегда умножаем базовый балл на количество (если нет жесткого ответа от куратора)
+                let displayPoints = 0;
+                if (s.points_awarded !== null && s.points_awarded !== undefined) {
+                    displayPoints = parseFloat(s.points_awarded); // Куратор выдал точный балл
+                } else {
+                    displayPoints = (parseFloat(s.task_details?.points) || 0) * sQty; // Базовый * Кол-во
+                }
+
+                const qtyBadge = sQty > 1 ? `<span class="ml-1 text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-md font-bold">x${sQty}</span>` : '';
                 const taskTitle = (currentLang === 'en' && s.task_details?.title_en) ? s.task_details.title_en : (s.task_details?.title || t.delTask);
                 
-                // ЗАЩИТА ОТ ВЗЛОМА (Экранируем текст перед вставкой в HTML)
                 const escapeHTML = (str) => str ? str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;") : '';
                 const userComment = escapeHTML(s.description) || '<span class="italic text-gray-600">Нет комментария</span>';
                 const taskDesc = escapeHTML(s.task_details?.description);
@@ -771,18 +826,18 @@
                     </div>
                 `;
 
-                // event.stopPropagation() не дает строке развернуться, если мы кликаем на кнопку "Отменить"
                 const cancelBtn = s.status === 'pending' 
                     ? `<button onclick="event.stopPropagation(); cancelSubmission(${s.id})" class="mt-2 text-[9px] text-red-500 hover:text-red-400 uppercase font-bold transition flex items-center justify-end gap-1 w-full"><i class="fas fa-trash-alt"></i> ${t.cancel}</button>` 
                     : '';
 
-                // Главная строка теперь <tr class="cursor-pointer ..."> и имеет функцию onclick
                 return `
                     <tr class="cursor-pointer group hover:bg-white/5 transition-colors" onclick="toggleDetails('detail-${s.id}', 'icon-${s.id}')">
                         <td class="pr-3 align-top pt-3 w-[75px]">${dateScrollWidget}</td>
                         <td class="align-top pt-3 pb-3">
                             <div class="flex items-center gap-2">
-                                <div class="font-bold text-white text-xs md:text-sm leading-tight">${taskTitle}</div>
+                                <div class="font-bold text-white text-xs md:text-sm leading-tight flex flex-wrap items-center">
+                                    ${taskTitle} ${qtyBadge}
+                                </div>
                                 <div class="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center shrink-0">
                                     <i id="icon-${s.id}" class="fas fa-chevron-down text-[8px] text-primary transition-transform duration-300"></i>
                                 </div>
@@ -881,6 +936,7 @@
                     <table class="custom-table w-full text-left">${rows}</table>
                 </div>`;
         }
+        
         function getStatusBadge(status, text) {
             const styles = { 'approved': 'bg-green-500/10 text-green-400 border-green-500/20', 'rejected': 'bg-red-500/10 text-red-400 border-red-500/20', 'pending': 'bg-orange-500/10 text-orange-400 border-orange-500/20' };
             const icons = { 'approved': 'fa-check', 'rejected': 'fa-times', 'pending': 'fa-clock' };
@@ -894,19 +950,16 @@
             submissionToCancel = null;
         }
 
-        // Вызов модалки
         async function cancelSubmission(id) {
             submissionToCancel = id;
             const modal = document.getElementById('cancelModal');
             
-            // Перевод текстов внутри модалки
             const t = translations[currentLang];
             document.getElementById('t-cancelHeader').innerText = t.cancel;
             document.getElementById('t-cancelConfirmText').innerText = t.cancelConfirm;
             
             modal.classList.add('open');
             
-            // Привязываем действие к кнопке
             document.getElementById('confirmCancelBtn').onclick = async () => {
                 const btn = document.getElementById('confirmCancelBtn');
                 btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
@@ -930,14 +983,21 @@
             };
         }
 
-        async function sendReport() {
+async function sendReport() {
             const btn = document.getElementById('sendBtn');
-            const taskId = document.getElementById('taskSelect').value;
+            const taskSelect = document.getElementById('taskSelect');
+            const taskId = taskSelect.value;
             const taskDate = document.getElementById('taskDate').value;
             const contextVal = document.getElementById('contextSelect').value; 
+            const qtyVal = parseInt(document.getElementById('taskQty').value) || 1; // Берем количество
             const t = translations[currentLang];
 
             if (!taskId) return showToast(t.toastMiss, "error");
+
+            // 🔥 СЧИТАЕМ ИТОГОВЫЕ БАЛЛЫ ПРЯМО ЗДЕСЬ (Базовый балл * Количество)
+            const selectedOption = taskSelect.options[taskSelect.selectedIndex];
+            const basePoints = parseFloat(selectedOption.getAttribute('data-points')) || 0;
+            const totalPoints = basePoints * qtyVal;
 
             let commandId = null;
             let directionId = null;
@@ -952,22 +1012,33 @@
             btn.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i>`;
             btn.disabled = true;
 
+            // Формируем полезную нагрузку
+            const payload = { 
+                task: taskId, 
+                date: taskDate, 
+                description: document.getElementById('taskComm').value,
+                command: commandId,
+                direction: directionId,
+                quantity: qtyVal 
+            };
+
+            // 🔥 ГЛАВНЫЙ ТРЮК: Если у задания есть баллы, мы сразу отправляем ИТОГОВУЮ СУММУ на сервер!
+            if (totalPoints > 0) {
+                payload.points_awarded = parseFloat(totalPoints.toFixed(1));
+            }
+
             try {
                 const res = await apiFetch('/api/activities/', { 
                     method: 'POST', 
                     headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ 
-                        task: taskId, 
-                        date: taskDate, 
-                        description: document.getElementById('taskComm').value,
-                        command: commandId,
-                        direction: directionId 
-                    }) 
+                    body: JSON.stringify(payload) 
                 });
                 
                 if(res.ok) { 
                     showToast(t.toastSent);
                     document.getElementById('taskComm').value = ""; 
+                    document.getElementById('taskQty').value = 1; // Сбрасываем количество
+                    updateCalc();
                     init(); 
                 } else {
                     showToast(t.toastFail, "error");

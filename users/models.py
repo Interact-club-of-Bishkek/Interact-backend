@@ -84,11 +84,15 @@ class Volunteer(AbstractBaseUser, PermissionsMixin):
                 return login_candidate
             
     def update_total_points(self):
-            """Полный пересчет баллов на основе одобренных заявок"""
-            # Coalesce берет points_awarded, а если там None -> берет task__points
+            """Полный пересчет баллов на основе одобренных заявок (с учетом quantity)"""
+            # Coalesce берет points_awarded, а если там None -> берет task__points * quantity
             total = self.submissions.filter(status='approved').aggregate(
                 total=Sum(
-                    Coalesce('points_awarded', 'task__points', output_field=DecimalField())
+                    Coalesce(
+                        'points_awarded', 
+                        F('task__points') * F('quantity'), # <--- ГЛАВНОЕ ИЗМЕНЕНИЕ: Умножаем на quantity!
+                        output_field=DecimalField()
+                    )
                 )
             )['total'] or 0
             
@@ -229,14 +233,19 @@ class ActivitySubmission(models.Model):
     )
     created_at = models.DateTimeField("Дата подачи", auto_now_add=True)
     description = models.TextField("Комментарий/Отчет", blank=True, null=True) 
-
+    quantity = models.IntegerField(default=1)
+    
     def save(self, *args, **kwargs):
-        # Твоя логика с начислением баллов через save() рабочая, 
-        # но помни про риск NULL в поле point у волонтера.
         if self.pk:
             old_instance = ActivitySubmission.objects.get(pk=self.pk)
-            old_points = old_instance.points_awarded if old_instance.points_awarded is not None else old_instance.task.points
-            new_points = self.points_awarded if self.points_awarded is not None else self.task.points
+            
+            # ИСПРАВЛЕНИЕ: Получаем старое и новое количество
+            old_qty = getattr(old_instance, 'quantity', 1)
+            new_qty = getattr(self, 'quantity', 1)
+            
+            # ИСПРАВЛЕНИЕ: Умножаем базовый балл на количество
+            old_points = old_instance.points_awarded if old_instance.points_awarded is not None else (old_instance.task.points * old_qty)
+            new_points = self.points_awarded if self.points_awarded is not None else (self.task.points * new_qty)
 
             if old_instance.status != 'approved' and self.status == 'approved':
                 self.volunteer.point = (self.volunteer.point or 0) + new_points
@@ -250,7 +259,10 @@ class ActivitySubmission(models.Model):
         
         else:
             if self.status == 'approved':
-                points = self.points_awarded if self.points_awarded is not None else self.task.points
+                # ИСПРАВЛЕНИЕ: Умножаем на количество при новой заявке
+                new_qty = getattr(self, 'quantity', 1)
+                points = self.points_awarded if self.points_awarded is not None else (self.task.points * new_qty)
+                
                 self.volunteer.point = (self.volunteer.point or 0) + points
                 self.volunteer.save(update_fields=['point'])
 
@@ -258,9 +270,13 @@ class ActivitySubmission(models.Model):
 
     def delete(self, *args, **kwargs):
         if self.status == 'approved':
-            points = self.points_awarded if self.points_awarded is not None else self.task.points
+            # ИСПРАВЛЕНИЕ: Умножаем на количество при удалении
+            qty = getattr(self, 'quantity', 1)
+            points = self.points_awarded if self.points_awarded is not None else (self.task.points * qty)
+            
             self.volunteer.point = (self.volunteer.point or 0) - points
             self.volunteer.save(update_fields=['point'])
+            
         super().delete(*args, **kwargs)
 
     class Meta:

@@ -103,6 +103,8 @@ class ActivitySubmissionSerializer(serializers.ModelSerializer):
         allow_null=True
     )
 
+    quantity = serializers.IntegerField(required=False, default=1)
+
     command_title = serializers.ReadOnlyField(source='command.title')
     direction_name = serializers.ReadOnlyField(source='direction.name')
 
@@ -112,7 +114,8 @@ class ActivitySubmissionSerializer(serializers.ModelSerializer):
             'id', 'task', 'date', 'task_details',
             'volunteer_id', 'volunteer_name',
             'status', 'created_at', 'description', 'points_awarded',
-            'command', 'direction', 'command_title', 'direction_name'
+            'command', 'direction', 'command_title', 'direction_name',
+            'quantity'
         ]
 
 # --- 🔥 ИСПРАВЛЕННЫЙ СПИСОК ДЛЯ КУРАТОРА ---

@@ -128,16 +128,19 @@ class VolunteerActivityViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         command_id = self.request.data.get('command')
         direction_id = self.request.data.get('direction')
+        
+        # 🔥 2. ВЫТАСКИВАЕМ QUANTITY НАПРЯМУЮ ИЗ JSON ОТ ФРОНТЕНДА
+        quantity = self.request.data.get('quantity', 1)
 
         instance = serializer.save(
             volunteer=self.request.user,
             command_id=command_id,
-            direction_id=direction_id
+            direction_id=direction_id,
+            quantity=quantity  # 🔥 3. ЖЕСТКО ЗАПИСЫВАЕМ ЕГО В БАЗУ ДАННЫХ
         )
         if instance.command and not instance.direction:
             instance.direction = instance.command.direction
             instance.save()
-
     # ДОБАВЬ ЭТОТ МЕТОД:
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -312,26 +315,34 @@ class VolunteerListView(generics.ListAPIView):
         qs = Volunteer.objects.prefetch_related('direction', 'volunteer_commands')
 
         qs = qs.annotate(
-                    # Считаем ВСЕ баллы волонтера по истории (points_awarded ИЛИ task__points)
-                    calculated_total=Coalesce(
-                        Sum(
-                            Coalesce('submissions__points_awarded', 'submissions__task__points', output_field=DecimalField()), 
-                            filter=Q(submissions__status='approved')
-                        ),
-                        Value(0),
+            # Считаем ВСЕ баллы волонтера по истории (points_awarded ИЛИ task__points * quantity)
+            calculated_total=Coalesce(
+                Sum(
+                    Coalesce(
+                        'submissions__points_awarded', 
+                        F('submissions__task__points') * F('submissions__quantity'), # <--- ЗДЕСЬ ИЗМЕНЕНИЕ
                         output_field=DecimalField()
-                    ),
-                    # Считаем баллы в твоих командах
-                    local_points=Coalesce(
-                        Sum(
-                            Coalesce('submissions__points_awarded', 'submissions__task__points', output_field=DecimalField()), 
-                            filter=Q(submissions__command__in=managed_commands, submissions__status='approved')
-                        ), 
-                        Value(0), 
+                    ), 
+                    filter=Q(submissions__status='approved')
+                ),
+                Value(0),
+                output_field=DecimalField()
+            ),
+            # Считаем баллы в твоих командах
+            local_points=Coalesce(
+                Sum(
+                    Coalesce(
+                        'submissions__points_awarded', 
+                        F('submissions__task__points') * F('submissions__quantity'), # <--- И ЗДЕСЬ ИЗМЕНЕНИЕ
                         output_field=DecimalField()
-                    ),
-                    yellow_card_count=Count('yellow_cards', distinct=True)
-                )
+                    ), 
+                    filter=Q(submissions__command__in=managed_commands, submissions__status='approved')
+                ), 
+                Value(0), 
+                output_field=DecimalField()
+            ),
+            yellow_card_count=Count('yellow_cards', distinct=True)
+        )
         return qs.order_by('name')
 
 
@@ -481,14 +492,18 @@ class AttendanceViewSet(viewsets.ViewSet):
         data = []
 
         for current_dir in directions:
-            # СЧИТАЕМ БАЛЛЫ ИДЕАЛЬНО: точно так же, как в VolunteerListView
+            # СЧИТАЕМ БАЛЛЫ ИДЕАЛЬНО: с учетом умножения на quantity
             vols = Volunteer.objects.filter(
                 direction=current_dir, 
                 role='volunteer'
             ).annotate(
                 total_score=Coalesce(
                     Sum(
-                        Coalesce('submissions__points_awarded', 'submissions__task__points', output_field=DecimalField()), 
+                        Coalesce(
+                            'submissions__points_awarded', 
+                            F('submissions__task__points') * F('submissions__quantity'), # <--- ЗДЕСЬ ИЗМЕНЕНИЕ
+                            output_field=DecimalField()
+                        ), 
                         filter=Q(submissions__status='approved')
                     ),
                     Value(0),
@@ -505,10 +520,17 @@ class AttendanceViewSet(viewsets.ViewSet):
                 approved_subs = [s for s in v.submissions.all() if s.status == 'approved']
                 tasks_data = []
                 for sub in approved_subs:
-                    p = sub.points_awarded if sub.points_awarded is not None else (sub.task.points if sub.task else 0)
+                    # Учитываем quantity и для модалки рейтинга
+                    qty = getattr(sub, 'quantity', 1) # На всякий случай безопасно получаем quantity
+                    
+                    if sub.points_awarded is not None:
+                        p = float(sub.points_awarded)
+                    else:
+                        p = float(sub.task.points) * qty if sub.task else 0.0
+
                     tasks_data.append({
                         "title": sub.task.title if sub.task else "Без названия",
-                        "points": float(p),
+                        "points": p,
                         "date": sub.created_at.strftime('%Y-%m-%d')
                     })
 

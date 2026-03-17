@@ -1120,6 +1120,7 @@
         } catch(e){ console.error(e); }
     }
 
+    // --- ОБНОВЛЕННАЯ ЛОГИКА ОДОБРЕНИЯ ЗАЯВКИ С УЧЕТОМ QUANTITY ---
     function decideSub(id, status) {
         const submission = state.submissions.find(s => s.id === id);
         if (!submission) return;
@@ -1128,12 +1129,19 @@
         
         if (status === 'approved') {
             const pointsInput = document.getElementById(`pts-${id}`);
+            const qty = parseInt(submission.quantity) || 1;
+            
+            // 🔥 ДОБАВИЛИ ОКРУГЛЕНИЕ parseFloat( ... .toFixed(1) )
+            const defaultPoints = submission.points_awarded !== null && submission.points_awarded !== undefined
+                ? parseFloat(parseFloat(submission.points_awarded).toFixed(1))
+                : parseFloat(((parseFloat(submission.task_details?.points) || 0) * qty).toFixed(1));
+
             body.points_awarded = pointsInput 
                 ? parseFloat(pointsInput.value) 
-                : parseFloat(submission.task_details.points);
+                : defaultPoints;
                 
             if (isNaN(body.points_awarded)) {
-                showToast("⚠️ Ошибка в баллах");
+                showToast("⚠️ Ошибка в баллах", "error");
                 return;
             }
         }
@@ -1149,10 +1157,13 @@
             if (res.ok) {
                 showToast('Успешно обновлено');
                 loadAllData();
+            } else {
+                showToast('Ошибка при обновлении', 'error');
             }
         });
     }
 
+    // --- ОБНОВЛЕННАЯ ЛОГИКА ОТРИСОВКИ С УЧЕТОМ QUANTITY ---
     function renderSubmissions() {
         const container = document.getElementById('secReq');
         if (!container) return;
@@ -1168,6 +1179,15 @@
             const isFlex = s.task_details?.is_flexible;
             const contextName = s.task_details?.command_name || s.task_details?.direction_name || 'Задача';
             
+            const qty = parseInt(s.quantity) || 1;
+            
+            // 🔥 ДОБАВИЛИ ОКРУГЛЕНИЕ parseFloat( ... .toFixed(1) )
+            const displayPoints = s.points_awarded !== null && s.points_awarded !== undefined
+                ? parseFloat(parseFloat(s.points_awarded).toFixed(1))
+                : parseFloat(((parseFloat(s.task_details?.points) || 0) * qty).toFixed(1));
+            // Плашка с количеством для куратора
+            const qtyBadge = qty > 1 ? `<span class="ml-2 px-1.5 py-0.5 bg-primary/20 text-primary text-[10px] rounded-md font-bold">x${qty} шт.</span>` : '';
+
             return `
             <div class="glass-card flex flex-col h-full border-white/5 hover:border-primary/20 transition group" id="sub-${s.id}">
                 <div class="flex justify-between items-start mb-4">
@@ -1176,18 +1196,18 @@
                 </div>
                 <div class="mb-6 flex-grow">
                     <h4 class="font-black text-lg italic uppercase leading-tight text-white group-hover:text-primary transition">${s.volunteer_name || 'Волонтер'}</h4>
-                    <p class="text-[10px] text-gray-400 font-bold uppercase mt-1 mb-3">${s.task_details?.title || 'Без названия'}</p>
+                    <p class="text-[10px] text-gray-400 font-bold uppercase mt-1 mb-3 flex items-center flex-wrap gap-1">${s.task_details?.title || 'Без названия'} ${qtyBadge}</p>
                     <div class="bg-black/40 p-3 rounded-xl text-sm italic text-gray-500 border border-white/5">"${s.description || 'Нет комментария'}"</div>
                 </div>
                 <div class="flex flex-col gap-3 mt-auto">
                     <div class="flex items-center justify-between bg-white/5 p-3 rounded-2xl border border-white/10 transition-all hover:border-primary/30 group/input">
                         <div class="flex flex-col">
-                            <span class="text-[9px] font-black text-gray-500 uppercase ml-1 tracking-tighter">${isFlex ? 'Оценка работы' : 'Фикс. баллы'}</span>
+                            <span class="text-[9px] font-black text-gray-500 uppercase ml-1 tracking-tighter">${isFlex ? 'Оценка работы' : 'Итого баллов'}</span>
                             <span class="text-[8px] text-primary/40 font-bold uppercase ml-1">${isFlex ? 'изменяемое' : 'стандарт'}</span>
                         </div>
                         ${isFlex 
-                            ? `<div class="relative flex items-center"><i class="fas fa-pen text-[10px] text-primary/30 absolute left-3 group-focus-within/input:text-primary transition-colors"></i><input type="number" id="pts-${s.id}" class="w-24 bg-[#0f172a] border-2 border-primary/20 rounded-xl pl-8 pr-3 py-2 text-primary font-black text-lg outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all hover:bg-[#1e293b] appearance-none" value="${s.task_details.points}" step="0.5"></div>`
-                            : `<div class="score-badge text-xl px-4 py-2 bg-primary/10 border border-primary/20 rounded-xl">${s.task_details?.points > 0 ? '+' : ''}${formatPoints(s.task_details?.points)}</div>`
+                            ? `<div class="relative flex items-center"><i class="fas fa-pen text-[10px] text-primary/30 absolute left-3 group-focus-within/input:text-primary transition-colors"></i><input type="number" id="pts-${s.id}" class="w-24 bg-[#0f172a] border-2 border-primary/20 rounded-xl pl-8 pr-3 py-2 text-primary font-black text-lg outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all hover:bg-[#1e293b] appearance-none" value="${displayPoints}" step="0.5"></div>`
+                            : `<div class="score-badge text-xl px-4 py-2 bg-primary/10 border border-primary/20 rounded-xl">${displayPoints > 0 ? '+' : ''}${formatPoints(displayPoints)}</div>`
                         }
                     </div>
                     <div class="grid grid-cols-2 gap-2">
