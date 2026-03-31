@@ -389,23 +389,22 @@
             const tbody = document.getElementById('modalTaskBody');
             
             if(!vol.tasks || vol.tasks.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-6 text-gray-500 font-bold">Нет выполненных заданий</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-gray-500 font-bold">Нет выполненных заданий</td></tr>`;
             } else {
                 tbody.innerHTML = vol.tasks.map((t, i) => `
-                    <tr class="hover:bg-white/5 transition">
-                        <td class="text-center text-gray-500">${i + 1}</td>
-                        <td class="text-gray-200">${t.title}</td>
-                        <td class="text-center text-gray-400 text-xs">${t.date}</td>
-                        <td class="text-center font-bold text-primary">${t.points}</td>
+                    <tr class="hover:bg-white/5 transition border-b border-gray-700/50">
+                        <td class="text-center text-gray-500 py-3">${i + 1}</td>
+                        <td class="py-3">
+                            <div class="text-gray-200 font-medium">${t.title}</div>
+                            <div class="text-gray-400 text-xs mt-1 leading-relaxed">${t.description || 'Нет описания'}</div>
+                        </td>
+                        <td class="text-center text-gray-400 text-xs py-3">${t.date}</td>
+                        <td class="text-center font-bold text-primary py-3">${t.points}</td>
                     </tr>
                 `).join('');
             }
 
             document.getElementById('taskModal').classList.remove('hidden');
-        }
-
-        function closeModal() {
-            document.getElementById('taskModal').classList.add('hidden');
         }
 
         // --- ФУНКЦИИ ЖУРНАЛА ---
