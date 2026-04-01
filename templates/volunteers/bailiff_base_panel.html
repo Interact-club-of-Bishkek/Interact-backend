@@ -4,12 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bailiff Base Panel</title>
+    <link rel="icon" type="image/png" href="https://i.ibb.co/qFYrFSnD/2105176-1-removebg-preview.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
     <style>
         :root { --primary: #00c6ff; --bg: #020408; --border: rgba(255,255,255,0.1); }
-        body { background: var(--bg); color: white; font-family: 'Inter', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        /* ИСПРАВЛЕНИЕ: разрешаем скролл всей страницы */
+        body { background: var(--bg); color: white; font-family: 'Inter', sans-serif; min-height: 100vh; display: flex; flex-direction: column; overflow-y: auto; padding-bottom: 20px; }
         
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -35,7 +37,8 @@
         #toast-container { position: fixed; top: 20px; right: 20px; z-index: 2000; }
         .toast { padding: 16px 24px; border-radius: 16px; background: rgba(15, 23, 42, 0.95); border-left: 4px solid var(--primary); color: white; margin-bottom: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); font-weight: 600; font-size: 13px; }
 
-        .board-column { max-height: calc(100vh - 280px); display: flex; flex-direction: column; background: #0f172a; border: 1px solid var(--border); border-radius: 20px; overflow: hidden; }
+        /* ИСПРАВЛЕНИЕ: фиксируем высоту карточки, чтобы скроллились только люди внутри нее */
+        .board-column { height: 400px; display: flex; flex-direction: column; background: #0f172a; border: 1px solid var(--border); border-radius: 20px; overflow: hidden; }
         .board-header { padding: 16px; background: #1e293b; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
         .board-body { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
         
@@ -101,7 +104,7 @@
         </div>
     </div>
 
-    <div class="relative flex-1 overflow-hidden px-6 pb-6">
+    <div class="relative flex-1 px-6 pb-6">
         <div id="loader" class="absolute inset-0 bg-[#020408]/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
             <i class="fas fa-circle-notch fa-spin text-4xl text-primary"></i>
         </div>
@@ -111,7 +114,7 @@
             <p class="text-sm font-bold text-gray-400">Сгенерируйте распределение для просмотра досок</p>
         </div>
 
-        <div id="boardsContainer" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 h-full overflow-y-auto hidden">
+        <div id="boardsContainer" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 items-start hidden">
         </div>
     </div>
 
