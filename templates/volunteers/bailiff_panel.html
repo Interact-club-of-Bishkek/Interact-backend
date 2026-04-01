@@ -128,7 +128,7 @@
     </div>
 
     <div id="taskModal" class="fixed inset-0 z-[3000] hidden flex justify-center items-center p-4">
-        <div class="bg-[#1e293b] border border-white/10 rounded-xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh]">
+        <div class="bg-[#1e293b] border border-white/10 rounded-xl shadow-2xl w-full max-w-4xl flex flex-col max-h-[90vh]">
             <div class="p-4 border-b border-white/10 flex justify-between items-center bg-[#0f172a] rounded-t-xl">
                 <h2 class="text-lg font-bold text-white" id="modalTitle">Задания волонтера</h2>
                 <button onclick="closeModal()" class="text-gray-400 hover:text-white transition w-8 h-8 flex items-center justify-center rounded-lg bg-white/5">
@@ -140,13 +140,13 @@
                     <thead>
                         <tr>
                             <th class="w-12 text-center">№</th>
-                            <th>Название задания</th>
+                            <th>Детали задания</th>
                             <th class="w-24 text-center">Дата</th>
                             <th class="w-20 text-center">Баллы</th>
                         </tr>
                     </thead>
                     <tbody id="modalTaskBody">
-                        </tbody>
+                    </tbody>
                 </table>
             </div>
             <div class="p-4 border-t border-white/10 bg-[#0f172a] rounded-b-xl flex justify-end">
@@ -232,7 +232,6 @@
             document.getElementById('view-journal').classList.toggle('hidden', tab !== 'journal');
             document.getElementById('view-stats').classList.toggle('hidden', tab !== 'stats');
             
-            // ВАЖНО: Прячем только кнопки сохранения. ФИЛЬТР направлений ОСТАЕТСЯ!
             document.getElementById('journalActions').classList.toggle('hidden', tab === 'stats');
 
             fetchCurrentTab();
@@ -243,7 +242,6 @@
             else fetchStatsData();
         }
 
-        // --- ЛОГИКА ЖУРНАЛА ---
         async function fetchJournalData() {
             const dirId = document.getElementById('directionSelect').value;
             const monthStr = document.getElementById('monthInput').value;
@@ -273,9 +271,7 @@
             }
         }
 
-        // --- ЛОГИКА СТАТИСТИКИ (РЕЙТИНГ EXCEL) ---
         async function fetchStatsData() {
-            // Берем выбранное направление из дропдауна
             const dirId = document.getElementById('directionSelect').value;
             
             if(!dirId) {
@@ -301,7 +297,6 @@
                     data = await res.json();
                 }
 
-                // ФИЛЬТРУЕМ ДАННЫЕ ТОЛЬКО ПО ВЫБРАННОМУ НАПРАВЛЕНИЮ
                 data = data.filter(d => String(d.direction_id) === String(dirId));
 
                 if(!data || data.length === 0) {
@@ -316,11 +311,9 @@
                     const vols = dir.volunteers || [];
                     if(vols.length === 0) return;
 
-                    // 1. Считаем среднее
                     const totalScore = vols.reduce((sum, v) => sum + v.score, 0);
                     const avgScore = totalScore / vols.length;
 
-                    // 2. Раздаем цвета
                     vols.forEach(v => {
                         if (v.score >= avgScore) {
                             v.rowClass = 'row-green text-green-100';
@@ -334,10 +327,8 @@
                         }
                     });
 
-                    // 3. Сортируем (Зеленые -> Желтые -> Красные)
                     vols.sort((a, b) => a.sortWeight - b.sortWeight || b.score - a.score);
 
-                    // 4. Отрисовываем таблицу
                     const section = document.createElement('div');
                     section.innerHTML = `
                         <div class="mb-3 flex justify-between items-end border-b border-white/20 pb-2 px-1">
@@ -378,7 +369,7 @@
             }
         }
 
-        // --- МОДАЛЬНОЕ ОКНО ЗАДАНИЙ ---
+        // --- МОДАЛЬНОЕ ОКНО ЗАДАНИЙ (ПОЛНОСТЬЮ ОБНОВЛЕНО С ESCAPE HTML И ГЛУБОКИМ ПОИСКОМ ОПИСАНИЯ) ---
         function openTasksModal(dirId, volId, volName) {
             const dir = statsGlobalData.find(d => d.direction_id === dirId);
             if(!dir) return;
@@ -389,25 +380,97 @@
             const tbody = document.getElementById('modalTaskBody');
             
             if(!vol.tasks || vol.tasks.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-gray-500 font-bold">Нет выполненных заданий</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-6 text-gray-500 font-bold">Нет выполненных заданий</td></tr>`;
             } else {
-                tbody.innerHTML = vol.tasks.map((t, i) => `
-                    <tr class="hover:bg-white/5 transition border-b border-gray-700/50">
-                        <td class="text-center text-gray-500 py-3">${i + 1}</td>
-                        <td class="py-3">
-                            <div class="text-gray-200 font-medium">${t.title}</div>
-                            <div class="text-gray-400 text-xs mt-1 leading-relaxed">${t.description || 'Нет описания'}</div>
-                        </td>
-                        <td class="text-center text-gray-400 text-xs py-3">${t.date}</td>
-                        <td class="text-center font-bold text-primary py-3">${t.points}</td>
-                    </tr>
-                `).join('');
+                
+                // Функция безопасного вывода из Борд Кабинета
+                const escapeHTML = (str) => str ? String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;") : '';
+
+                const getCategory = (t) => {
+                    let cmd = t.command_title || (t.task_details && t.task_details.command_name) || t.command_name || null;
+                    let dirn = t.direction_name || (t.task_details && t.task_details.direction_name) || null;
+                    
+                    if (cmd) return { type: 'cmd', name: cmd, sortVal: `1_${cmd}` };
+                    if (dirn) return { type: 'dir', name: dirn, sortVal: `2_${dirn}` };
+                    return { type: 'gen', name: 'Общее задание', sortVal: `3_Общие` };
+                };
+
+                const sortedTasks = [...vol.tasks].sort((a, b) => {
+                    const catA = getCategory(a).sortVal;
+                    const catB = getCategory(b).sortVal;
+                    if (catA < catB) return -1;
+                    if (catA > catB) return 1;
+                    // Поддержка поля date или created_at
+                    return new Date(b.date || b.created_at) - new Date(a.date || a.created_at);
+                });
+
+                tbody.innerHTML = sortedTasks.map((t, i) => {
+                    const cat = getCategory(t);
+                    
+                    const title = (t.task_details && t.task_details.title) ? t.task_details.title : (t.title || 'Неизвестное задание');
+                    
+                    // Ищем описание на всех возможных уровнях вложенности
+                    let rawDescription = t.description || (t.task_details && t.task_details.description) || null;
+                    
+                    // Пропускаем через ту самую функцию escapeHTML
+                    const safeDesc = escapeHTML(rawDescription);
+                    
+                    let points = 0;
+                    if (t.points_awarded !== null && t.points_awarded !== undefined) {
+                        points = t.points_awarded;
+                    } else if (t.task_details && t.task_details.points) {
+                        let qty = t.quantity || 1;
+                        points = t.task_details.points * qty;
+                    } else if (t.points) {
+                        points = t.points;
+                    }
+
+                    let badgeHTML = '<span class="bg-gray-500/20 text-gray-400 border border-gray-500/30 text-[9px] px-1.5 py-0.5 rounded uppercase tracking-wider font-bold">Общее (без привязки)</span>';
+                    if (cat.type === 'cmd') {
+                        badgeHTML = `<span class="bg-purple-500/20 text-purple-400 border border-purple-500/30 text-[9px] px-1.5 py-0.5 rounded uppercase tracking-wider font-bold" title="Подано в команду"><i class="fas fa-users mr-1"></i>${cat.name}</span>`;
+                    } else if (cat.type === 'dir') {
+                        badgeHTML = `<span class="bg-blue-500/20 text-blue-400 border border-blue-500/30 text-[9px] px-1.5 py-0.5 rounded uppercase tracking-wider font-bold" title="Подано в направление"><i class="fas fa-briefcase mr-1"></i>${cat.name}</span>`;
+                    }
+
+                    // Используем стили из Борд Кабинета для блока описания
+                    const descHTML = safeDesc 
+                        ? `<div class="mt-2 bg-[#020408]/60 border border-white/5 p-3 rounded-lg text-gray-300 text-[12px] break-words shadow-inner font-medium">
+                             <span class="text-[9px] font-bold text-primary/70 uppercase tracking-widest block mb-1">Отчет волонтера:</span>
+                             ${safeDesc}
+                           </div>` 
+                        : `<div class="mt-2 text-gray-500 text-xs italic">Нет описания или отчета</div>`;
+
+                    const qtyBadge = (t.quantity && t.quantity > 1) 
+                        ? `<span class="bg-yellow-500/20 text-yellow-500 border border-yellow-500/30 text-[9px] px-1.5 py-0.5 rounded font-black ml-1" title="Количество выполнения">x${t.quantity}</span>` 
+                        : '';
+                        
+                    const dateStr = t.date || (t.created_at ? new Date(t.created_at).toLocaleDateString() : '—');
+
+                    return `
+                        <tr class="hover:bg-white/5 transition border-b border-white/10 align-top">
+                            <td class="text-center text-gray-500 py-4 pt-5">${i + 1}</td>
+                            <td class="py-4 pr-4">
+                                <div class="flex flex-wrap items-center gap-2 mb-1.5">
+                                    <span class="text-white font-black text-[15px]">${title}</span>
+                                    ${qtyBadge}
+                                    ${badgeHTML}
+                                </div>
+                                ${descHTML}
+                            </td>
+                            <td class="text-center text-gray-400 text-xs py-4 pt-5 font-bold">${dateStr}</td>
+                            <td class="text-center font-black text-primary py-4 pt-5 text-sm">+${points}</td>
+                        </tr>
+                    `;
+                }).join('');
             }
 
             document.getElementById('taskModal').classList.remove('hidden');
         }
 
-        // --- ФУНКЦИИ ЖУРНАЛА ---
+        function closeModal() {
+            document.getElementById('taskModal').classList.add('hidden');
+        }
+
         function handleAddDate() {
             const dateStr = document.getElementById('manualDateInput').value;
             const selectedMonth = document.getElementById('monthInput').value;
@@ -514,6 +577,12 @@
             t.innerHTML = `<span>${msg}</span>`; document.getElementById('toast-container').appendChild(t);
             setTimeout(() => t.remove(), 3000);
         }
+
+        document.getElementById('taskModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
 
         init();
     </script>

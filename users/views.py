@@ -26,10 +26,11 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from rest_framework.decorators import api_view, permission_classes
 
 # Импорты моделей (лучше держать их вверху, если нет циклической зависимости)
 from .models import (
-    Attendance, Volunteer, VolunteerApplication, BotAccessConfig, 
+    AppSettings, Attendance, Volunteer, VolunteerApplication, BotAccessConfig, 
     ActivityTask, ActivitySubmission, YellowCard
 )
 from directions.models import VolunteerDirection
@@ -116,6 +117,35 @@ class VolunteerProfileView(generics.RetrieveUpdateAPIView):
 
 
 # ---------------- ЛИЧНЫЙ КАБИНЕТ ВОЛОНТЕРА ----------------
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def volunteer_direction_preferences(request):
+    settings = AppSettings.get_settings()
+    
+    # Метод GET: проверить, открыт ли набор и что уже выбрано
+    if request.method == 'GET':
+        return Response({
+            "is_open": settings.is_direction_selection_open,
+            "preferred": list(request.user.preferred_directions.values_list('id', flat=True))
+        })
+
+    # Метод POST: сохранить 3 направления
+    if not settings.is_direction_selection_open:
+        return Response({"error": "Выбор направлений сейчас закрыт."}, status=403)
+
+    direction_ids = request.data.get('directions', [])
+    
+    if len(direction_ids) > 3:
+        return Response({"error": "Можно выбрать максимум 3 направления."}, status=400)
+
+    # Проверяем, существуют ли такие направления
+    valid_ids = VolunteerDirection.objects.filter(id__in=direction_ids).values_list('id', flat=True)
+    
+    # Сохраняем в базу
+    request.user.preferred_directions.set(valid_ids)
+    
+    return Response({"message": "Ваши предпочтения успешно сохранены!", "saved": valid_ids})
 
 class VolunteerActivityViewSet(viewsets.ModelViewSet):
     queryset = ActivitySubmission.objects.all()
@@ -224,7 +254,6 @@ class DiscoveryListView(APIView):
 
 # ---------------- ПАНЕЛЬ КУРАТОРА ----------------
 
-# Находишь CuratorSubmissionViewSet (удали дубликат, оставь один)
 class CuratorSubmissionViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = ActivitySubmissionSerializer
@@ -493,6 +522,7 @@ class AttendanceViewSet(viewsets.ViewSet):
 
         for current_dir in directions:
             # СЧИТАЕМ БАЛЛЫ ИДЕАЛЬНО: с учетом умножения на quantity
+            # Добавили предварительную подгрузку, чтобы не грузить БД (Оптимизация)
             vols = Volunteer.objects.filter(
                 direction=current_dir, 
                 role='volunteer'
@@ -501,7 +531,7 @@ class AttendanceViewSet(viewsets.ViewSet):
                     Sum(
                         Coalesce(
                             'submissions__points_awarded', 
-                            F('submissions__task__points') * F('submissions__quantity'), # <--- ЗДЕСЬ ИЗМЕНЕНИЕ
+                            F('submissions__task__points') * F('submissions__quantity'),
                             output_field=DecimalField()
                         ), 
                         filter=Q(submissions__status='approved')
@@ -509,7 +539,12 @@ class AttendanceViewSet(viewsets.ViewSet):
                     Value(0),
                     output_field=DecimalField()
                 )
-            ).prefetch_related('submissions', 'submissions__task')
+            ).prefetch_related(
+                'submissions', 
+                'submissions__task',
+                'submissions__command',
+                'submissions__direction'
+            )
 
             vol_list = []
             for v in vols:
@@ -528,10 +563,15 @@ class AttendanceViewSet(viewsets.ViewSet):
                     else:
                         p = float(sub.task.points) * qty if sub.task else 0.0
 
+                    # 🔥 ИСПРАВЛЕНИЕ: ДОБАВЛЕНЫ ВСЕ НЕОБХОДИМЫЕ ДАННЫЕ В JSON
                     tasks_data.append({
                         "title": sub.task.title if sub.task else "Без названия",
                         "points": p,
-                        "date": sub.created_at.strftime('%Y-%m-%d')
+                        "date": sub.created_at.strftime('%Y-%m-%d'),
+                        "description": sub.description,
+                        "command_title": sub.command.title if sub.command else None,
+                        "direction_name": sub.direction.name if sub.direction else None,
+                        "quantity": qty
                     })
 
                 vol_list.append({
@@ -693,7 +733,140 @@ class VolunteerColumnsView(APIView):
         }
         return Response(columns)
 
+# ==========================================
+# ЛОГИКА ПРИСТАВА БАЗ (РАСПРЕДЕЛЕНИЕ)
+# ==========================================
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def generate_auto_distribution(request):
+    """Генерирует черновик равномерного распределения на основе предпочтений."""
+    # Проверка прав
+    if request.user.role not in ['bailiff_base', 'admin', 'president']:
+        return Response({"error": "Нет прав"}, status=403)
+
+    volunteers = list(Volunteer.objects.filter(is_active=True, role='volunteer').prefetch_related('preferred_directions'))
+    directions = list(VolunteerDirection.objects.all())
+    
+    if not directions:
+        return Response({"error": "Нет направлений в базе"}, status=400)
+
+    # Целевое количество людей в 1 направлении (округляем в большую сторону)
+    target_capacity = (len(volunteers) // len(directions)) + 1 
+    
+    distribution_result = []
+    direction_counts = {d.id: 0 for d in directions}
+    
+    import random
+    random.shuffle(volunteers)
+
+    for vol in volunteers:
+        prefs = list(vol.preferred_directions.values_list('id', flat=True))
+        assigned_dir_id = None
+        
+        # 1. Пытаемся засунуть в одно из желаемых направлений
+        for pref_id in prefs:
+            if direction_counts.get(pref_id, 0) < target_capacity:
+                assigned_dir_id = pref_id
+                break
+        
+        # 2. Если все желаемые уже забиты битком, кидаем в самое пустое
+        if not assigned_dir_id:
+            emptiest_dir_id = min(direction_counts, key=direction_counts.get)
+            assigned_dir_id = emptiest_dir_id
+
+        direction_counts[assigned_dir_id] += 1
+        distribution_result.append({
+            "volunteer_id": vol.id,
+            "volunteer_name": vol.name or vol.login,
+            "assigned_direction_id": assigned_dir_id
+        })
+
+    return Response({"distribution": distribution_result, "counts": direction_counts})
+
+@api_view(['GET'])
+@permission_classes([AllowAny]) # Доступно всем, даже без токена
+def get_app_settings(request):
+    settings = AppSettings.get_settings()
+    return Response({
+        "is_registration_open": settings.is_registration_open,
+        "is_direction_selection_open": settings.is_direction_selection_open
+    })
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def apply_distribution(request):
+    """Отдает черновик или применяет финальное распределение."""
+    if request.user.role not in ['bailiff_base', 'admin', 'president']:
+        return Response({"error": "Нет прав"}, status=403)
+
+    # --- 1. ОТДАЕМ ДАННЫЕ (Чтение) ---
+    if request.method == 'GET':
+        volunteers = Volunteer.objects.filter(is_active=True, role='volunteer')
+        dist = []
+        for vol in volunteers:
+            # Если у волонтера есть сохраненный черновик — показываем его на доске.
+            # Если черновика нет — показываем его текущее РЕАЛЬНОЕ направление.
+            if vol.draft_direction:
+                dir_id = vol.draft_direction.id
+            else:
+                dir_id = vol.direction.first().id if vol.direction.exists() else ''
+                
+            dist.append({
+                "volunteer_id": vol.id,
+                "volunteer_name": vol.name or vol.login,
+                "assigned_direction_id": dir_id
+            })
+        return Response({"distribution": dist})
+
+    # --- 2. СОХРАНЯЕМ ДАННЫЕ (Запись) ---
+    action = request.data.get('action') 
+    mapping = request.data.get('mapping', [])
+
+    if action not in ['save_only', 'distribute_and_reset']:
+        return Response({"error": "Неизвестное действие"}, status=400)
+
+    with transaction.atomic():
+        for item in mapping:
+            vol_id = item.get('vol_id')
+            dir_id = item.get('dir_id')
+            
+            try:
+                vol = Volunteer.objects.get(id=vol_id)
+            except Volunteer.DoesNotExist:
+                continue
+
+            # ДЕЙСТВИЕ 1: ТОЛЬКО СОХРАНИТЬ ЧЕРНОВИК
+            if action == 'save_only':
+                vol.draft_direction_id = dir_id if dir_id else None
+                vol.save()
+                
+            # ДЕЙСТВИЕ 2: ПРИМЕНИТЬ ОКОНЧАТЕЛЬНО И СБРОСИТЬ
+            elif action == 'distribute_and_reset':
+                # 1. Меняем РЕАЛЬНОЕ направление
+                vol.direction.clear()
+                if dir_id:
+                    vol.direction.add(dir_id)
+                
+                # 2. Очищаем черновик за ненадобностью
+                vol.draft_direction = None
+
+                # 3. ЖЕСТКИЙ СБРОС СЕЗОНА
+                vol.point = 0
+                vol.yellow_card = 0
+                vol.preferred_directions.clear() 
+                vol.submissions.all().delete() 
+                vol.save()
+                
+    if action == 'distribute_and_reset':
+        settings = AppSettings.get_settings()
+        settings.is_direction_selection_open = False
+        settings.save()
+
+    return Response({"message": f"Успешно выполнено: {action}"})
+
 class CuratorPanelView(TemplateView): template_name = "volunteers/curator_panel.html"
 class VolunteerCabinetView(TemplateView): template_name = "volunteers/volunteer_cabinet.html"
+class BailiffBasePanelView(TemplateView): template_name = "volunteers/bailiff_base_panel.html"
 class LoginPageView(TemplateView): template_name = "volunteers/login.html"
 class VolunteerBoardView(TemplateView): template_name = "volunteers/columns.html"

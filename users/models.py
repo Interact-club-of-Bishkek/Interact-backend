@@ -2,6 +2,7 @@ import random
 import string
 from django.db import models
 from django.dispatch import receiver
+from django.core.exceptions import ValidationError
 from django.utils import timezone   
 # Добавляем Sum сюда:
 from django.db.models.signals import post_save, post_delete
@@ -35,6 +36,26 @@ class VolunteerManager(BaseUserManager):
         extra_fields.setdefault('is_superuser', True)
         return self.create_user(login, password, **extra_fields)
 
+class AppSettings(models.Model):
+    """Глобальные настройки системы (существует только 1 запись)"""
+    is_direction_selection_open = models.BooleanField("Открыт выбор направлений", default=False)
+    # 🔥 НОВОЕ ПОЛЕ ДЛЯ РЕГИСТРАЦИИ:
+    is_registration_open = models.BooleanField("Открыта регистрация", default=True) 
+
+    class Meta:
+        verbose_name = "Настройки системы"
+        verbose_name_plural = "Настройки системы"
+
+    def save(self, *args, **kwargs):
+        # Гарантируем, что в базе всегда только 1 запись с ID=1
+        if not self.pk and AppSettings.objects.exists():
+            raise ValidationError('Может быть только одна запись с настройками')
+        return super().save(*args, **kwargs)
+
+    @classmethod
+    def get_settings(cls):
+        obj, created = cls.objects.get_or_create(pk=1)
+        return obj
 
 # --- МОДЕЛЬ ВОЛОНТЕРА (ПОЛЬЗОВАТЕЛЬ) ---
 class Volunteer(AbstractBaseUser, PermissionsMixin):
@@ -60,6 +81,21 @@ class Volunteer(AbstractBaseUser, PermissionsMixin):
     
     # Связи
     direction = models.ManyToManyField(VolunteerDirection, verbose_name="Направления", related_name="volunteers", blank=True)
+
+    preferred_directions = models.ManyToManyField(
+        'directions.VolunteerDirection', 
+        verbose_name="Желаемые направления (Выбор)", 
+        related_name="preferring_volunteers", 
+        blank=True
+    )
+
+    draft_direction = models.ForeignKey(
+        'directions.VolunteerDirection', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='draft_volunteers'
+    )
 
     # Баллы и нарушения
     point = models.DecimalField("Баллы", max_digits=10, decimal_places=1, default=0)

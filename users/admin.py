@@ -5,7 +5,7 @@ from django.urls import reverse
 from .models import (
     Volunteer, VolunteerApplication, VolunteerArchive, 
     ActivityTask, ActivitySubmission, BotAccessConfig,
-    Attendance, YellowCard
+    Attendance, YellowCard, AppSettings
 )
 
 # --- НАСТРОЙКИ ШАПКИ АДМИНКИ ---
@@ -13,8 +13,24 @@ admin.site.site_header = "Управление Волонтерами"
 admin.site.site_title = "Admin Panel"
 admin.site.index_title = "Добро пожаловать в CRM"
 
-# --- INLINES ---
+@admin.register(AppSettings)
+class AppSettingsAdmin(admin.ModelAdmin):
+    # Выводим поля прямо в список
+    list_display = ('__str__', 'is_registration_open', 'is_direction_selection_open')
+    
+    # Делаем чекбоксы кликабельными прямо из списка (чтобы не заходить внутрь)
+    list_editable = ('is_registration_open', 'is_direction_selection_open')
 
+    def has_add_permission(self, request):
+        # Если хотя бы одна запись настроек уже есть, прячем кнопку "Добавить"
+        if self.model.objects.exists():
+            return False
+        return super().has_add_permission(request)
+
+    def has_delete_permission(self, request, obj=None):
+        # Запрещаем удалять единственную запись с настройками
+        return False
+    
 class ActivitySubmissionInline(admin.TabularInline):
     model = ActivitySubmission
     extra = 0
