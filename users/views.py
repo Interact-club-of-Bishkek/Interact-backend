@@ -839,10 +839,12 @@ def ai_pdf_chat(request):
         documents.append(dynamic_doc)
         # ==========================================
 
-        os.environ["GROQ_API_KEY"] = "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" 
-        # Чуть-чуть поднимаем температуру, чтобы он стал более живым, но не фантазером
-        llm = ChatGroq(model_name="llama-3.1-8b-instant", temperature=0.3)
-
+        groq_api_key = os.environ.get("GROQ_API_KEY")        # Чуть-чуть поднимаем температуру, чтобы он стал более живым, но не фантазером
+        llm = ChatGroq(
+            api_key=groq_api_key,
+            model_name="llama-3.1-8b-instant", 
+            temperature=0.3
+        )
         # === ИДЕАЛЬНЫЙ СБАЛАНСИРОВАННЫЙ ПРОМПТ ===
         prompt_template = """Ты — дружелюбный и современный ИИ-помощник Interact Club of Bishkek.
         Опираясь на предоставленный контекст, ответь на вопрос пользователя.
