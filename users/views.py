@@ -839,11 +839,17 @@ def ai_pdf_chat(request):
         documents.append(dynamic_doc)
         # ==========================================
 
-        groq_api_key = os.environ.get("GROQ_API_KEY")        # Чуть-чуть поднимаем температуру, чтобы он стал более живым, но не фантазером
+        # Извлекаем ключ из переменных окружения
+        groq_api_key = os.environ.get("GROQ_API_KEY")
+
+        # Инициализируем модель через твой прокси-мост
         llm = ChatGroq(
             api_key=groq_api_key,
             model_name="llama-3.1-8b-instant", 
-            temperature=0.3
+            temperature=0.3,
+            # Указываем путь к твоему воркеру
+            # Добавляем /openai/v1, чтобы LangChain нашел нужные эндпоинты
+            base_url="https://icy-dust-9f56.mamadalievmaruf740.workers.dev/openai/v1"
         )
         # === ИДЕАЛЬНЫЙ СБАЛАНСИРОВАННЫЙ ПРОМПТ ===
         prompt_template = """Ты — дружелюбный и современный ИИ-помощник Interact Club of Bishkek.
