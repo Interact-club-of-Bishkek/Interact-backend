@@ -849,7 +849,7 @@ def ai_pdf_chat(request):
             temperature=0.3,
             # Указываем путь к твоему воркеру
             # Добавляем /openai/v1, чтобы LangChain нашел нужные эндпоинты
-            base_url="https://icy-dust-9f56.mamadalievmaruf740.workers.dev/openai/v1"
+            base_url="https://icy-dust-9f56.mamadalievmaruf740.workers.dev"
         )
         # === ИДЕАЛЬНЫЙ СБАЛАНСИРОВАННЫЙ ПРОМПТ ===
         prompt_template = """Ты — дружелюбный и современный ИИ-помощник Interact Club of Bishkek.
