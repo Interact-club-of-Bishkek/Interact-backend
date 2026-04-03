@@ -6,7 +6,11 @@ from django.conf import settings
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from django.views.generic import TemplateView
-from django.db import models
+from langchain_core.documents import Document
+from projects.models import Project  
+from langchain.prompts import PromptTemplate
+from django.utils import timezone
+# <-- Проверь, правильный ли путь до твоей модели проектов!
 # ВАЖНО: Импортируем DecimalField именно отсюда для ORM
 # Найди эту строку (примерно в начале файла)
 from django.db.models import Sum, Value, Q, DecimalField, Count, F  # <--- ДОБАВЬ 'F' СЮДА
@@ -18,7 +22,9 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework_simplejwt.tokens import RefreshToken
-
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_groq import ChatGroq
+from langchain.chains.question_answering import load_qa_chain
 # ReportLab для генерации PDF
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -31,7 +37,7 @@ from rest_framework.decorators import api_view, permission_classes
 # Импорты моделей (лучше держать их вверху, если нет циклической зависимости)
 from .models import (
     AppSettings, Attendance, Volunteer, VolunteerApplication, BotAccessConfig, 
-    ActivityTask, ActivitySubmission, YellowCard
+    ActivityTask, ActivitySubmission, YellowCard, ChatSession, ChatMessage
 )
 from directions.models import VolunteerDirection
 from commands.models import Command
@@ -792,6 +798,85 @@ def get_app_settings(request):
         "is_registration_open": settings.is_registration_open,
         "is_direction_selection_open": settings.is_direction_selection_open
     })
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def ai_pdf_chat(request):
+    user_text = request.data.get('message')
+    session_id = request.data.get('session_id')
+
+    if not user_text or not session_id:
+        return Response({"error": "Пустое сообщение или нет сессии"}, status=400)
+
+    # 1. Сохраняем сообщение
+    session, _ = ChatSession.objects.get_or_create(session_id=session_id)
+    ChatMessage.objects.create(session=session, sender='user', text=user_text)
+
+    try:
+        # 2. Грузим статичный PDF
+        pdf_path = os.path.join(settings.BASE_DIR, 'rules.pdf')
+        loader = PyPDFLoader(pdf_path)
+        documents = loader.load()
+
+        # ==========================================
+        # 3. ДОБАВЛЯЕМ ДИНАМИКУ ИЗ БД
+        # ==========================================
+        # Убрали time_start__gte=now, чтобы пока выводились ВСЕ неархивные проекты
+        active_projects = Project.objects.filter(is_archived=False).order_by('-time_start')[:5] 
+        
+        if active_projects.exists():
+            projects_info = "=== АКТУАЛЬНЫЕ ПРОЕКТЫ ИЗ БАЗЫ ДАННЫХ: ===\n"
+            for p in active_projects:
+                date_str = p.time_start.strftime("%d.%m.%Y") if p.time_start else "Скоро"
+                projects_info += f"- [{p.name}](/projects/{p.slug}/) (Дата: {date_str}, Категория: {p.get_category_display()})\n"
+        else:
+            projects_info = "=== АКТУАЛЬНЫЕ ПРОЕКТЫ ===\nВ данный момент активных проектов нет."
+
+        dynamic_doc = Document(
+            page_content=projects_info,
+            metadata={"source": "database_recent_projects"}
+        )
+        documents.append(dynamic_doc)
+        # ==========================================
+
+        os.environ["GROQ_API_KEY"] = "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" 
+        # Чуть-чуть поднимаем температуру, чтобы он стал более живым, но не фантазером
+        llm = ChatGroq(model_name="llama-3.1-8b-instant", temperature=0.3)
+
+        # === ИДЕАЛЬНЫЙ СБАЛАНСИРОВАННЫЙ ПРОМПТ ===
+        prompt_template = """Ты — дружелюбный и современный ИИ-помощник Interact Club of Bishkek.
+        Опираясь на предоставленный контекст, ответь на вопрос пользователя.
+
+        ТВОИ СТРОГИЕ ПРАВИЛА:
+        1. КРАСОТА: Отвечай очень красиво и структурированно. Обязательно используй абзацы, списки (с тире) и все возможные эмодзи подходящиеся по смыслу.
+        2. О КЛУБЕ: Если спрашивают "кто вы", "правила" или историю — бери информацию  из PDF-файла в контексте.
+        3. ПРОЕКТЫ: Если просят показать проекты, бери информацию ТОЛЬКО из раздела "АКТУАЛЬНЫЕ ПРОЕКТЫ ИЗ БАЗЫ ДАННЫХ".
+        4. ССЫЛКИ: КАТЕГОРИЧЕСКИ ЗАПРЕЩАЕТСЯ придумывать свои ссылки. Выводи проекты ровно в том формате, в котором они переданы (с синтаксисом Markdown).
+
+        Контекст:
+        {context}
+
+        Вопрос: {question}
+        Красивый ответ:"""
+
+        PROMPT = PromptTemplate(
+            template=prompt_template, input_variables=["context", "question"]
+        )
+        
+        chain = load_qa_chain(llm, chain_type="stuff", prompt=PROMPT)
+        result = chain.invoke({"input_documents": documents, "question": user_text})
+        answer = result["output_text"]
+
+        # 6. Сохраняем ответ ИИ
+        ChatMessage.objects.create(session=session, sender='ai', text=answer)
+
+        return Response({"answer": answer})
+
+    except Exception as e:
+        error_msg = f"Ошибка ИИ: {str(e)}"
+        print(f"🔴 ТОЧНАЯ ОШИБКА ДЛЯ ДЕБАГА: {e}")
+        ChatMessage.objects.create(session=session, sender='ai', text=error_msg)
+        return Response({"error": error_msg}, status=500)
 
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])

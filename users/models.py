@@ -431,3 +431,33 @@ def update_volunteer_points_on_submission_change(sender, instance, **kwargs):
     if instance.volunteer:
         # Вызываем твой метод, который считает только 'approved'
         instance.volunteer.update_total_points()
+
+
+class ChatSession(models.Model):
+    session_id = models.CharField(max_length=100, unique=True, verbose_name="ID Сессии")
+    created_at = models.DateTimeField(default=timezone.now, verbose_name="Создано")
+
+    class Meta:
+        verbose_name = "Сессия чата"
+        verbose_name_plural = "Сессии чата"
+
+    def __str__(self):
+        return f"Чат {self.session_id} от {self.created_at.strftime('%d.%m.%Y %H:%M')}"
+
+class ChatMessage(models.Model):
+    SENDER_CHOICES = (
+        ('user', 'Пользователь'),
+        ('ai', 'ИИ-Ассистент'),
+    )
+    session = models.ForeignKey(ChatSession, on_delete=models.CASCADE, related_name='messages', verbose_name="Сессия")
+    sender = models.CharField(max_length=10, choices=SENDER_CHOICES, verbose_name="Отправитель")
+    text = models.TextField(verbose_name="Сообщение")
+    created_at = models.DateTimeField(default=timezone.now, verbose_name="Время")
+
+    class Meta:
+        verbose_name = "Сообщение"
+        verbose_name_plural = "Сообщения"
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"{self.sender}: {self.text[:50]}"

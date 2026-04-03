@@ -3,7 +3,7 @@ from django.db.models import Q, Count
 from django.utils.html import format_html
 from django.urls import reverse
 from .models import (
-    Volunteer, VolunteerApplication, VolunteerArchive, 
+    ChatSession, ChatMessage, Volunteer, VolunteerApplication, VolunteerArchive, 
     ActivityTask, ActivitySubmission, BotAccessConfig,
     Attendance, YellowCard, AppSettings
 )
@@ -247,3 +247,14 @@ class VolunteerApplicationAdmin(admin.ModelAdmin):
 
 admin.site.register(BotAccessConfig)
 admin.site.register(VolunteerArchive)
+
+class ChatMessageInline(admin.TabularInline):
+    model = ChatMessage
+    extra = 0
+    readonly_fields = ('sender', 'text', 'created_at')
+    can_delete = False
+
+@admin.register(ChatSession)
+class ChatSessionAdmin(admin.ModelAdmin):
+    list_display = ('session_id', 'created_at')
+    inlines = [ChatMessageInline]

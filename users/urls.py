@@ -16,7 +16,8 @@ from users.views import (
     BailiffBasePanelView,
     generate_auto_distribution,
     apply_distribution,
-    volunteer_direction_preferences
+    volunteer_direction_preferences,
+    ai_pdf_chat
 )
 
 router = DefaultRouter()
@@ -76,4 +77,6 @@ urlpatterns = [
     
     # --- НОВАЯ СТРАНИЦА ПРИСТАВА БАЗ ---
     path('bailiff-base-panel/', BailiffBasePanelView.as_view(), name='bailiff_base_panel'),
+
+    path('api/chat/', ai_pdf_chat, name='ai_pdf_chat'),
 ]
