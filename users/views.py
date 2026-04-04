@@ -6,10 +6,11 @@ from django.conf import settings
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from django.views.generic import TemplateView
+from langchain_core import documents
+from langchain_core import documents
 from langchain_core.documents import Document
 from projects.models import Project  
 from langchain.prompts import PromptTemplate
-from django.utils import timezone
 # <-- Проверь, правильный ли путь до твоей модели проектов!
 # ВАЖНО: Импортируем DecimalField именно отсюда для ORM
 # Найди эту строку (примерно в начале файла)
@@ -41,6 +42,7 @@ from .models import (
 )
 from directions.models import VolunteerDirection
 from commands.models import Command
+from projects.models import TeamMember
 
 from .serializers import (
     BulkAttendanceSerializer, VolunteerSerializer, VolunteerLoginSerializer, VolunteerRegisterSerializer,
@@ -129,26 +131,22 @@ class VolunteerProfileView(generics.RetrieveUpdateAPIView):
 def volunteer_direction_preferences(request):
     settings = AppSettings.get_settings()
     
-    # Метод GET: проверить, открыт ли набор и что уже выбрано
     if request.method == 'GET':
         return Response({
             "is_open": settings.is_direction_selection_open,
             "preferred": list(request.user.preferred_directions.values_list('id', flat=True))
         })
 
-    # Метод POST: сохранить 3 направления
     if not settings.is_direction_selection_open:
         return Response({"error": "Выбор направлений сейчас закрыт."}, status=403)
 
     direction_ids = request.data.get('directions', [])
     
-    if len(direction_ids) > 3:
-        return Response({"error": "Можно выбрать максимум 3 направления."}, status=400)
+    # 🔥 ИСПРАВЛЯЕМ ЗДЕСЬ: меняем 3 на 4
+    if len(direction_ids) > 4:
+        return Response({"error": "Можно выбрать максимум 4 направления."}, status=400)
 
-    # Проверяем, существуют ли такие направления
     valid_ids = VolunteerDirection.objects.filter(id__in=direction_ids).values_list('id', flat=True)
-    
-    # Сохраняем в базу
     request.user.preferred_directions.set(valid_ids)
     
     return Response({"message": "Ваши предпочтения успешно сохранены!", "saved": valid_ids})
@@ -161,18 +159,27 @@ class VolunteerActivityViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return ActivitySubmission.objects.filter(volunteer=self.request.user).select_related('task').order_by('-created_at')
 
+    # 🔥 ОБНОВЛЕННЫЙ МЕТОД CREATE ДЛЯ ПРОВЕРКИ ГЛОБАЛЬНОЙ НАСТРОЙКИ
+    def create(self, request, *args, **kwargs):
+        settings = AppSettings.get_settings()
+        if not settings.is_points_submission_open:
+            return Response(
+                {"error": "Прием заявок закрыт. Ожидайте дальнейших новостей"}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().create(request, *args, **kwargs)
+
     def perform_create(self, serializer):
+        # ... твой существующий код (quantity, command_id и т.д.) ...
         command_id = self.request.data.get('command')
         direction_id = self.request.data.get('direction')
-        
-        # 🔥 2. ВЫТАСКИВАЕМ QUANTITY НАПРЯМУЮ ИЗ JSON ОТ ФРОНТЕНДА
         quantity = self.request.data.get('quantity', 1)
 
         instance = serializer.save(
             volunteer=self.request.user,
             command_id=command_id,
             direction_id=direction_id,
-            quantity=quantity  # 🔥 3. ЖЕСТКО ЗАПИСЫВАЕМ ЕГО В БАЗУ ДАННЫХ
+            quantity=quantity
         )
         if instance.command and not instance.direction:
             instance.direction = instance.command.direction
@@ -239,9 +246,9 @@ class DiscoveryListView(APIView):
     
     def get(self, request):
         user = request.user
-        all_directions = VolunteerDirection.objects.all()
+        settings = AppSettings.get_settings() # 🔥 Получаем настройки
         
-        # Исправляем обращение к командам
+        all_directions = VolunteerDirection.objects.all()
         user_commands = user.volunteer_commands.all() 
         user_directions = user.direction.all()
 
@@ -254,7 +261,9 @@ class DiscoveryListView(APIView):
             "all_directions": VolunteerDirectionSerializer(all_directions, many=True).data,
             "my_direction": VolunteerDirectionSerializer(user_directions, many=True).data,
             "my_commands": CommandSerializer(user_commands, many=True).data,
-            "available_tasks": ActivityTaskSerializer(tasks, many=True).data
+            "available_tasks": ActivityTaskSerializer(tasks, many=True).data,
+            # 🔥 ОТПРАВЛЯЕМ СТАТУС РУБИЛЬНИКА
+            "is_points_submission_open": settings.is_points_submission_open 
         })
 
 
@@ -746,49 +755,68 @@ class VolunteerColumnsView(APIView):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def generate_auto_distribution(request):
-    """Генерирует черновик равномерного распределения на основе предпочтений."""
-    # Проверка прав
+    """Генерирует черновик распределения, учитывая приоритет (от 1 до 4)."""
     if request.user.role not in ['bailiff_base', 'admin', 'president']:
         return Response({"error": "Нет прав"}, status=403)
 
-    volunteers = list(Volunteer.objects.filter(is_active=True, role='volunteer').prefetch_related('preferred_directions'))
+    volunteers = list(Volunteer.objects.filter(is_active=True, role='volunteer'))
     directions = list(VolunteerDirection.objects.all())
     
     if not directions:
         return Response({"error": "Нет направлений в базе"}, status=400)
 
-    # Целевое количество людей в 1 направлении (округляем в большую сторону)
+    # Вместимость: общее кол-во / количество направлений (с запасом)
     target_capacity = (len(volunteers) // len(directions)) + 1 
     
-    distribution_result = []
     direction_counts = {d.id: 0 for d in directions}
+    final_mapping = {} # volunteer_id -> assigned_direction_id
+    unassigned_volunteers = volunteers[:]
     
     import random
-    random.shuffle(volunteers)
+    random.shuffle(unassigned_volunteers) # Перемешиваем для честности внутри одного приоритета
 
-    for vol in volunteers:
-        prefs = list(vol.preferred_directions.values_list('id', flat=True))
-        assigned_dir_id = None
+    # Мы идем по уровням приоритета (от 0 до 3, т.е. 4 выбора)
+    for priority_index in range(4):
+        still_unassigned = []
+        for vol in unassigned_volunteers:
+            # Получаем список предпочтений (важно, чтобы порядок сохранялся)
+            prefs = list(vol.preferred_directions.all()) 
+            
+            assigned = False
+            if priority_index < len(prefs):
+                chosen_dir = prefs[priority_index]
+                if direction_counts[chosen_dir.id] < target_capacity:
+                    final_mapping[vol.id] = chosen_dir.id
+                    direction_counts[chosen_dir.id] += 1
+                    assigned = True
+            
+            if not assigned:
+                still_unassigned.append(vol)
         
-        # 1. Пытаемся засунуть в одно из желаемых направлений
-        for pref_id in prefs:
-            if direction_counts.get(pref_id, 0) < target_capacity:
-                assigned_dir_id = pref_id
-                break
-        
-        # 2. Если все желаемые уже забиты битком, кидаем в самое пустое
-        if not assigned_dir_id:
-            emptiest_dir_id = min(direction_counts, key=direction_counts.get)
-            assigned_dir_id = emptiest_dir_id
+        unassigned_volunteers = still_unassigned
 
-        direction_counts[assigned_dir_id] += 1
+    # Если после 4-х кругов кто-то остался (не попал в свои 4 выбора),
+    # кидаем в самые пустые направления
+    for vol in unassigned_volunteers:
+        emptiest_dir_id = min(direction_counts, key=direction_counts.get)
+        final_mapping[vol.id] = emptiest_dir_id
+        direction_counts[emptiest_dir_id] += 1
+
+    # Формируем итоговый результат
+    distribution_result = []
+    # Для красоты вернем всех волонтеров из базы
+    all_vols = Volunteer.objects.filter(is_active=True, role='volunteer')
+    for v in all_vols:
         distribution_result.append({
-            "volunteer_id": vol.id,
-            "volunteer_name": vol.name or vol.login,
-            "assigned_direction_id": assigned_dir_id
+            "volunteer_id": v.id,
+            "volunteer_name": v.name or v.login,
+            "assigned_direction_id": final_mapping.get(v.id)
         })
 
-    return Response({"distribution": distribution_result, "counts": direction_counts})
+    return Response({
+        "distribution": distribution_result, 
+        "counts": direction_counts
+    })
 
 @api_view(['GET'])
 @permission_classes([AllowAny]) # Доступно всем, даже без токена
@@ -796,7 +824,9 @@ def get_app_settings(request):
     settings = AppSettings.get_settings()
     return Response({
         "is_registration_open": settings.is_registration_open,
-        "is_direction_selection_open": settings.is_direction_selection_open
+        "is_direction_selection_open": settings.is_direction_selection_open,
+        # 🔥 ДОБАВЛЯЕМ ЭТУ СТРОКУ:
+        "is_points_submission_open": settings.is_points_submission_open 
     })
 
 @api_view(['POST'])
@@ -808,58 +838,66 @@ def ai_pdf_chat(request):
     if not user_text or not session_id:
         return Response({"error": "Пустое сообщение или нет сессии"}, status=400)
 
-    # 1. Сохраняем сообщение
     session, _ = ChatSession.objects.get_or_create(session_id=session_id)
     ChatMessage.objects.create(session=session, sender='user', text=user_text)
 
     try:
-        # 2. Грузим статичный PDF
+        # 1. Грузим статичный PDF (Правила)
         pdf_path = os.path.join(settings.BASE_DIR, 'rules.pdf')
         loader = PyPDFLoader(pdf_path)
         documents = loader.load()
 
         # ==========================================
-        # 3. ДОБАВЛЯЕМ ДИНАМИКУ ИЗ БД
+        # 2. ДОБАВЛЯЕМ ПРОЕКТЫ ИЗ БД
         # ==========================================
-        # Убрали time_start__gte=now, чтобы пока выводились ВСЕ неархивные проекты
         active_projects = Project.objects.filter(is_archived=False).order_by('-time_start')[:5] 
-        
+        projects_info = "=== АКТУАЛЬНЫЕ ПРОЕКТЫ ИЗ БАЗЫ ДАННЫХ: ===\n"
         if active_projects.exists():
-            projects_info = "=== АКТУАЛЬНЫЕ ПРОЕКТЫ ИЗ БАЗЫ ДАННЫХ: ===\n"
             for p in active_projects:
                 date_str = p.time_start.strftime("%d.%m.%Y") if p.time_start else "Скоро"
                 projects_info += f"- [{p.name}](/projects/{p.slug}/) (Дата: {date_str}, Категория: {p.get_category_display()})\n"
         else:
-            projects_info = "=== АКТУАЛЬНЫЕ ПРОЕКТЫ ===\nВ данный момент активных проектов нет."
+            projects_info += "В данный момент активных проектов нет.\n"
 
-        dynamic_doc = Document(
-            page_content=projects_info,
-            metadata={"source": "database_recent_projects"}
-        )
-        documents.append(dynamic_doc)
+        documents.append(Document(page_content=projects_info, metadata={"source": "db_projects"}))
+
+        # ==========================================
+        # 3. ДОБАВЛЯЕМ КОМАНДУ (TEAM MEMBERS) ИЗ БД
+        # ==========================================
+        team_members = TeamMember.objects.filter(is_active=True).order_by('order')
+    
+        team_info = "\n=== КОМАНДА И РУКОВОДСТВО КЛУБА: ===\n"
+        if team_members.exists():
+            for member in team_members:
+                # Используем правильные имена полей: full_name, position и description
+                info = f"- {member.full_name}: {member.position}"
+                if member.description:
+                    info += f" ({member.description})"
+                team_info += info + "\n"
+        else:
+            team_info += "Информация о членах команды временно недоступна."
+
+        documents.append(Document(page_content=team_info, metadata={"source": "db_team"}))
         # ==========================================
 
-        # Извлекаем ключ из переменных окружения
         groq_api_key = os.environ.get("GROQ_API_KEY")
-
-        # Инициализируем модель через твой прокси-мост
         llm = ChatGroq(
             api_key=groq_api_key,
             model_name="llama-3.1-8b-instant", 
             temperature=0.3,
-            # Указываем путь к твоему воркеру
-            # Добавляем /openai/v1, чтобы LangChain нашел нужные эндпоинты
             base_url="https://icy-dust-9f56.mamadalievmaruf740.workers.dev"
         )
-        # === ИДЕАЛЬНЫЙ СБАЛАНСИРОВАННЫЙ ПРОМПТ ===
+
+        # === ОБНОВЛЕННЫЙ ПРОМПТ С УЧЕТОМ КОМАНДЫ ===
         prompt_template = """Ты — дружелюбный и современный ИИ-помощник Interact Club of Bishkek.
         Опираясь на предоставленный контекст, ответь на вопрос пользователя.
 
         ТВОИ СТРОГИЕ ПРАВИЛА:
-        1. КРАСОТА: Отвечай очень красиво и структурированно. Обязательно используй абзацы, списки (с тире) и все возможные эмодзи подходящиеся по смыслу.
-        2. О КЛУБЕ: Если спрашивают "кто вы", "правила" или историю — бери информацию  из PDF-файла в контексте.
-        3. ПРОЕКТЫ: Если просят показать проекты, бери информацию ТОЛЬКО из раздела "АКТУАЛЬНЫЕ ПРОЕКТЫ ИЗ БАЗЫ ДАННЫХ".
-        4. ССЫЛКИ: КАТЕГОРИЧЕСКИ ЗАПРЕЩАЕТСЯ придумывать свои ссылки. Выводи проекты ровно в том формате, в котором они переданы (с синтаксисом Markdown).
+        1. КРАСОТА: Отвечай очень красиво и структурированно. Используй абзацы, списки и много эмодзи. 🌟
+        2. О КЛУБЕ И ПРАВИЛАХ: Используй данные из PDF-файла.
+        3. ПРОЕКТЫ: Если спрашивают про дела или мероприятия, бери данные из "АКТУАЛЬНЫЕ ПРОЕКТЫ".
+        4. КОМАНДА: Если спрашивают "кто президент", "кто в команде", "кто лидеры", используй раздел "КОМАНДА И РУКОВОДСТВО КЛУБА".
+        5. ССЫЛКИ: Выводи ссылки на проекты ровно в том виде (Markdown), в котором они даны в контексте.
 
         Контекст:
         {context}
@@ -867,24 +905,18 @@ def ai_pdf_chat(request):
         Вопрос: {question}
         Красивый ответ:"""
 
-        PROMPT = PromptTemplate(
-            template=prompt_template, input_variables=["context", "question"]
-        )
+        PROMPT = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
         
         chain = load_qa_chain(llm, chain_type="stuff", prompt=PROMPT)
         result = chain.invoke({"input_documents": documents, "question": user_text})
         answer = result["output_text"]
 
-        # 6. Сохраняем ответ ИИ
         ChatMessage.objects.create(session=session, sender='ai', text=answer)
-
         return Response({"answer": answer})
 
     except Exception as e:
-        error_msg = f"Ошибка ИИ: {str(e)}"
-        print(f"🔴 ТОЧНАЯ ОШИБКА ДЛЯ ДЕБАГА: {e}")
-        ChatMessage.objects.create(session=session, sender='ai', text=error_msg)
-        return Response({"error": error_msg}, status=500)
+        print(f"🔴 ОШИБКА: {e}")
+        return Response({"error": str(e)}, status=500)
 
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])

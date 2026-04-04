@@ -66,5 +66,6 @@ class HeroSlideAdmin(admin.ModelAdmin):
 class TeamMemberAdmin(admin.ModelAdmin):
     list_display = ('full_name', 'position', 'order', 'is_active')
     list_editable = ('order', 'is_active')
+    search_fields = ('full_name', 'description')
 
 admin.site.register(FAQ)

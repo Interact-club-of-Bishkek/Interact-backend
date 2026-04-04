@@ -78,7 +78,8 @@ class ActivityTaskSerializer(serializers.ModelSerializer):
         model = ActivityTask
         fields = [
             'id', 'title', 'title_en', 'points', 
-            'is_flexible', 'command_id', 'command_name', 'direction_id'
+            'is_flexible', 'command_id', 'command_name', 'direction_id',
+            'order'  # 🔥 Добавили поле порядка
         ]
 
     def get_direction_id(self, obj):

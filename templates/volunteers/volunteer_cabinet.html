@@ -260,7 +260,7 @@
                 <i class="fas fa-star text-6xl text-yellow-500"></i>
             </div>
             <h2 class="text-xl md:text-2xl font-black italic uppercase text-yellow-500 mb-1" id="t-prefTitle">Выбор направлений</h2>
-            <p class="text-xs text-gray-300 font-medium mb-4"><span id="t-prefDesc">Выберите ровно 3 направления на следующую четверть:</span> <span class="font-bold text-yellow-400 bg-yellow-400/10 px-2 py-0.5 rounded ml-2"><span id="prefCounter">0</span> / 3</span></p>
+            <p class="text-xs text-gray-300 font-medium mb-4"><span id="t-prefDesc">Выберите ровно 4 направления на следующую четверть:</span> <span class="font-bold text-yellow-400 bg-yellow-400/10 px-2 py-0.5 rounded ml-2"><span id="prefCounter">0</span> / 4</span></p>
             
             <div id="prefOptions" class="flex flex-wrap gap-3 mb-6">
                 </div>
@@ -273,7 +273,7 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="lg:col-span-1">
-                <div class="glass-card lg:sticky lg:top-6">
+                <div id="reportFormContainer" class="glass-card lg:sticky lg:top-6">
                     <div class="flex items-center gap-3 mb-6">
                         <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary">
                             <i class="fas fa-paper-plane text-xs"></i>
@@ -403,10 +403,11 @@
                 cancelConfirm: "Вы уверены, что хотите отменить эту заявку?",
                 cancelSuccess: "Заявка отменена",
                 prefTitle: "Выбор направлений",
-                prefDesc: "Выберите ровно 3 направления на следующую четверть:",
+                prefDesc: "Выберите ровно 4 направления на следующую четверть (в порядке приоритета):",
+                prefMax: "Можно выбрать только 4 направления!",
                 prefSave: "Сохранить выбор",
-                prefMax: "Можно выбрать только 3 направления!",
-                prefSavedToast: "Ваши предпочтения успешно сохранены!"
+                prefSavedToast: "Ваши предпочтения успешно сохранены!",
+                closedMsg: "Прием заявок закрыт. Ожидайте дальнейших новостей",
             },
             en: {
                 score: "Your Score", yc: "YC", newreport: "New Report",
@@ -432,10 +433,11 @@
                 cancelConfirm: "Are you sure you want to cancel this request?",
                 cancelSuccess: "Request canceled",
                 prefTitle: "Choose Directions",
-                prefDesc: "Select exactly 3 directions for the next season:",
+                prefDesc: "Select exactly 4 directions for the next season (in order of priority):",
+                prefMax: "You can only select 4 directions!",
                 prefSave: "Save Selection",
-                prefMax: "You can only select 3 directions!",
-                prefSavedToast: "Preferences saved successfully!"
+                prefSavedToast: "Preferences saved successfully!",
+                closedMsg: "Submissions are closed. Stay tuned for further news.",
             }
         };
 
@@ -564,12 +566,11 @@
             document.getElementById('taskDate').value = new Date().toISOString().split('T')[0];
 
             try {
-                // 🔥 Добавили pRes для получения информации об открытии сезона направлений
                 const [uRes, dRes, hRes, pRes] = await Promise.all([
                     apiFetch('/api/profile/'),
                     apiFetch('/api/discovery/'),
                     apiFetch('/api/activities/'),
-                    apiFetch('/api/preferences/') // <-- Новый эндпоинт
+                    apiFetch('/api/preferences/')
                 ]);
 
                 if (uRes.status === 401 || dRes.status === 401) return logout();
@@ -579,12 +580,33 @@
                 const disc = await dRes.json();
                 const hist = await hRes.json();
                 
-                // Данные о выборе направлений
-                let prefData = { is_open: false, preferred: [] };
-                if(pRes && pRes.ok) {
-                    prefData = await pRes.json();
-                }
+                const t = translations[currentLang];
 
+                // 🔥 БЛОКИРОВКА ТОЛЬКО ФОРМЫ ПОДАЧИ
+                // 🔥 БЛОКИРОВКА ТОЛЬКО ФОРМЫ ПОДАЧИ (БЕЗ УДАЛЕНИЯ ЭЛЕМЕНТОВ)
+                if (disc.is_points_submission_open === false) {
+                    const formContainer = document.getElementById('reportFormContainer');
+                    if (formContainer) {
+                        // Создаем блок с сообщением о закрытии
+                        const lockedOverlay = document.createElement('div');
+                        lockedOverlay.className = "text-center py-10 animate-fade-in";
+                        lockedOverlay.innerHTML = `
+                            <div class="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-6 border border-red-500/20 shadow-[0_0_30px_rgba(239,68,68,0.1)]">
+                                <i class="fas fa-lock text-red-500 text-3xl"></i>
+                            </div>
+                            <h3 class="text-xl font-black italic uppercase text-white mb-4">${t.newreport}</h3>
+                            <p class="text-gray-400 text-sm font-medium leading-relaxed px-4">${t.closedMsg}</p>
+                            <div class="mt-8 pt-6 border-t border-white/5">
+                                <p class="text-[10px] text-gray-600 uppercase font-bold tracking-widest">Interact Club Bishkek</p>
+                            </div>
+                        `;
+
+                        // Скрываем все оригинальные элементы формы внутри карточки, кроме нашего нового сообщения
+                        Array.from(formContainer.children).forEach(child => child.style.display = 'none');
+                        formContainer.appendChild(lockedOverlay);
+                    }
+                }
+                // --- Если всё открыто, продолжаем обычную загрузку ---
                 currentUser = user; 
                 allDirectionsList = disc.all_directions || disc.directions || [];
 
@@ -609,7 +631,9 @@
                 appData.available_tasks = disc.available_tasks || [];
                 appData.history = hist;
 
-                // Логика отображения панели выбора направлений
+                let prefData = { is_open: false, preferred: [] };
+                if(pRes && pRes.ok) { prefData = await pRes.json(); }
+
                 if (prefData.is_open) {
                     document.getElementById('preferencesCard').classList.remove('hidden');
                     userPreferredDirs = prefData.preferred || [];
@@ -624,8 +648,7 @@
                 showToast(translations[currentLang].toastErr, "error"); 
             }
         }
-
-        // --- ЛОГИКА ВЫБОРА 3-Х НАПРАВЛЕНИЙ ---
+        // --- ЛОГИКА ВЫБОРА 4-Х НАПРАВЛЕНИЙ ---
         function renderPreferences() {
             const container = document.getElementById('prefOptions');
             container.innerHTML = '';
@@ -645,11 +668,10 @@
         function togglePreference(id) {
             const index = userPreferredDirs.indexOf(id);
             if (index > -1) {
-                // Удаляем, если уже выбрано
                 userPreferredDirs.splice(index, 1);
             } else {
-                // Добавляем, если лимит не превышен
-                if (userPreferredDirs.length >= 3) {
+                // ИЗМЕНЕНО: теперь 4
+                if (userPreferredDirs.length >= 4) {
                     showToast(translations[currentLang].prefMax, "error");
                     return;
                 }
@@ -698,10 +720,14 @@
         }
 
         function updateTaskDropdown() {
-            const contextVal = document.getElementById('contextSelect').value;
+            const contextSelect = document.getElementById('contextSelect');
+            if (!contextSelect) return;
+
+            const contextVal = contextSelect.value;
             const taskSel = document.getElementById('taskSelect');
+            if (!taskSel) return;
+
             const t = translations[currentLang];
-            
             taskSel.innerHTML = `<option value="">${contextVal ? t.chooseTask : t.firstCtx}</option>`;
             
             if (!contextVal) {
@@ -723,6 +749,14 @@
                 return type === 'dir' ? (tDirId === targetId || isGen) : (tCmdId === targetId || isGen);
             });
 
+            // 🔥 СОРТИРОВКА: Сначала по полю order, затем по названию
+            relevantTasks.sort((a, b) => {
+                const orderA = parseInt(a.order) || 0;
+                const orderB = parseInt(b.order) || 0;
+                if (orderA !== orderB) return orderA - orderB;
+                return a.title.localeCompare(b.title);
+            });
+
             if (relevantTasks.length === 0) {
                 taskSel.innerHTML = `<option value="">${t.noActive}</option>`;
             } else {
@@ -731,7 +765,6 @@
                     const isGen = (!tk.command_id && !tk.direction_id) ? t.general : "";
                     const pointsDisplay = parseFloat(tk.points) > 0 ? `(+${tk.points})` : "(Гибкие баллы)";
                     
-                    // Сохраняем баллы в data-points
                     taskSel.innerHTML += `<option value="${tk.id}" data-points="${tk.points}">${displayTitle}${isGen} ${pointsDisplay}</option>`;
                 });
             }

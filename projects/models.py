@@ -147,7 +147,7 @@ class TeamMember(models.Model):
     photo = models.ImageField(upload_to='team/', verbose_name="Фото")
     order = models.PositiveIntegerField(default=0, verbose_name="Порядок")
     is_active = models.BooleanField(default=True)
-
+    description = models.TextField(verbose_name="Описание", blank=True)
     class Meta:
         verbose_name = "Член команды"
         verbose_name_plural = "Команда"

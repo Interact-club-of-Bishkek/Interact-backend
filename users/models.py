@@ -39,15 +39,16 @@ class VolunteerManager(BaseUserManager):
 class AppSettings(models.Model):
     """Глобальные настройки системы (существует только 1 запись)"""
     is_direction_selection_open = models.BooleanField("Открыт выбор направлений", default=False)
-    # 🔥 НОВОЕ ПОЛЕ ДЛЯ РЕГИСТРАЦИИ:
     is_registration_open = models.BooleanField("Открыта регистрация", default=True) 
+    
+    # 🔥 НОВОЕ ПОЛЕ:
+    is_points_submission_open = models.BooleanField("Открыта отправка баллов (отчетов)", default=True)
 
     class Meta:
         verbose_name = "Настройки системы"
         verbose_name_plural = "Настройки системы"
 
     def save(self, *args, **kwargs):
-        # Гарантируем, что в базе всегда только 1 запись с ID=1
         if not self.pk and AppSettings.objects.exists():
             raise ValidationError('Может быть только одна запись с настройками')
         return super().save(*args, **kwargs)
@@ -200,6 +201,8 @@ class ActivityTask(models.Model):
     
     points = models.DecimalField("Баллы (базовые/макс)", max_digits=6, decimal_places=1, default=0)
     
+    order = models.PositiveIntegerField("Порядок", default=0, help_text="Чем меньше число, тем выше задание в списке")
+
     is_flexible = models.BooleanField(
         "Гибкие баллы", 
         default=False, 
@@ -227,7 +230,7 @@ class ActivityTask(models.Model):
     class Meta:
         verbose_name = "Справочник заданий"
         verbose_name_plural = "Справочник заданий"
-
+        ordering = ['order', 'title']
 
 from django.utils import timezone
 from django.db import models, transaction
