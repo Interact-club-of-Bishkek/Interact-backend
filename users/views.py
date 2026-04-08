@@ -10,11 +10,12 @@ from langchain_core import documents
 from langchain_core import documents
 from langchain_core.documents import Document
 from projects.models import Project  
+import openpyxl
 from langchain.prompts import PromptTemplate
 # <-- Проверь, правильный ли путь до твоей модели проектов!
 # ВАЖНО: Импортируем DecimalField именно отсюда для ORM
 # Найди эту строку (примерно в начале файла)
-from django.db.models import Sum, Value, Q, DecimalField, Count, F  # <--- ДОБАВЬ 'F' СЮДА
+from django.db.models import Sum, Value, Q, DecimalField, Count, F, Prefetch  # <--- ДОБАВЬ 'F' СЮДА
 from django.db.models.functions import Coalesce
 
 from rest_framework import viewsets, generics, status, permissions
@@ -157,8 +158,15 @@ class VolunteerActivityViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return ActivitySubmission.objects.filter(volunteer=self.request.user).select_related('task').order_by('-created_at')
-
+        user = self.request.user
+        
+        # 🔥 Если это админ, пристав или президент - даем доступ ко ВСЕМ заявкам
+        if user.role in ['admin', 'bailiff_activity', 'president', 'curator']:
+            return ActivitySubmission.objects.all().select_related('task').order_by('-created_at')
+            
+        # Для обычных волонтеров - только ИХ личные заявки
+        return ActivitySubmission.objects.filter(volunteer=user).select_related('task').order_by('-created_at')
+    
     # 🔥 ОБНОВЛЕННЫЙ МЕТОД CREATE ДЛЯ ПРОВЕРКИ ГЛОБАЛЬНОЙ НАСТРОЙКИ
     def create(self, request, *args, **kwargs):
         settings = AppSettings.get_settings()
@@ -187,11 +195,17 @@ class VolunteerActivityViewSet(viewsets.ModelViewSet):
     # ДОБАВЬ ЭТОТ МЕТОД:
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        if instance.status != 'pending':
-            return Response(
-                {"error": "Можно отменить только заявки, которые находятся в ожидании."}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        user = request.user
+        
+        # 🔥 Если это обычный волонтер, он не может удалять уже одобренные баллы
+        if user.role not in ['admin', 'bailiff_activity', 'president', 'curator']:
+            if instance.status != 'pending':
+                return Response(
+                    {"error": "Вы можете отменить только свои заявки, которые находятся в ожидании."}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
+        # Если это офицер или заявка всё ещё pending - удаляем
         instance.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -240,6 +254,9 @@ class DeductPointsView(APIView):
             )
             
         return Response({"status": "success", "message": "Баллы успешно списаны"})
+
+
+
 
 class DiscoveryListView(APIView):
     permission_classes = [IsAuthenticated]
@@ -578,8 +595,8 @@ class AttendanceViewSet(viewsets.ViewSet):
                     else:
                         p = float(sub.task.points) * qty if sub.task else 0.0
 
-                    # 🔥 ИСПРАВЛЕНИЕ: ДОБАВЛЕНЫ ВСЕ НЕОБХОДИМЫЕ ДАННЫЕ В JSON
                     tasks_data.append({
+                        "id": sub.id,  # <--- ДОБАВЬ ЭТУ СТРОКУ! ИМЕННО ИЗ-ЗА ЕЁ ОТСУТСТВИЯ БЫЛА ОШИБКА
                         "title": sub.task.title if sub.task else "Без названия",
                         "points": p,
                         "date": sub.created_at.strftime('%Y-%m-%d'),
@@ -605,6 +622,200 @@ class AttendanceViewSet(viewsets.ViewSet):
                 })
 
         return Response(data)
+    
+    @action(detail=False, methods=['get'])
+    def download_all_stats_excel(self, request):
+        import io
+        from django.http import FileResponse
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+        from openpyxl.utils import get_column_letter
+        from django.db.models import Sum, Value, Q, DecimalField, F, Prefetch
+        from django.db.models.functions import Coalesce
+        from .models import VolunteerDirection, Volunteer, ActivitySubmission
+
+        wb = Workbook()
+        wb.remove(wb.active) 
+
+        directions = VolunteerDirection.objects.all()
+
+        # НЕЖНАЯ ПАСТЕЛЬНАЯ ПАЛИТРА ДЛЯ НАПРАВЛЕНИЙ
+        DIR_COLORS = {
+            'СС':   {'tab': '0070C0', 'main': 'C9DAF8', 'light': 'E8F0FE'}, # Нежно-синий
+            'ЭКО':  {'tab': '00B050', 'main': 'D9EAD3', 'light': 'F0F4EC'}, # Нежно-зеленый
+            'ОНКО': {'tab': '7030A0', 'main': 'E4DFEC', 'light': 'F3F0F5'}, # Нежно-сиреневый
+            'ЛОВЗ': {'tab': 'FFC000', 'main': 'FFF2CC', 'light': 'FFF9E6'}, # Нежно-желтый
+            'КЦ':   {'tab': 'FF0000', 'main': 'FADAD8', 'light': 'FDEDED'}, # Нежно-розовый
+            'МС':   {'tab': 'E26B0A', 'main': 'FCE4D6', 'light': 'FEF0E6'}, # Нежно-персиковый
+            'ДП':   {'tab': '31869B', 'main': 'D0E0E3', 'light': 'E9F1F2'}, # Нежно-мятный
+            'ДД':   {'tab': '1F497D', 'main': 'CFE2F3', 'light': 'EBF1F7'}, # Светло-голубой
+        }
+
+        # Настраиваем рамки
+        thin_side = Side(style='thin')
+        medium_side = Side(style='medium')
+        
+        thin_border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=thin_side)
+        box_left_border = Border(left=medium_side, top=medium_side, bottom=medium_side, right=thin_side)
+        box_right_border = Border(right=medium_side, top=medium_side, bottom=medium_side, left=thin_side)
+
+        bold_font = Font(bold=True)
+        center_aligned = Alignment(horizontal="center", vertical="center")
+        left_aligned = Alignment(horizontal="left", vertical="center")
+
+        def get_category(sub):
+            if hasattr(sub, 'task') and sub.task:
+                if hasattr(sub.task, 'command') and sub.task.command:
+                    return getattr(sub.task.command, 'name', getattr(sub.task.command, 'title', 'Команда'))
+            return "Общие задания"
+
+        for current_dir in directions:
+            vols = Volunteer.objects.filter(
+                direction=current_dir, role='volunteer'
+            ).annotate(
+                total_score=Coalesce(
+                    Sum(
+                        Coalesce('submissions__points_awarded', F('submissions__task__points') * F('submissions__quantity'), output_field=DecimalField()), 
+                        filter=Q(submissions__status='approved')
+                    ), Value(0), output_field=DecimalField()
+                )
+            ).prefetch_related(
+                Prefetch('submissions', queryset=ActivitySubmission.objects.filter(status='approved').select_related('task').order_by('created_at'))
+            ).order_by('name')
+
+            if not vols.exists():
+                continue
+
+            sheet_title = str(current_dir.name)[:31]
+            ws = wb.create_sheet(title=sheet_title)
+
+            # Определяем цвета для текущего направления
+            dir_name_upper = current_dir.name.upper()
+            tab_color = "A6A6A6"  
+            main_color = "D9D9D9" 
+            light_color = "F2F2F2"
+            
+            for key, colors in DIR_COLORS.items():
+                if key in dir_name_upper:
+                    tab_color = colors['tab']
+                    main_color = colors['main']
+                    light_color = colors['light']
+                    break
+            
+            main_fill = PatternFill(start_color=main_color, end_color=main_color, fill_type="solid")
+            light_fill = PatternFill(start_color=light_color, end_color=light_color, fill_type="solid")
+            ws.sheet_properties.tabColor = tab_color
+
+            start_row = 2
+
+            # =========================================================
+            # ЛЕВАЯ ПАНЕЛЬ: СВОДКА (Название, Список всех и Средний балл)
+            # =========================================================
+            ws.column_dimensions['A'].width = 35
+            ws.column_dimensions['B'].width = 12
+            ws.column_dimensions['C'].width = 3 
+            ws.row_dimensions[start_row].height = 25
+
+            # 1. Название направления
+            ws.merge_cells(start_row=start_row, start_column=1, end_row=start_row, end_column=2)
+            c_dir = ws.cell(row=start_row, column=1, value=current_dir.name.upper())
+            c_dir.fill, c_dir.font, c_dir.alignment = main_fill, bold_font, center_aligned
+            ws.cell(row=start_row, column=1).border = box_left_border
+            ws.cell(row=start_row, column=2).border = box_right_border
+
+            # 2. Список волонтеров и их баллы (Шапки убраны)
+            for idx_v, vol in enumerate(vols):
+                row_idx = start_row + 1 + idx_v
+                
+                c_vname = ws.cell(row=row_idx, column=1, value=vol.name or vol.login)
+                c_vname.fill, c_vname.alignment, c_vname.border = light_fill, left_aligned, thin_border
+                
+                c_vscore = ws.cell(row=row_idx, column=2, value=round(float(vol.total_score), 2))
+                c_vscore.fill, c_vscore.alignment, c_vscore.border, c_vscore.font = main_fill, center_aligned, thin_border, bold_font
+
+            # 3. Среднее арифметическое (В самом низу списка)
+            total_dir_score = sum(float(v.total_score) for v in vols)
+            avg_dir_score = round(total_dir_score / len(vols), 2) if len(vols) > 0 else 0
+            
+            avg_row_idx = start_row + 1 + len(vols)
+            c_avg_lbl = ws.cell(row=avg_row_idx, column=1, value="Среднее арифметическое баллов")
+            c_avg_lbl.fill, c_avg_lbl.font, c_avg_lbl.alignment, c_avg_lbl.border = light_fill, bold_font, left_aligned, box_left_border
+            
+            c_avg_val = ws.cell(row=avg_row_idx, column=2, value=avg_dir_score)
+            c_avg_val.fill, c_avg_val.font, c_avg_val.alignment, c_avg_val.border = main_fill, bold_font, center_aligned, box_right_border
+
+            # =========================================================
+            # ПРАВАЯ ПАНЕЛЬ: ДЕТАЛИЗАЦИЯ ЗАДАНИЙ
+            # =========================================================
+            task_start_col = 8 
+
+            for i, vol in enumerate(vols):
+                v_col = task_start_col + (i * 3) 
+                
+                ws.column_dimensions[get_column_letter(v_col)].width = 42
+                ws.column_dimensions[get_column_letter(v_col+1)].width = 9
+                ws.column_dimensions[get_column_letter(v_col+2)].width = 3 
+
+                # ИМЯ ВОЛОНТЕРА 
+                ws.merge_cells(start_row=start_row, start_column=v_col, end_row=start_row, end_column=v_col+1)
+                
+                cell_left = ws.cell(row=start_row, column=v_col, value=vol.name or vol.login)
+                cell_left.fill, cell_left.font, cell_left.alignment = main_fill, bold_font, center_aligned
+                cell_left.border = box_left_border 
+                ws.cell(row=start_row, column=v_col+1).border = box_right_border 
+                ws.cell(row=start_row, column=v_col+1).fill = main_fill # Для надежности заливаем правую часть объединенной ячейки
+
+                task_row_idx = start_row + 1
+                approved_subs = vol.submissions.all()
+                
+                subs_by_cat = {}
+                for sub in approved_subs:
+                    cat = get_category(sub)
+                    if cat not in subs_by_cat:
+                        subs_by_cat[cat] = []
+                    subs_by_cat[cat].append(sub)
+                
+                sorted_cats = sorted(subs_by_cat.keys(), key=lambda x: (x == "Общие задания", x))
+                
+                for cat in sorted_cats:
+                    # Название команды (ТЕПЕРЬ ТЕМНАЯ ЗАЛИВКА - main_fill)
+                    ws.merge_cells(start_row=task_row_idx, start_column=v_col, end_row=task_row_idx, end_column=v_col+1)
+                    c_cat = ws.cell(row=task_row_idx, column=v_col, value=str(cat).upper())
+                    c_cat.fill, c_cat.font, c_cat.alignment, c_cat.border = main_fill, bold_font, center_aligned, thin_border
+                    ws.cell(row=task_row_idx, column=v_col+1).border = thin_border
+                    ws.cell(row=task_row_idx, column=v_col+1).fill = main_fill
+                    task_row_idx += 1
+                    
+                    # Задания
+                    for sub in subs_by_cat[cat]:
+                        task_title = sub.task.title if sub.task else "Без названия"
+                        qty = getattr(sub, 'quantity', 1)
+                        points = float(sub.points_awarded) if sub.points_awarded is not None else (float(sub.task.points) * qty if sub.task else 0.0)
+                        
+                        # Текст задания (светлый)
+                        c_task = ws.cell(row=task_row_idx, column=v_col, value=task_title)
+                        c_task.border, c_task.alignment, c_task.fill = thin_border, left_aligned, light_fill
+                        
+                        # БАЛЛЫ (ТЕПЕРЬ ТЕМНАЯ ЗАЛИВКА - main_fill)
+                        c_pts = ws.cell(row=task_row_idx, column=v_col+1, value=round(points, 2))
+                        c_pts.alignment, c_pts.border, c_pts.fill = center_aligned, thin_border, main_fill
+                        
+                        task_row_idx += 1
+                
+                # ИТОГОВЫЙ БАЛЛ
+                c_blank = ws.cell(row=task_row_idx, column=v_col, value="")
+                c_blank.border, c_blank.fill = box_left_border, main_fill
+                
+                c_sum = ws.cell(row=task_row_idx, column=v_col+1, value=round(float(vol.total_score), 2))
+                c_sum.border, c_sum.font, c_sum.alignment, c_sum.fill = box_right_border, bold_font, center_aligned, main_fill
+
+        if not wb.sheetnames:
+            wb.create_sheet(title="Пусто")
+
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+        return FileResponse(buffer, as_attachment=True, filename="Activity_Stats.xlsx", content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     
 class BailiffPanelView(TemplateView):
     template_name = "volunteers/bailiff_panel.html"

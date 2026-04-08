@@ -798,6 +798,44 @@
                 ptLabel.innerText = (points * qty).toFixed(1);
             }
         }
+        
+        async function downloadAllStatsPDF() {
+            const btn = document.getElementById('downloadPdfBtn');
+            const originalText = btn.innerHTML;
+            
+            // Красивая анимация загрузки на кнопке
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin text-2xl"></i> Формируем PDF...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/attendance/download_all_stats_pdf/', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (res.ok) {
+                    // Преобразуем ответ в Blob (бинарный файл) и скачиваем
+                    const blob = await res.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'Activity_Stats.pdf';
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
+                    
+                    showToast('PDF успешно скачан!', 'success');
+                } else {
+                    showToast('Ошибка при генерации PDF', 'error');
+                }
+            } catch (e) {
+                console.error(e);
+                showToast('Ошибка сети', 'error');
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
 
         function setupDatePicker() {
             const scrollDays = document.getElementById('scroll-days');

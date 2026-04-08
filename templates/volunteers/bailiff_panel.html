@@ -119,13 +119,26 @@
         </div>
 
         <div id="view-stats" class="w-full h-full hidden overflow-y-auto p-4 md:p-6 bg-[#0b1120]">
+            
             <div id="statsContainer" class="max-w-6xl mx-auto space-y-10"></div>
+            
+            <div class="mt-10 flex justify-center pb-12 w-full max-w-6xl mx-auto relative z-20">
+                <button id="downloadExcelBtn" onclick="downloadAllStatsExcel()" class="bg-green-600 hover:bg-green-500 text-white font-black uppercase px-8 py-4 rounded-2xl transition-all shadow-[0_0_30px_rgba(22,163,74,0.4)] flex items-center gap-3 active:scale-95 cursor-pointer">
+                    <i class="fas fa-file-excel text-2xl"></i>
+                    Скачать активность всех направлений (Excel)
+                </button>
+            </div>
+
             <div id="emptyStateStats" class="absolute inset-0 flex flex-col items-center justify-center opacity-50 hidden">
                 <i class="fas fa-chart-bar text-5xl mb-4 text-gray-600"></i>
                 <p class="text-sm font-bold text-gray-400">Нет данных для рейтинга</p>
             </div>
+
+        </div>
         </div>
     </div>
+
+
 
     <div id="taskModal" class="fixed inset-0 z-[3000] hidden flex justify-center items-center p-4">
         <div class="bg-[#1e293b] border border-white/10 rounded-xl shadow-2xl w-full max-w-4xl flex flex-col max-h-[90vh]">
@@ -143,7 +156,7 @@
                             <th>Детали задания</th>
                             <th class="w-24 text-center">Дата</th>
                             <th class="w-20 text-center">Баллы</th>
-                        </tr>
+                            <th class="w-12 text-center"><i class="fas fa-trash"></i></th> </tr>
                     </thead>
                     <tbody id="modalTaskBody">
                     </tbody>
@@ -151,6 +164,26 @@
             </div>
             <div class="p-4 border-t border-white/10 bg-[#0f172a] rounded-b-xl flex justify-end">
                 <button onclick="closeModal()" class="px-6 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-bold transition">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="deleteConfirmModal" class="fixed inset-0 z-[4000] hidden flex justify-center items-center p-4 bg-black/80 backdrop-blur-sm transition-opacity">
+        <div class="bg-[#1e293b] border border-red-500/20 rounded-2xl shadow-2xl w-full max-w-sm flex flex-col overflow-hidden transform scale-95 transition-all duration-200" id="deleteConfirmContent">
+            <div class="p-6 text-center">
+                <div class="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4 border border-red-500/20">
+                    <i class="fas fa-trash-alt text-2xl text-red-500"></i>
+                </div>
+                <h3 class="text-xl font-black uppercase italic text-white mb-2">Удалить баллы?</h3>
+                <p class="text-xs text-gray-400 mb-6 leading-relaxed">Вы уверены, что хотите удалить этот отчет? Баллы волонтера будут пересчитаны. Это действие нельзя отменить.</p>
+                <div class="flex gap-3">
+                    <button onclick="closeDeleteModal()" class="flex-1 py-3 bg-white/5 hover:bg-white/10 text-gray-300 font-bold uppercase rounded-xl text-[10px] transition">
+                        Отмена
+                    </button>
+                    <button id="confirmDeleteBtn" class="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white font-black uppercase rounded-xl text-[10px] shadow-[0_4px_15px_rgba(239,68,68,0.3)] transition active:scale-95">
+                        Да, удалить
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -271,6 +304,43 @@
             }
         }
 
+        async function downloadAllStatsExcel() {
+            const btn = document.getElementById('downloadExcelBtn');
+            const originalText = btn.innerHTML;
+            
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin text-2xl"></i> Формируем Excel...';
+            btn.disabled = true;
+
+            try {
+                // 🔥 ТЕПЕРЬ ССЫЛКА ВЕДЕТ НА EXCEL ЭНДПОИНТ
+                const res = await fetch('/api/attendance/download_all_stats_excel/', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (res.ok) {
+                    const blob = await res.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'Activity_Stats.xlsx'; // Сохраняем в формате Excel
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
+                    
+                    showToast('Excel успешно скачан!', 'success');
+                } else {
+                    showToast('Ошибка при генерации Excel', 'error');
+                }
+            } catch (e) {
+                console.error(e);
+                showToast('Ошибка сети', 'error');
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
         async function fetchStatsData() {
             const dirId = document.getElementById('directionSelect').value;
             
@@ -368,6 +438,77 @@
                 document.getElementById('loader').classList.add('hidden');
             }
         }
+        
+// Глобальная переменная для хранения данных удаляемой задачи
+        let taskToDelete = null;
+
+        // Вызывается при клике на иконку корзины в таблице заданий
+        function deleteTask(submissionId, dirId, volId, volName) {
+            // Сохраняем, что именно мы хотим удалить
+            taskToDelete = { submissionId, dirId, volId, volName };
+            
+            // Показываем красивое окно
+            const modal = document.getElementById('deleteConfirmModal');
+            const content = document.getElementById('deleteConfirmContent');
+            
+            modal.classList.remove('hidden');
+            // Небольшая задержка для плавного появления (анимация scale)
+            setTimeout(() => {
+                content.classList.remove('scale-95');
+                content.classList.add('scale-100');
+            }, 10);
+        }
+
+        // Закрытие окна удаления
+        function closeDeleteModal() {
+            const modal = document.getElementById('deleteConfirmModal');
+            const content = document.getElementById('deleteConfirmContent');
+            
+            content.classList.remove('scale-100');
+            content.classList.add('scale-95');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                taskToDelete = null;
+            }, 200); // Ждем завершения анимации
+        }
+
+        // Обработка клика по красной кнопке "ДА, УДАЛИТЬ"
+        document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
+            if (!taskToDelete) return;
+            
+            const btn = document.getElementById('confirmDeleteBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin text-lg"></i>';
+            btn.disabled = true;
+
+            const { submissionId, dirId, volId, volName } = taskToDelete;
+
+            try {
+                const res = await fetch(`/api/activities/${submissionId}/`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (res.ok || res.status === 204) {
+                    showToast('Задание удалено, баллы пересчитаны', 'success');
+                    closeDeleteModal(); // Закрываем окошко
+                    
+                    // Обновляем статистику и перерисовываем список
+                    await fetchStatsData(); 
+                    openTasksModal(dirId, volId, volName); 
+                } else {
+                    const data = await res.json();
+                    showToast(data.error || 'Ошибка при удалении', 'error');
+                }
+            } catch (e) {
+                console.error(e);
+                showToast('Ошибка соединения', 'error');
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        });
 
         // --- МОДАЛЬНОЕ ОКНО ЗАДАНИЙ (ПОЛНОСТЬЮ ОБНОВЛЕНО С ESCAPE HTML И ГЛУБОКИМ ПОИСКОМ ОПИСАНИЯ) ---
         function openTasksModal(dirId, volId, volName) {
@@ -446,6 +587,7 @@
                         
                     const dateStr = t.date || (t.created_at ? new Date(t.created_at).toLocaleDateString() : '—');
 
+                    // Внутри функции openTasksModal замени return `...` на этот код:
                     return `
                         <tr class="hover:bg-white/5 transition border-b border-white/10 align-top">
                             <td class="text-center text-gray-500 py-4 pt-5">${i + 1}</td>
@@ -459,6 +601,11 @@
                             </td>
                             <td class="text-center text-gray-400 text-xs py-4 pt-5 font-bold">${dateStr}</td>
                             <td class="text-center font-black text-primary py-4 pt-5 text-sm">+${points}</td>
+                            <td class="text-center py-4 pt-5">
+                                <button onclick="deleteTask(${t.id}, ${dirId}, ${volId}, '${volName}')" class="text-gray-500 hover:text-red-500 transition" title="Удалить баллы">
+                                    <i class="fas fa-trash-alt text-lg"></i>
+                                </button>
+                            </td>
                         </tr>
                     `;
                 }).join('');
