@@ -29,9 +29,9 @@ services:
       - "8000"
     env_file: .env
     volumes:
-      - .:/app  # <-- ДОБАВЛЕНО: теперь контейнер видит свежий requirements.txt
       - static_volume:/app/staticfiles
       - media_volume:/app/media
+      - ./entrypoint.sh:/app/entrypoint.sh
     depends_on:
       db:
         condition: service_healthy
@@ -52,7 +52,7 @@ services:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
       - static_volume:/app/staticfiles
       - media_volume:/app/media
-      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro   # <-- сертификаты
     depends_on:
       - backend
     restart: always
@@ -64,8 +64,6 @@ services:
     image: interact_telegram_bot:latest
     container_name: interact_telegram_bot
     env_file: .env
-    volumes:
-      - .:/app  # <-- ДОБАВЛЕНО (если бот тоже должен подхватывать свежий код)
     depends_on:
       - backend
     restart: always
