@@ -13,5 +13,10 @@ RUN adduser --disabled-password --gecos '' appuser && \
     chown -R appuser:appuser /app && \
     chmod -R 775 /app/media /app/staticfiles
 
+COPY requirements.txt .
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.txt && \
+    rm requirements.txt
+
 EXPOSE 8000
 # Entrypoint подхватится из docker-compose.yml
