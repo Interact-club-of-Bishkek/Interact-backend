@@ -178,6 +178,35 @@ class VolunteerActivityViewSet(viewsets.ModelViewSet):
             )
         return super().create(request, *args, **kwargs)
 
+    def update(self, request, *args, **kwargs):
+        return self.partial_update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        user = request.user
+        
+        is_staff = user.role in ['admin', 'bailiff_activity', 'president', 'curator']
+        
+        # Обычный волонтер не может редактировать уже обработанную заявку
+        if not is_staff and instance.status != 'pending':
+            return Response(
+                {"error": "Вы не можете изменить уже обработанную заявку."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Если в запросе пытаются изменить баллы
+        if 'points_awarded' in request.data:
+            if not is_staff:
+                return Response(
+                    {"error": "Вам запрещено изменять баллы!"}, 
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            # Принудительно обновляем баллы на случай, если поле read_only в сериализаторе
+            instance.points_awarded = request.data['points_awarded']
+            instance.save()
+            
+        return super().partial_update(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         # ... твой существующий код (quantity, command_id и т.д.) ...
         command_id = self.request.data.get('command')
