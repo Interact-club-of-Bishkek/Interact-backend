@@ -5,7 +5,7 @@ from django.urls import reverse
 from .models import (
     ChatSession, ChatMessage, Volunteer, VolunteerApplication, VolunteerArchive, 
     ActivityTask, ActivitySubmission, BotAccessConfig,
-    Attendance, YellowCard, AppSettings
+    Attendance, YellowCard, AppSettings, MiniTeam, MiniTeamMembership, SponsorTask
 )
 
 # --- НАСТРОЙКИ ШАПКИ АДМИНКИ ---
@@ -274,3 +274,55 @@ class ChatMessageInline(admin.TabularInline):
 class ChatSessionAdmin(admin.ModelAdmin):
     list_display = ('session_id', 'created_at')
     inlines = [ChatMessageInline]
+
+
+# Inline-класс для отображения участников прямо внутри страницы мини-команды
+class MiniTeamMembershipInline(admin.TabularInline):
+    model = MiniTeamMembership
+    extra = 1  # Количество пустых строк для добавления новых участников
+    raw_id_fields = ('volunteer', 'assigned_by') # Чтобы не грузить весь список волонтеров в dropdown
+
+
+@admin.register(MiniTeam)
+class MiniTeamAdmin(admin.ModelAdmin):
+    list_display = ('title', 'get_parent_group', 'created_at')
+    list_filter = ('direction', 'command')
+    search_fields = ('title',)
+    inlines = [MiniTeamMembershipInline] # Подключаем таблицу участников
+
+    def get_parent_group(self, obj):
+        """Показывает, к чему привязана мини-команда"""
+        if obj.direction:
+            return f"Направление: {obj.direction.name}"
+        if obj.command:
+            return f"Команда: {obj.command.title}"
+        return "—"
+    get_parent_group.short_description = "Привязка"
+
+
+@admin.register(MiniTeamMembership)
+class MiniTeamMembershipAdmin(admin.ModelAdmin):
+    list_display = ('miniteam', 'volunteer', 'role', 'assigned_by')
+    list_filter = ('role', 'miniteam')
+    search_fields = ('volunteer__name', 'volunteer__login', 'miniteam__title')
+    raw_id_fields = ('volunteer', 'miniteam', 'assigned_by')
+
+
+@admin.register(SponsorTask)
+class SponsorTaskAdmin(admin.ModelAdmin):
+    list_display = ('sponsor_name', 'miniteam', 'assigned_volunteer', 'status', 'created_at')
+    list_filter = ('status', 'miniteam')
+    search_fields = ('sponsor_name', 'assigned_volunteer__name', 'assigned_volunteer__login')
+    raw_id_fields = ('miniteam', 'assigned_volunteer')
+    
+    # Раскрашиваем статусы для красоты в админке
+    def get_status_html(self, obj):
+        colors = {
+            'pending': 'orange',
+            'review': 'blue',
+            'agreed': 'green',
+            'rejected': 'red'
+        }
+        color = colors.get(obj.status, 'black')
+        return format_html('<span style="color: {}; font-weight: bold;">{}</span>', color, obj.get_status_display())
+    get_status_html.short_description = 'Вердикт'

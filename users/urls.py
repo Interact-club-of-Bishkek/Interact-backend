@@ -17,7 +17,10 @@ from users.views import (
     generate_auto_distribution,
     apply_distribution,
     volunteer_direction_preferences,
-    ai_pdf_chat
+    ai_pdf_chat,
+    # --- НОВОЕ ДЛЯ МИНИ-КОМАНД И СПОНСОРОВ ---
+    MiniTeamViewSet,
+    SponsorTaskViewSet
 )
 
 router = DefaultRouter()
@@ -35,6 +38,11 @@ router.register(r'activities', VolunteerActivityViewSet, basename='vol-activity'
 router.register(r'curator/submissions', CuratorSubmissionViewSet, basename='cur-submission')
 router.register(r'attendance', AttendanceViewSet, basename='attendance')
 router.register(r'equity', EquityViewSet, basename='equity')
+
+# --- НОВОЕ ДЛЯ МИНИ-КОМАНД И СПОНСОРОВ ---
+router.register(r'miniteams', MiniTeamViewSet, basename='miniteam')
+router.register(r'sponsors', SponsorTaskViewSet, basename='sponsor')
+
 
 urlpatterns = [
     # --- API Эндпоинты ---

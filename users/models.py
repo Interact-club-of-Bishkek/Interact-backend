@@ -464,3 +464,85 @@ class ChatMessage(models.Model):
 
     def __str__(self):
         return f"{self.sender}: {self.text[:50]}"
+
+class MiniTeam(models.Model):
+    """Мини-команды, которые создаются внутри Направления или общей Команды"""
+    title = models.CharField("Название мини-команды", max_length=255)
+    
+    direction = models.ForeignKey(
+        'directions.VolunteerDirection', on_delete=models.CASCADE, 
+        null=True, blank=True, related_name='mini_teams', verbose_name="Направление"
+    )
+    command = models.ForeignKey(
+        'commands.Command', on_delete=models.CASCADE, 
+        null=True, blank=True, related_name='mini_teams', verbose_name="Общая команда"
+    )
+    
+    # 🔥 ИСПРАВЛЕНИЕ ЗДЕСЬ: добавляем through_fields
+    members = models.ManyToManyField(
+        'Volunteer', 
+        through='MiniTeamMembership', 
+        through_fields=('miniteam', 'volunteer'),  # <--- ВОТ ЭТА СТРОКА РЕШАЕТ ОШИБКУ
+        related_name='my_mini_teams'
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Мини-команда"
+        verbose_name_plural = "Мини-команды"
+
+    def __str__(self):
+        parent = self.direction.name if self.direction else (self.command.title if self.command else "Без привязки")
+        return f"{self.title} ({parent})"
+
+class MiniTeamMembership(models.Model):
+    """Связующая таблица: кто состоит в мини-команде и какая у него роль"""
+    ROLE_CHOICES = [
+        ('member', 'Волонтер (обзвонщик)'),
+        ('mini_curator', 'Мини-куратор'),
+        ('basist', 'Базист'),
+    ]
+    
+    miniteam = models.ForeignKey(MiniTeam, on_delete=models.CASCADE, related_name='memberships')
+    volunteer = models.ForeignKey('Volunteer', on_delete=models.CASCADE, related_name='miniteam_roles')
+    role = models.CharField("Роль в мини-команде", max_length=20, choices=ROLE_CHOICES, default='member')
+    assigned_by = models.ForeignKey('Volunteer', on_delete=models.SET_NULL, null=True, related_name='assigned_miniteam_roles')
+
+    class Meta:
+        verbose_name = "Участник мини-команды"
+        verbose_name_plural = "Участники мини-команд"
+        unique_together = ('miniteam', 'volunteer') # Один человек в одной мини-команде имеет только одну роль
+
+
+class SponsorTask(models.Model):
+    """База спонсоров (привязана к конкретной мини-команде)"""
+    STATUS_CHOICES = [
+        ('pending', 'Ожидает внимания'),
+        ('review', 'На рассмотрении'),
+        ('agreed', 'Соглашение'),
+        ('rejected', 'Отказ'),
+    ]
+    
+    # База принадлежит мини-команде
+    miniteam = models.ForeignKey(MiniTeam, on_delete=models.CASCADE, related_name='sponsors')
+    
+    sponsor_name = models.CharField("Название/Имя спонсора", max_length=255)
+    contact_info = models.TextField("Контактные данные (телефон, email, соцсети)")
+    
+    # Базист назначает обычного волонтера из ЭТОЙ мини-команды на обзвон
+    assigned_volunteer = models.ForeignKey(
+        'Volunteer', on_delete=models.SET_NULL, null=True, blank=True, 
+        related_name='sponsor_tasks', verbose_name="Ответственный за обзвон"
+    )
+    
+    status = models.CharField("Вердикт", max_length=20, choices=STATUS_CHOICES, default='pending')
+    comment = models.TextField("Комментарий от волонтера", blank=True, null=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Спонсор / Задача"
+        verbose_name_plural = "База спонсоров"
+        ordering = ['-created_at']

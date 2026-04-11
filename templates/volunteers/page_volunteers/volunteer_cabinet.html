@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Платформа | Smooth UI</title>
+    <link rel="icon" type="image/png" href="https://i.ibb.co/qFYrFSnD/2105176-1-removebg-preview.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        /* CSS-переменные для Темной и Светлой тем */
+        :root[data-theme="dark"] { 
+            --primary: #00c6ff; 
+            --primary-soft: rgba(0, 198, 255, 0.15);
+            --bg-base: #0b0f19; 
+            --bg-surface: #151b2b;
+            --bg-input: #0b0f19;
+            --text-main: #ffffff;
+            --text-muted: #8b9bb4;
+            --border-color: rgba(255, 255, 255, 0.08);
+            --shadow-card: 0 10px 40px -10px rgba(0,0,0,0.5);
+            --shadow-dropdown: 0 20px 50px rgba(0,0,0,0.8);
+            --overlay: rgba(0,0,0,0.8);
+        }
+
+        :root[data-theme="light"] { 
+            --primary: #0284c7; 
+            --primary-soft: rgba(2, 132, 199, 0.1);
+            --bg-base: #f1f5f9; 
+            --bg-surface: #ffffff; 
+            --bg-input: #f8fafc; 
+            --text-main: #0f172a; 
+            --text-muted: #64748b; 
+            --border-color: #cbd5e1; 
+            --shadow-card: 0 10px 30px -10px rgba(15, 23, 42, 0.08);
+            --shadow-dropdown: 0 15px 35px -5px rgba(15, 23, 42, 0.15);
+            --overlay: rgba(15, 23, 42, 0.5);
+        }
+        
+        body { 
+            background-color: var(--bg-base); 
+            color: var(--text-main); 
+            font-family: 'Nunito', sans-serif; 
+            overflow-x: hidden;
+            margin: 0;
+            transition: background-color 0.4s ease, color 0.4s ease;
+        }
+
+        .bg-base { background-color: var(--bg-base); transition: 0.4s ease; }
+        .bg-surface { background-color: var(--bg-surface); transition: 0.4s ease; }
+        .bg-input { background-color: var(--bg-input); transition: 0.4s ease; }
+        .text-main { color: var(--text-main); transition: 0.4s ease; }
+        .text-muted { color: var(--text-muted); transition: 0.4s ease; }
+        .border-soft { border-color: var(--border-color); transition: 0.4s ease; }
+
+        /* Плавные панели */
+        .smooth-panel { 
+            background: var(--bg-surface); 
+            border: 1px solid var(--border-color); 
+            border-radius: 24px; 
+            box-shadow: var(--shadow-card);
+            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        .smooth-panel:hover { transform: translateY(-2px); box-shadow: 0 15px 45px -10px var(--primary-soft); border-color: var(--primary-soft); }
+
+        /* Инпуты */
+        .input-smooth { 
+            background: var(--bg-input); border: 2px solid var(--border-color); border-radius: 16px; 
+            padding: 14px 18px; width: 100%; color: var(--text-main); outline: none; font-size: 15px; font-weight: 700;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .input-smooth:focus, .input-smooth:hover { border-color: var(--primary); background: var(--bg-surface); box-shadow: 0 0 0 4px var(--primary-soft); }
+        input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type="number"] { -moz-appearance: textfield; }
+
+        /* Кастомный Select */
+        .custom-select-wrapper { position: relative; width: 100%; z-index: 10; transition: z-index 0s; }
+        .custom-select-trigger {
+            background: var(--bg-input); border: 2px solid var(--border-color); border-radius: 16px;
+            padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .custom-select-trigger:hover { border-color: var(--primary); background: var(--bg-surface); }
+        .custom-select-trigger.active { border-color: var(--primary); background: var(--bg-surface); box-shadow: 0 0 0 4px var(--primary-soft); }
+        
+        .custom-select-dropdown {
+            position: absolute; top: calc(100% + 8px); left: 0; right: 0;
+            background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 20px;
+            box-shadow: var(--shadow-dropdown); opacity: 0; pointer-events: none; transform: translateY(-10px) scale(0.98);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); max-height: 250px; overflow-y: auto; padding: 8px; z-index: 100;
+        }
+        :root[data-theme="light"] .custom-select-dropdown { background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(12px); }
+        :root[data-theme="dark"] .custom-select-dropdown { background: rgba(21, 27, 43, 0.95); backdrop-filter: blur(12px); }
+        .custom-select-dropdown.open { opacity: 1; pointer-events: auto; transform: translateY(0) scale(1); }
+        
+        .custom-option {
+            padding: 12px 16px; border-radius: 12px; cursor: pointer; font-weight: 800; font-size: 14px;
+            display: flex; justify-content: space-between; align-items: center; transition: 0.2s; color: var(--text-muted);
+        }
+        .custom-option:hover { background: var(--bg-input); color: var(--text-main); transform: translateX(4px); }
+        .custom-option.selected { background: var(--primary-soft); color: var(--primary); }
+
+        /* Колесо выбора даты */
+        .picker-viewport {
+            position: relative; display: flex; height: 130px; width: 100%; background: var(--bg-input); border-radius: 16px; border: 2px solid var(--border-color); overflow: hidden;
+            -webkit-mask-image: linear-gradient(to bottom, transparent, black 35%, black 65%, transparent); mask-image: linear-gradient(to bottom, transparent, black 35%, black 65%, transparent); transition: 0.3s ease;
+        }
+        .picker-viewport:hover { border-color: var(--primary-soft); }
+        .picker-column { flex: 1; height: 100%; overflow-y: scroll; scroll-snap-type: y mandatory; scrollbar-width: none; }
+        .picker-column::-webkit-scrollbar { display: none; }
+        .picker-selection { position: absolute; top: 50%; left: 10px; right: 10px; height: 44px; transform: translateY(-50%); background: var(--primary-soft); border-radius: 12px; pointer-events: none; z-index: 10; }
+        .scroll-item { height: 44px; display: flex; align-items: center; justify-content: center; scroll-snap-align: center; transition: all 0.3s ease; user-select: none; color: var(--text-muted); font-weight: 700; }
+        .scroll-item.active { color: var(--primary); font-weight: 900; font-size: 1.25rem; transform: scale(1.1); }
+
+        /* Кнопки */
+        .btn-smooth { background: var(--primary); color: #fff; font-weight: 800; font-size: 16px; padding: 16px 24px; border-radius: 16px; text-transform: uppercase; letter-spacing: 1px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); border: none; cursor: pointer; box-shadow: 0 8px 20px var(--primary-soft); }
+        .btn-smooth:hover { transform: translateY(-2px); box-shadow: 0 12px 25px rgba(2, 132, 199, 0.3); }
+        .btn-smooth:active { transform: translateY(1px); box-shadow: 0 4px 10px var(--primary-soft); }
+        .btn-danger-soft { background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 2px solid transparent; font-weight: 800; padding: 14px 24px; border-radius: 16px; transition: 0.3s; }
+        .btn-danger-soft:hover { background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.3); }
+
+        .lang-btn { font-size: 12px; font-weight: 800; color: var(--text-muted); cursor: pointer; transition: 0.3s; padding: 8px 14px; border-radius: 12px; }
+        .lang-btn.active { background: var(--bg-surface); color: var(--primary); box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .theme-toggle { width: 44px; height: 44px; border-radius: 14px; display: flex; align-items: center; justify-content: center; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border-color); cursor: pointer; transition: 0.3s; }
+        .theme-toggle:hover { border-color: var(--primary); color: var(--primary); transform: rotate(15deg); }
+
+        /* Таймлайн */
+        .timeline-item { position: relative; padding-left: 32px; padding-bottom: 24px; }
+        .timeline-item::before { content: ''; position: absolute; left: 7px; top: 28px; bottom: 0; width: 2px; background: var(--border-color); transition: 0.3s; }
+        .timeline-item:last-child::before { display: none; }
+        .timeline-dot { position: absolute; left: 0; top: 10px; width: 16px; height: 16px; border-radius: 50%; background: var(--bg-surface); border: 3px solid var(--border-color); transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 2; }
+        .timeline-item:hover .timeline-dot { border-color: var(--primary); background: var(--primary); transform: scale(1.2); box-shadow: 0 0 15px var(--primary-soft); }
+        .timeline-dot.penalty { border-color: #ef4444; }
+        .timeline-item:hover .timeline-dot.penalty { background: #ef4444; box-shadow: 0 0 15px rgba(239, 68, 68, 0.3); }
+        .timeline-card { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 20px; padding: 20px; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.02); }
+        .timeline-card:hover { border-color: var(--primary-soft); transform: translateX(4px); box-shadow: var(--shadow-card); }
+        .timeline-card.penalty:hover { border-color: rgba(239, 68, 68, 0.3); }
+
+        /* Модалки и Тосты */
+        .modal-overlay { position: fixed; inset: 0; background: var(--overlay); backdrop-filter: blur(8px); z-index: 2000; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: 0.4s ease; }
+        .modal-overlay.open { opacity: 1; pointer-events: auto; }
+        .modal-content { max-width: 460px; width: 90%; transform: translateY(30px) scale(0.95); transition: 0.4s cubic-bezier(0.25, 1, 0.5, 1); background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 28px; box-shadow: var(--shadow-card); }
+        .modal-overlay.open .modal-content { transform: translateY(0) scale(1); }
+        #toast-container { position: fixed; bottom: 30px; right: 30px; z-index: 3000; display: flex; flex-direction: column; gap: 12px; }
+        .toast { min-width: 280px; padding: 18px 24px; border-radius: 16px; background: var(--bg-surface); border-left: 5px solid var(--primary); color: var(--text-main); box-shadow: var(--shadow-card); transform: translateX(100%); opacity: 0; transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55); display: flex; align-items: center; gap: 16px; font-weight: 700; }
+        .toast.show { transform: translateX(0); opacity: 1; }
+        .toast.error { border-left-color: #ef4444; }
+        .toast.success { border-left-color: #22c55e; }
+
+        /* Навигация (меню) стили */
+        .nav-item { outline: none; border: 2px solid transparent; }
+        .nav-item.active { background: var(--primary-soft); color: var(--primary); border-color: var(--primary-soft); }
+        .nav-item:not(.active):hover { background: var(--bg-input); border-color: var(--border-color); color: var(--text-main); }
+        .nav-item i { transition: transform 0.3s ease; }
+        .nav-item:hover i { transform: scale(1.1); }
+        
+        .custom-select-dropdown::-webkit-scrollbar { width: 6px; }
+        .custom-select-dropdown::-webkit-scrollbar-track { background: transparent; }
+        .custom-select-dropdown::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 10px; }
+        .custom-select-dropdown::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+        .line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+    
+    <div id="toast-container"></div>
+
+    <div id="profileModal" class="modal-overlay px-4">
+        <div class="modal-content p-8 relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary to-blue-500"></div>
+            <div class="flex justify-between items-center mb-8 pt-2">
+                <h3 class="font-black text-main text-2xl uppercase tracking-wider" id="t-editProfile">Настройки</h3>
+                <button onclick="closeProfileModal()" class="w-10 h-10 rounded-full bg-input text-muted hover:text-main hover:bg-border-soft flex items-center justify-center transition border border-soft"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="space-y-5">
+                <div><label class="text-xs font-bold text-muted uppercase tracking-widest block mb-2 ml-2" id="t-profName">ФИО</label><input type="text" id="profName" class="input-smooth"></div>
+                <div><label class="text-xs font-bold text-muted uppercase tracking-widest block mb-2 ml-2" id="t-profPhone">Телефон</label><input type="text" id="profPhone" class="input-smooth"></div>
+                <div><label class="text-xs font-bold text-muted uppercase tracking-widest block mb-2 ml-2" id="t-profEmail">Email</label><input type="email" id="profEmail" class="input-smooth"></div>
+                <div><label class="text-xs font-bold text-muted uppercase tracking-widest block mb-2 ml-2" id="t-profPhoto">Фото профиля</label><input type="file" id="profPhoto" class="input-smooth p-3 text-sm" accept="image/*"></div>
+                <div class="pt-6 flex flex-col gap-3">
+                    <button onclick="saveProfile()" id="saveProfileBtn" class="btn-smooth w-full flex justify-center items-center gap-2"><i class="fas fa-check"></i> <span id="t-save">Сохранить</span></button>
+                    <button onclick="logout()" class="btn-danger-soft w-full flex justify-center items-center gap-2"><i class="fas fa-sign-out-alt"></i> <span id="t-logout">Выйти</span></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="cancelModal" class="modal-overlay px-4">
+        <div class="modal-content p-8 text-center relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-2 bg-red-500"></div>
+            <div class="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-6 mt-4"><i class="fas fa-trash-alt text-3xl text-red-500"></i></div>
+            <h3 class="text-2xl font-black uppercase text-main mb-3" id="t-cancelHeader">Удаление</h3>
+            <p class="text-base text-muted mb-8" id="t-cancelConfirmText">Вы уверены, что хотите отменить этот отчет?</p>
+            <div class="flex gap-4">
+                <button onclick="closeCancelModal()" class="flex-1 py-4 bg-input text-muted hover:text-main font-bold rounded-2xl transition border border-soft">Назад</button>
+                <button id="confirmCancelBtn" class="flex-1 py-4 bg-red-500 hover:bg-red-600 text-white font-black rounded-2xl shadow-lg shadow-red-500/30 transition transform active:scale-95">Удалить</button>
+            </div>
+        </div>
+    </div>
+
+    <header class="lg:hidden sticky top-0 z-40 bg-surface border-b border-soft px-4 py-3 flex items-center justify-between shadow-sm">
+        <div class="flex items-center gap-3">
+            <button onclick="toggleMobileMenu()" class="w-12 h-12 rounded-xl bg-input border border-soft flex items-center justify-center text-main active:scale-95 transition-transform">
+                <i class="fas fa-bars text-lg"></i>
+            </button>
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-primary to-blue-400 flex items-center justify-center text-white shadow-md shadow-primary/30">
+                <i class="fas fa-bolt"></i>
+            </div>
+            <span class="font-black italic tracking-widest uppercase text-lg text-main">Interact</span>
+        </div>
+        <button onclick="toggleTheme()" class="theme-toggle" title="Сменить тему">
+            <i id="themeIconMobile" class="fas fa-moon"></i>
+        </button>
+    </header>
+
+    <div id="mobileOverlay" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 hidden lg:hidden transition-opacity" onclick="toggleMobileMenu()"></div>
+
+    <div class="flex flex-1 relative overflow-hidden">
+        
+        <aside id="sidebar" class="w-[300px] lg:w-[380px] bg-surface border-r border-soft flex flex-col shrink-0 fixed inset-y-0 left-0 lg:static z-50 transform -translate-x-full lg:translate-x-0 transition-transform duration-400 cubic-bezier(0.4, 0, 0.2, 1) h-full overflow-y-auto">
+            <div class="p-6 md:p-8 flex-1 flex flex-col">
+                <div class="hidden lg:flex justify-between items-center mb-10">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-primary to-blue-400 flex items-center justify-center text-white shadow-lg shadow-primary/30">
+                            <i class="fas fa-bolt text-lg"></i>
+                        </div>
+                        <span class="font-black italic tracking-widest uppercase text-xl text-main">Interact</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button onclick="toggleTheme()" class="theme-toggle" title="Сменить тему">
+                            <i id="themeIcon" class="fas fa-moon"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex lg:hidden justify-end mb-6">
+                    <button onclick="toggleMobileMenu()" class="w-10 h-10 rounded-full bg-input text-muted border border-soft flex items-center justify-center"><i class="fas fa-times"></i></button>
+                </div>
+
+                <div class="flex flex-col items-center text-center mt-2 mb-6">
+                    <div class="relative mb-5 group cursor-pointer" onclick="openProfileModal()">
+                        <div class="w-24 h-24 lg:w-28 lg:h-28 rounded-[2rem] border-4 border-soft group-hover:border-primary transition-all duration-300 overflow-hidden bg-input flex items-center justify-center shadow-xl">
+                            <img id="headerProfileImg" src="" class="w-full h-full object-cover hidden">
+                            <i id="headerProfileIcon" class="fas fa-user text-4xl text-muted"></i>
+                        </div>
+                        <div class="absolute -bottom-2 -right-2 w-10 h-10 bg-surface group-hover:bg-primary group-hover:text-white rounded-full flex items-center justify-center text-sm transition-all border-4 border-base shadow-lg text-muted">
+                            <i class="fas fa-pen"></i>
+                        </div>
+                    </div>
+                    <h1 id="vName" class="text-2xl lg:text-3xl font-black text-main mb-2 tracking-tight">...</h1>
+                    <p id="vRole" class="text-[10px] lg:text-xs font-bold text-primary uppercase tracking-[0.2em] bg-primary-soft px-3 py-1 rounded-full">Загрузка</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 w-full mb-8">
+                    <div class="smooth-panel p-4 text-center flex flex-col justify-center">
+                        <p class="text-[10px] text-muted font-bold uppercase tracking-widest mb-1" id="t-score">Счет</p>
+                        <p id="vPoints" class="text-3xl lg:text-4xl font-black text-primary leading-none">0</p>
+                    </div>
+                    <div class="smooth-panel p-4 text-center flex flex-col justify-center">
+                        <p class="text-[10px] text-muted font-bold uppercase tracking-widest mb-1" id="t-yc">ЖК</p>
+                        <p id="vYellowCards" class="text-3xl lg:text-4xl font-black text-red-500 leading-none">0</p>
+                    </div>
+                </div>
+
+                <nav class="flex flex-col gap-3 w-full mb-auto border-t border-soft pt-8">
+                    <button onclick="switchTab('tasks')" id="nav-tasks" class="nav-item active flex items-center gap-4 w-full p-4 rounded-2xl font-black text-[16px] transition-all">
+                        <div class="w-10 h-10 rounded-xl bg-surface border border-soft flex items-center justify-center shadow-sm"><i class="fas fa-layer-group"></i></div>
+                        <span id="t-navTasks">Задания</span>
+                    </button>
+                    <button onclick="switchTab('cabinet')" id="nav-cabinet" class="nav-item flex items-center gap-4 w-full p-4 rounded-2xl font-bold text-[16px] text-muted transition-all">
+                        <div class="w-10 h-10 rounded-xl bg-input border border-soft flex items-center justify-center transition-colors"><i class="fas fa-chart-pie"></i></div>
+                        <span id="t-navCabinet">Мой Кабинет</span>
+                    </button>
+                </nav>
+
+                <div class="mt-8 flex bg-input border border-soft rounded-2xl p-1 self-center w-full max-w-[200px]">
+                    <div class="lang-btn active flex-1 text-center" id="lang-ru" onclick="setLang('ru')">RU</div>
+                    <div class="lang-btn flex-1 text-center" id="lang-en" onclick="setLang('en')">EN</div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="flex-1 flex justify-center p-4 md:p-8 overflow-y-auto w-full relative">
+            
+            <div id="tab-tasks" class="w-full max-w-6xl space-y-8 block animate-fade-in">
+                <div class="flex justify-between items-end mb-6 pl-2">
+                    <div>
+                        <span class="text-[11px] font-black text-primary uppercase tracking-widest block mb-1" id="t-tasksSub">Доступные вам</span>
+                        <h2 class="text-3xl font-black text-main tracking-tight" id="t-tasksTitle">Задания</h2>
+                    </div>
+                </div>
+
+                <div id="tasksGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    </div>
+
+                <div id="tasksEmptyState" class="hidden smooth-panel p-8 text-center flex flex-col items-center justify-center min-h-[50vh]">
+                    <div class="w-24 h-24 bg-primary-soft rounded-[2rem] flex items-center justify-center text-primary mb-6 shadow-inner border border-primary/20">
+                        <i class="fas fa-inbox text-4xl"></i>
+                    </div>
+                    <h2 class="text-3xl font-black text-main tracking-tight mb-3" id="t-tasksEmptyTitle">Нет доступных заданий</h2>
+                    <p class="text-muted font-bold max-w-md mx-auto" id="t-tasksEmptyDesc">На данный момент активных заданий нет. Следите за обновлениями, скоро здесь появится работа!</p>
+                </div>
+            </div>
+
+            <div id="tab-cabinet" class="w-full max-w-5xl space-y-8 hidden animate-fade-in">
+                <div id="preferencesCard" class="hidden smooth-panel p-8 border-l-4 border-l-yellow-500 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-8 opacity-5 pointer-events-none text-[100px] leading-none"><i class="fas fa-star text-yellow-500"></i></div>
+                    <div class="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-6">
+                        <div>
+                            <h2 class="text-2xl font-black text-main uppercase tracking-tight flex items-center gap-3"><span id="t-prefTitle">Выбор направлений</span></h2>
+                            <p class="text-sm text-muted mt-2 font-semibold"><span id="t-prefDesc">Выберите ровно 4 направления:</span> <span class="text-yellow-600 font-black bg-yellow-500/10 px-3 py-1 rounded-lg ml-2 border border-yellow-500/20"><span id="prefCounter">0</span> / 4</span></p>
+                        </div>
+                        <button onclick="savePreferences()" id="btnSavePref" class="bg-yellow-500 hover:bg-yellow-400 text-white font-black uppercase py-3.5 px-8 rounded-2xl transition shadow-[0_5px_15px_rgba(234,179,8,0.3)] shrink-0 whitespace-nowrap active:scale-95"><span id="t-prefSave">Сохранить</span></button>
+                    </div>
+                    <div id="prefOptions" class="relative z-10 flex flex-wrap gap-3"></div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    
+                    <div class="lg:col-span-5">
+                        <div id="reportFormContainer" class="smooth-panel p-6 md:p-8 lg:sticky lg:top-8">
+                            <div class="flex items-center gap-4 mb-8">
+                                <div class="w-12 h-12 rounded-2xl bg-primary-soft flex items-center justify-center text-primary"><i class="fas fa-paper-plane text-xl"></i></div>
+                                <h3 class="font-black uppercase text-main tracking-tight text-2xl" id="t-newreport">Новый отчет</h3>
+                            </div>
+                            
+                            <div class="space-y-6">
+                                <div>
+                                    <label class="text-xs font-bold text-muted uppercase tracking-widest block mb-2 ml-2" id="t-step1">1. Куда отправляем?</label>
+                                    <select id="contextSelect" class="hidden" onchange="updateTaskDropdown()"></select>
+                                </div>
+
+                                <div>
+                                    <label class="text-xs font-bold text-muted uppercase tracking-widest block mb-2 ml-2" id="t-step2">2. Задание</label>
+                                    <select id="taskSelect" class="hidden" onchange="updateCalc()"></select>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="text-xs font-bold text-muted uppercase tracking-widest block mb-2 ml-2" id="t-stepQty">Количество</label>
+                                        <div class="flex bg-input border-2 border-soft rounded-2xl overflow-hidden h-[52px] transition-colors focus-within:border-primary focus-within:ring-4 focus-within:ring-primary-soft">
+                                            <button type="button" onclick="changeQty(-1)" class="w-12 bg-surface hover:bg-border-soft text-muted hover:text-main flex items-center justify-center transition border-r border-soft"><i class="fas fa-minus"></i></button>
+                                            <input type="number" id="taskQty" value="1" min="1" class="w-full bg-transparent text-center font-black text-xl text-main outline-none" oninput="updateCalc()">
+                                            <button type="button" onclick="changeQty(1)" class="w-12 bg-surface hover:bg-border-soft text-muted hover:text-main flex items-center justify-center transition border-l border-soft"><i class="fas fa-plus"></i></button>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="text-xs font-bold text-muted uppercase tracking-widest block mb-2 ml-2 text-right" id="t-calcLabel">Итого баллов</label>
+                                        <div class="h-[52px] flex items-center justify-end px-4 bg-primary-soft border-2 border-primary/20 rounded-2xl">
+                                            <span class="text-primary font-black text-2xl" id="calcTotalPoints">0</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="text-xs font-bold text-muted uppercase tracking-widest block mb-2 ml-2" id="t-stepDate">Дата</label>
+                                    <input type="hidden" id="taskDate" value="">
+                                    <div class="picker-viewport">
+                                        <div class="picker-selection"></div>
+                                        <div id="scroll-days" class="picker-column pt-[43px] pb-[43px]"></div>
+                                        <div id="scroll-months" class="picker-column pt-[43px] pb-[43px] border-l border-soft"></div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="text-xs font-bold text-muted uppercase tracking-widest block mb-2 ml-2" id="t-step3">3. Детали / Ссылка</label>
+                                    <textarea id="taskComm" class="input-smooth h-28 resize-none font-semibold p-4"></textarea>
+                                </div>
+
+                                <button onclick="sendReport()" id="sendBtn" class="btn-smooth w-full mt-4 flex items-center justify-center gap-2">
+                                    <span id="t-send">Отправить</span> <i class="fas fa-arrow-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-7">
+                        <div id="tablesContainer" class="space-y-8">
+                            <div class="smooth-panel flex flex-col items-center justify-center py-24 text-center">
+                                <div class="w-16 h-16 border-4 border-soft border-t-primary rounded-full animate-spin mb-6"></div>
+                                <p class="text-muted text-sm font-bold uppercase tracking-widest" id="t-sync">Синхронизация...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            updateThemeIcons(savedTheme);
+        }
+
+        function toggleTheme() {
+            const root = document.documentElement;
+            const currentTheme = root.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            root.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateThemeIcons(newTheme);
+        }
+
+        function updateThemeIcons(theme) {
+            ['themeIcon', 'themeIconMobile'].forEach(id => {
+                const icon = document.getElementById(id);
+                if(icon) {
+                    if (theme === 'light') { icon.classList.remove('fa-moon'); icon.classList.add('fa-sun'); } 
+                    else { icon.classList.remove('fa-sun'); icon.classList.add('fa-moon'); }
+                }
+            });
+        }
+        initTheme();
+
+        function switchTab(tabId) {
+            document.getElementById('tab-tasks').classList.add('hidden');
+            document.getElementById('tab-cabinet').classList.add('hidden');
+            document.getElementById('tab-' + tabId).classList.remove('hidden');
+
+            document.querySelectorAll('.nav-item').forEach(el => {
+                el.classList.remove('active', 'text-primary');
+                el.classList.add('text-muted');
+                const iconBox = el.querySelector('div');
+                iconBox.classList.remove('bg-surface');
+                iconBox.classList.add('bg-input');
+            });
+
+            const activeBtn = document.getElementById('nav-' + tabId);
+            activeBtn.classList.add('active', 'text-primary');
+            activeBtn.classList.remove('text-muted');
+            const activeIconBox = activeBtn.querySelector('div');
+            activeIconBox.classList.remove('bg-input');
+            activeIconBox.classList.add('bg-surface');
+
+            if(window.innerWidth < 1024) toggleMobileMenu(true);
+        }
+
+        function toggleMobileMenu(forceClose = false) {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+            const isOpen = sidebar.classList.contains('translate-x-0');
+            
+            if (isOpen || forceClose) {
+                sidebar.classList.remove('translate-x-0');
+                sidebar.classList.add('-translate-x-full');
+                overlay.classList.add('hidden');
+                document.body.style.overflow = '';
+            } else {
+                sidebar.classList.remove('-translate-x-full');
+                sidebar.classList.add('translate-x-0');
+                overlay.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+            }
+        }
+
+        function createCustomDropdown(selectId) {
+            const select = document.getElementById(selectId);
+            if (!select) return;
+
+            let wrapper = select.nextElementSibling;
+            if (!wrapper || !wrapper.classList.contains('custom-select-wrapper')) {
+                wrapper = document.createElement('div');
+                wrapper.className = 'custom-select-wrapper';
+                select.parentNode.insertBefore(wrapper, select.nextSibling);
+            }
+            
+            let selectedText = select.options[select.selectedIndex]?.text || '';
+            
+            let html = `
+                <div class="custom-select-trigger shadow-sm">
+                    <span class="text-main font-bold text-[15px] truncate mr-4">${selectedText}</span>
+                    <div class="w-8 h-8 rounded-full bg-surface border border-soft flex items-center justify-center text-muted shrink-0 transition-transform duration-300 icon-wrapper"><i class="fas fa-chevron-down text-xs"></i></div>
+                </div>
+                <div class="custom-select-dropdown">
+            `;
+            
+            Array.from(select.options).forEach((opt, index) => {
+                const isSelected = index === select.selectedIndex;
+                html += `
+                    <div class="custom-option ${isSelected ? 'selected' : ''}" data-index="${index}">
+                        <span class="truncate">${opt.text}</span>
+                        ${isSelected ? '<i class="fas fa-check"></i>' : ''}
+                    </div>
+                `;
+            });
+            
+            html += `</div>`;
+            wrapper.innerHTML = html;
+            
+            const trigger = wrapper.querySelector('.custom-select-trigger');
+            const dropdown = wrapper.querySelector('.custom-select-dropdown');
+            const iconWrap = wrapper.querySelector('.icon-wrapper');
+            
+            trigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('.custom-select-dropdown').forEach(d => {
+                    if (d !== dropdown) {
+                        d.classList.remove('open');
+                        const otherTrigger = d.previousElementSibling;
+                        otherTrigger.classList.remove('active');
+                        otherTrigger.querySelector('.icon-wrapper').style.transform = 'rotate(0deg)';
+                        d.closest('.custom-select-wrapper').style.zIndex = 10;
+                    }
+                });
+                
+                const isOpen = dropdown.classList.contains('open');
+                if (isOpen) {
+                    dropdown.classList.remove('open');
+                    trigger.classList.remove('active');
+                    iconWrap.style.transform = 'rotate(0deg)';
+                    wrapper.style.zIndex = 10;
+                } else {
+                    dropdown.classList.add('open');
+                    trigger.classList.add('active');
+                    iconWrap.style.transform = 'rotate(180deg)';
+                    wrapper.style.zIndex = 50;
+                }
+            });
+            
+            wrapper.querySelectorAll('.custom-option').forEach(optEl => {
+                optEl.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    select.selectedIndex = optEl.getAttribute('data-index');
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                    
+                    dropdown.classList.remove('open');
+                    trigger.classList.remove('active');
+                    iconWrap.style.transform = 'rotate(0deg)';
+                    wrapper.style.zIndex = 10;
+                    createCustomDropdown(selectId);
+                });
+            });
+        }
+
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.custom-select-dropdown').forEach(d => {
+                d.classList.remove('open');
+                const trigger = d.previousElementSibling;
+                if(trigger) {
+                    trigger.classList.remove('active');
+                    const iconWrap = trigger.querySelector('.icon-wrapper');
+                    if(iconWrap) iconWrap.style.transform = 'rotate(0deg)';
+                }
+                d.closest('.custom-select-wrapper').style.zIndex = 10;
+            });
+        });
+
+        let currentLang = localStorage.getItem('lang') || 'ru';
+        let currentUser = null; 
+        let allDirectionsList = [];
+        let userPreferredDirs = [];
+        let appData = { my_direction: [], my_commands: [], available_tasks: [], history: [], sponsors: [] };
+
+        async function apiFetch(url, options = {}) {
+            let access = localStorage.getItem('access');
+            if (!options.headers) options.headers = {};
+            if (access) options.headers['Authorization'] = `Bearer ${access}`;
+            
+            let res = await fetch(url, options);
+            if (res.status === 401) {
+                const refresh = localStorage.getItem('refresh');
+                if (refresh) {
+                    try {
+                        const refreshRes = await fetch('/api/token/refresh/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh }) });
+                        if (refreshRes.ok) {
+                            const data = await refreshRes.json();
+                            localStorage.setItem('access', data.access);
+                            options.headers['Authorization'] = `Bearer ${data.access}`;
+                            res = await fetch(url, options);
+                        } else logout();
+                    } catch (e) { logout(); }
+                } else logout();
+            }
+            return res;
+        }
+
+        const translations = {
+            ru: {
+                navTasks: "Задания", navCabinet: "Мой Кабинет",
+                tasksSub: "Доступные вам", tasksTitle: "Задания", doTask: "Выполнить",
+                tasksEmptyTitle: "Нет доступных заданий", tasksEmptyDesc: "На данный момент активных заданий нет. Следите за обновлениями, скоро здесь появится работа!",
+                status_pending: "Ожидает внимания", status_review: "На рассмотрении", status_agreed: "Согласие", status_rejected: "Отказ", saveSp: "Сохранить", spComment: "Комментарий к звонку...",
+                score: "Счет", yc: "ЖК", newreport: "Новый отчет",
+                step1: "1. Куда отправляем?", step2: "2. Задание",
+                stepQty: "Количество", calcLabel: "Итого баллов",
+                stepDate: "Дата", step3: "3. Детали / Ссылка", send: "Отправить",
+                sync: "Синхронизация...", loading: "Загрузка...",
+                chooseCtx: "Выберите группу...", chooseTask: "Выберите задание...",
+                firstCtx: "Сначала выберите группу", noActive: "Нет активных задач",
+                emptyCtx: "Нет доступных групп", historyEmpty: "История отчетов пуста.",
+                total: "Всего", dirSub: "Направление + Общие", cmdSub: "Команда",
+                noRecords: "Записей не найдено", delTask: "[Задание удалено]",
+                toastErr: "Ошибка сети.", toastSent: "Успешно отправлено!",
+                toastMiss: "Задание не выбрано!", toastFail: "Ошибка сервера",
+                placeComm: "Вставьте ссылку или опишите...", general: "Общая",
+                editProfile: "Настройки", profName: "Имя", profPhone: "Телефон",
+                profEmail: "Email", profPhoto: "Аватар", save: "Сохранить",
+                saveSuccess: "Сохранено!", saveErr: "Ошибка сохранения",
+                logout: "Выход", cancel: "Удалить",
+                cancelConfirm: "Вы уверены, что хотите отменить этот отчет?", cancelSuccess: "Удалено",
+                prefTitle: "Выбор направлений", prefDesc: "Выберите ровно 4 направления:",
+                prefMax: "Лимит: 4 направления", prefSave: "Сохранить",
+                prefSavedToast: "Сохранено!", closedMsg: "Прием отчетов закрыт. Ожидайте."
+            },
+            en: {
+                navTasks: "Tasks", navCabinet: "Dashboard",
+                tasksSub: "Available to you", tasksTitle: "Tasks", doTask: "Perform",
+                tasksEmptyTitle: "No Available Tasks", tasksEmptyDesc: "There are currently no active tasks. Check back later for updates!",
+                status_pending: "Pending", status_review: "Under Review", status_agreed: "Agreed", status_rejected: "Rejected", saveSp: "Save", spComment: "Call comments...",
+                score: "Score", yc: "YC", newreport: "New Report",
+                step1: "1. Destination", step2: "2. Task",
+                stepQty: "Amount", calcLabel: "Total Points",
+                stepDate: "Date", step3: "3. Link / Details", send: "Submit",
+                sync: "Syncing...", loading: "Loading...",
+                chooseCtx: "Select target...", chooseTask: "Select task...",
+                firstCtx: "Select target first", noActive: "No active tasks",
+                emptyCtx: "No memberships", historyEmpty: "History is empty.",
+                total: "Total", dirSub: "Direction + Gen", cmdSub: "Team",
+                noRecords: "No records found", delTask: "[Deleted]",
+                toastErr: "Network Error.", toastSent: "Submitted successfully!",
+                toastMiss: "Task missing!", toastFail: "Server Error",
+                placeComm: "Paste link or details...", general: "General",
+                editProfile: "Settings", profName: "Name", profPhone: "Phone",
+                profEmail: "Email", profPhoto: "Avatar", save: "Save",
+                saveSuccess: "Saved!", saveErr: "Save Error",
+                logout: "Logout", cancel: "Delete",
+                cancelConfirm: "Confirm report deletion.", cancelSuccess: "Deleted",
+                prefTitle: "Directions", prefDesc: "Select 4 directions:",
+                prefMax: "Limit: 4 directions", prefSave: "Save",
+                prefSavedToast: "Saved!", closedMsg: "System locked. Standby."
+            }
+        };
+
+        function setLang(lang) {
+            currentLang = lang; localStorage.setItem('lang', lang);
+            document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`lang-${lang}`).classList.add('active');
+
+            const t = translations[lang];
+            document.getElementById('t-navTasks').innerText = t.navTasks;
+            document.getElementById('t-navCabinet').innerText = t.navCabinet;
+            
+            document.getElementById('t-tasksSub').innerText = t.tasksSub;
+            document.getElementById('t-tasksTitle').innerText = t.tasksTitle;
+            document.getElementById('t-tasksEmptyTitle').innerText = t.tasksEmptyTitle;
+            document.getElementById('t-tasksEmptyDesc').innerText = t.tasksEmptyDesc;
+
+            document.getElementById('t-score').innerText = t.score;
+            document.getElementById('t-yc').innerText = t.yc;
+            document.getElementById('t-newreport').innerText = t.newreport;
+            document.getElementById('t-step1').innerText = t.step1;
+            document.getElementById('t-step2').innerText = t.step2;
+            document.getElementById('t-stepQty').innerText = t.stepQty;
+            document.getElementById('t-calcLabel').innerText = t.calcLabel;
+            document.getElementById('t-stepDate').innerText = t.stepDate;
+            document.getElementById('t-step3').innerText = t.step3;
+            document.getElementById('t-send').innerText = t.send;
+            document.getElementById('t-editProfile').innerText = t.editProfile;
+            document.getElementById('t-profName').innerText = t.profName;
+            document.getElementById('t-profPhone').innerText = t.profPhone;
+            document.getElementById('t-profEmail').innerText = t.profEmail;
+            document.getElementById('t-profPhoto').innerText = t.profPhoto;
+            document.getElementById('t-save').innerText = t.save;
+            document.getElementById('t-logout').innerText = t.logout;
+            if(document.getElementById('t-sync')) document.getElementById('t-sync').innerText = t.sync;
+            document.getElementById('taskComm').placeholder = t.placeComm;
+            document.getElementById('t-prefTitle').innerText = t.prefTitle;
+            document.getElementById('t-prefDesc').innerText = t.prefDesc;
+            document.getElementById('t-prefSave').innerText = t.prefSave;
+
+            renderContextSelect(); 
+            updateTaskDropdown(); 
+            renderTables(); 
+            setupDatePicker();
+            renderTasksPage(); 
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div'); toast.className = `toast ${type}`;
+            toast.innerHTML = `<div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${type === 'success' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}"><i class="fas ${type === 'success' ? 'fa-check' : 'fa-exclamation'} text-lg"></i></div> <span class="text-base">${message}</span>`;
+            container.appendChild(toast); requestAnimationFrame(() => toast.classList.add('show'));
+            setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 400); }, 3000);
+        }
+
+        function logout() { localStorage.removeItem('access'); localStorage.removeItem('refresh'); location.href = '/login/'; }
+        function openProfileModal() {
+            if (currentUser) {
+                document.getElementById('profName').value = currentUser.name || "";
+                document.getElementById('profPhone').value = currentUser.phone_number || "";
+                document.getElementById('profEmail').value = currentUser.email || "";
+                document.getElementById('profPhoto').value = ""; 
+            }
+            document.getElementById('profileModal').classList.add('open');
+        }
+        function closeProfileModal() { document.getElementById('profileModal').classList.remove('open'); }
+
+        async function saveProfile() {
+            const btn = document.getElementById('saveProfileBtn'), originalText = btn.innerHTML, t = translations[currentLang];
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>'; btn.disabled = true;
+            const formData = new FormData();
+            formData.append('name', document.getElementById('profName').value);
+            formData.append('phone_number', document.getElementById('profPhone').value);
+            formData.append('email', document.getElementById('profEmail').value);
+            const fileInput = document.getElementById('profPhoto');
+            if (fileInput.files.length > 0) formData.append('image', fileInput.files[0]);
+            try {
+                const res = await apiFetch('/api/profile/', { method: 'PATCH', body: formData });
+                if (res.ok) { showToast(t.saveSuccess); closeProfileModal(); init(); } else showToast(t.saveErr, "error");
+            } catch (e) { showToast(t.toastErr, "error"); } finally { btn.innerHTML = originalText; btn.disabled = false; }
+        }
+
+        document.getElementById('profileModal').addEventListener('click', (e) => { if (e.target === document.getElementById('profileModal')) closeProfileModal(); });
+        function extractId(obj, fieldName) {
+            if (!obj) return null; const directId = obj[`${fieldName}_id`];
+            if (directId !== undefined && directId !== null) return String(directId);
+            const val = obj[fieldName];
+            if (val && typeof val === 'object' && val.id) return String(val.id);
+            if (val !== undefined && val !== null && typeof val !== 'object') return String(val); return null; 
+        }
+
+        async function init() {
+            if(!localStorage.getItem('access')) return location.href = '/login/';
+            document.getElementById('taskDate').value = new Date().toISOString().split('T')[0];
+            try {
+                const [uRes, dRes, hRes, pRes] = await Promise.all([ 
+                    apiFetch('/api/profile/'), 
+                    apiFetch('/api/discovery/'), 
+                    apiFetch('/api/activities/'), 
+                    apiFetch('/api/preferences/') 
+                ]);
+                if (uRes.status === 401 || dRes.status === 401) return logout();
+                if (!uRes.ok || !dRes.ok || !hRes.ok) throw new Error("Server Error");
+
+                const user = await uRes.json(), disc = await dRes.json(), hist = await hRes.json(), t = translations[currentLang];
+
+                // Подгрузка спонсоров
+                try {
+                    const spRes = await apiFetch('/api/sponsors/');
+                    if(spRes.ok) appData.sponsors = await spRes.json();
+                } catch(e) { console.log("Sponsors endpoint not ready"); }
+
+                if (disc.is_points_submission_open === false) {
+                    const formContainer = document.getElementById('reportFormContainer');
+                    if (formContainer) {
+                        const lockedOverlay = document.createElement('div'); lockedOverlay.className = "text-center py-12";
+                        lockedOverlay.innerHTML = `<div class="w-20 h-20 rounded-3xl bg-red-500/10 flex items-center justify-center mx-auto mb-6 border-2 border-red-500/20 shadow-lg shadow-red-500/20"><i class="fas fa-lock text-red-500 text-3xl"></i></div>
+                            <h3 class="font-black text-main mb-3 uppercase tracking-widest text-xl">${t.newreport}</h3>
+                            <p class="text-muted font-bold">${t.closedMsg}</p>`;
+                        Array.from(formContainer.children).forEach(child => child.style.display = 'none');
+                        formContainer.appendChild(lockedOverlay);
+                    }
+                }
+                
+                currentUser = user; allDirectionsList = disc.all_directions || disc.directions || [];
+                const headerImg = document.getElementById('headerProfileImg'), headerIcon = document.getElementById('headerProfileIcon');
+                if (user.image_url || user.image) { headerImg.src = user.image_url || user.image; headerImg.classList.remove('hidden'); headerIcon.classList.add('hidden'); } 
+                else { headerImg.classList.add('hidden'); headerIcon.classList.remove('hidden'); }
+
+                document.getElementById('vName').innerText = user.name || user.login;
+                document.getElementById('vRole').innerText = user.role_display || "Volunteer";
+                document.getElementById('vPoints').innerText = user.point || 0;
+                document.getElementById('vYellowCards').innerText = user.yellow_card_count ?? user.yellow_card ?? 0;
+
+                appData.my_direction = Array.isArray(disc.my_direction) ? disc.my_direction : (disc.my_direction ? [disc.my_direction] : []);
+                appData.my_commands = Array.isArray(disc.my_commands) ? disc.my_commands : (disc.my_commands ? [disc.my_commands] : []);
+                appData.available_tasks = disc.available_tasks || []; appData.history = hist;
+
+                let prefData = { is_open: false, preferred: [] }; if(pRes && pRes.ok) { prefData = await pRes.json(); }
+                if (prefData.is_open) { document.getElementById('preferencesCard').classList.remove('hidden'); userPreferredDirs = prefData.preferred || []; renderPreferences(); } 
+                else document.getElementById('preferencesCard').classList.add('hidden');
+                
+                switchTab('tasks');
+                setLang(currentLang);
+
+            } catch(e) { showToast(translations[currentLang].toastErr, "error"); }
+        }
+
+        // РЕНДЕР СТРАНИЦЫ ЗАДАНИЙ (Общие + Персональные спонсоры)
+        function renderTasksPage() {
+            const grid = document.getElementById('tasksGrid'), emptyState = document.getElementById('tasksEmptyState'), t = translations[currentLang];
+            
+            const validTasks = appData.available_tasks.filter(tk => { 
+                const titleLower = (tk.title || "").toLowerCase(); 
+                return !(titleLower.includes("штраф") || titleLower.includes("penalty") || tk.is_penalty); 
+            });
+
+            const sponsors = appData.sponsors || [];
+
+            if (validTasks.length === 0 && sponsors.length === 0) { 
+                grid.classList.add('hidden'); emptyState.classList.remove('hidden'); return; 
+            }
+            
+            grid.classList.remove('hidden'); emptyState.classList.add('hidden');
+
+            let html = '';
+
+            // 1. СНАЧАЛА РЕНДЕРИМ ЛИЧНЫЕ ЗАДАНИЯ ПО СПОНСОРАМ
+            if (sponsors.length > 0) {
+                html += sponsors.map(sp => {
+                    let statusColor = 'text-orange-500 bg-orange-500/10 border-orange-500/20';
+                    if (sp.status === 'review') statusColor = 'text-blue-500 bg-blue-500/10 border-blue-500/20';
+                    if (sp.status === 'agreed') statusColor = 'text-green-500 bg-green-500/10 border-green-500/20';
+                    if (sp.status === 'rejected') statusColor = 'text-red-500 bg-red-500/10 border-red-500/20';
+
+                    const statusLabel = t[`status_${sp.status}`] || sp.status_display || sp.status;
+                    const miniteamTitle = sp.miniteam_title || (currentLang === 'en' ? 'Team' : 'Мини-команда');
+
+                    return `
+                        <div class="smooth-panel p-6 flex flex-col h-full bg-surface border-2 border-primary-soft relative group">
+                            <div class="absolute top-0 right-0 p-6 opacity-[0.05] pointer-events-none text-[80px] leading-none text-primary">
+                                <i class="fas fa-headset"></i>
+                            </div>
+                            <div class="relative z-10 flex flex-col h-full">
+                                <div class="flex justify-between items-start mb-4 gap-4">
+                                    <span class="text-[10px] font-black text-primary bg-primary-soft px-2.5 py-1.5 rounded-lg uppercase tracking-widest flex items-center gap-1.5"><i class="fas fa-user-tag"></i> Лично вам</span>
+                                    <span class="px-2 py-1 text-[10px] font-black uppercase tracking-widest rounded border ${statusColor}">${statusLabel}</span>
+                                </div>
+                                <h3 class="font-black text-xl text-main leading-tight mb-1">Обзвон: ${sp.sponsor_name}</h3>
+                                <p class="text-xs font-bold text-muted mb-4 uppercase tracking-widest">${miniteamTitle}</p>
+                                
+                                <div class="bg-input p-3 rounded-xl border border-soft mb-4">
+                                    <p class="text-[11px] font-bold text-muted mb-1 uppercase tracking-wider"><i class="fas fa-address-card mr-1"></i> Контакты</p>
+                                    <p class="text-sm font-semibold text-main break-all">${sp.contact_info}</p>
+                                </div>
+                                
+                                <div class="mt-auto space-y-3 pt-4 border-t border-soft">
+                                    <select id="sp-status-select-${sp.id}" class="input-smooth py-2 text-sm bg-surface">
+                                        <option value="pending" ${sp.status === 'pending' ? 'selected' : ''}>${t.status_pending}</option>
+                                        <option value="review" ${sp.status === 'review' ? 'selected' : ''}>${t.status_review}</option>
+                                        <option value="agreed" ${sp.status === 'agreed' ? 'selected' : ''}>${t.status_agreed}</option>
+                                        <option value="rejected" ${sp.status === 'rejected' ? 'selected' : ''}>${t.status_rejected}</option>
+                                    </select>
+                                    <textarea id="sp-comment-${sp.id}" class="input-smooth h-20 text-sm p-3 resize-none bg-surface" placeholder="${t.spComment}">${sp.comment || ''}</textarea>
+                                    <button onclick="updateSponsorStatus(${sp.id})" id="sp-btn-${sp.id}" class="btn-smooth w-full py-2.5 text-sm flex items-center justify-center gap-2">
+                                        <i class="fas fa-save"></i> <span>${t.saveSp}</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // 2. ЗАТЕМ РЕНДЕРИМ ОБЩИЕ ЗАДАНИЯ
+            if (validTasks.length > 0) {
+                html += validTasks.map(tk => {
+                    const disp = (currentLang === 'en' && tk.title_en) ? tk.title_en : tk.title;
+                    const desc = tk.description ? tk.description : (currentLang === 'en' ? 'No detailed description' : 'Описание отсутствует');
+                    const pts = parseFloat(tk.points) > 0 ? `+${tk.points}` : (currentLang === 'en' ? 'VAR' : 'Гибкие');
+
+                    let ctxName = t.general; let ctxValue = "";
+                    if (tk.direction_id || tk.direction) {
+                        const dId = String(tk.direction_id || tk.direction);
+                        const dir = appData.my_direction.find(d => String(d.id || d) === dId);
+                        if (dir) { ctxName = dir.name; ctxValue = `dir_${dId}`; }
+                    } else if (tk.command_id || tk.command) {
+                        const cId = String(tk.command_id || tk.command);
+                        const cmd = appData.my_commands.find(c => String(c.id || c) === cId);
+                        if (cmd) { ctxName = cmd.title; ctxValue = `cmd_${cId}`; }
+                    }
+
+                    return `
+                        <div class="smooth-panel p-6 flex flex-col h-full hover:border-primary transition-all duration-300 group relative overflow-hidden bg-surface">
+                            <div class="absolute top-0 right-0 p-6 opacity-[0.03] pointer-events-none transform group-hover:scale-110 transition-transform text-[80px] leading-none">
+                                <i class="fas fa-cube text-primary"></i>
+                            </div>
+                            <div class="relative z-10 flex flex-col h-full">
+                                <div class="flex justify-between items-start mb-4 gap-4">
+                                    <span class="text-[10px] font-black text-muted bg-input px-2.5 py-1.5 rounded-lg border border-soft uppercase tracking-widest truncate max-w-[65%]">${ctxName}</span>
+                                    <span class="font-black text-xl text-primary shrink-0">${pts}</span>
+                                </div>
+                                <h3 class="font-black text-lg text-main leading-tight mb-3 group-hover:text-primary transition-colors">${disp}</h3>
+                                <p class="text-sm font-semibold text-muted mb-6 line-clamp-3">${desc}</p>
+                                
+                                <div class="mt-auto pt-4 border-t border-soft">
+                                    <button onclick="selectTaskAndGo('${ctxValue}', '${tk.id}')" class="w-full bg-input hover:bg-primary-soft text-main hover:text-primary border border-soft hover:border-primary-soft font-black text-sm uppercase tracking-widest py-3 rounded-xl transition-all flex items-center justify-center gap-2">
+                                        <i class="fas fa-play text-xs"></i> <span>${t.doTask}</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            grid.innerHTML = html;
+        }
+
+        // ОБНОВЛЕНИЕ СТАТУСА СПОНСОРА
+        async function updateSponsorStatus(taskId) {
+            const btn = document.getElementById(`sp-btn-${taskId}`);
+            const originalText = btn.innerHTML;
+            const t = translations[currentLang];
+            
+            const newStatus = document.getElementById(`sp-status-select-${taskId}`).value;
+            const newComment = document.getElementById(`sp-comment-${taskId}`).value;
+
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
+            btn.disabled = true;
+
+            try {
+                const res = await apiFetch(`/api/sponsors/${taskId}/update_status/`, { 
+                    method: 'PATCH', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ status: newStatus, comment: newComment }) 
+                });
+                
+                if (res.ok) {
+                    showToast(t.toastSent);
+                    const taskIndex = appData.sponsors.findIndex(s => s.id === taskId);
+                    if(taskIndex > -1) {
+                        appData.sponsors[taskIndex].status = newStatus;
+                        appData.sponsors[taskIndex].comment = newComment;
+                    }
+                    renderTasksPage(); // Перерисовываем для обновления цвета
+                } else {
+                    showToast(t.toastFail, "error");
+                }
+            } catch(e) {
+                showToast(t.toastErr, "error");
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        function selectTaskAndGo(ctxValue, taskId) {
+            switchTab('cabinet');
+            const ctxSelect = document.getElementById('contextSelect'); ctxSelect.value = ctxValue || "";
+            updateTaskDropdown();
+            const tSelect = document.getElementById('taskSelect'); tSelect.value = String(taskId);
+            updateCalc(); createCustomDropdown('contextSelect'); createCustomDropdown('taskSelect');
+            setTimeout(() => { const form = document.getElementById('reportFormContainer'); if (form) form.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 100);
+        }
+
+        function renderPreferences() {
+            const container = document.getElementById('prefOptions'); container.innerHTML = '';
+            document.getElementById('prefCounter').innerText = userPreferredDirs.length;
+            allDirectionsList.forEach(dir => {
+                const isSel = userPreferredDirs.includes(dir.id);
+                const pill = document.createElement('div');
+                pill.className = `cursor-pointer transition-all border-2 text-sm px-4 py-2 rounded-xl font-bold flex items-center gap-2 ${isSel ? 'bg-yellow-500 text-white border-yellow-500 shadow-md shadow-yellow-500/30 transform scale-105' : 'bg-input text-muted border-soft hover:border-muted hover:text-main'}`;
+                pill.innerHTML = `${isSel ? '<i class="fas fa-check"></i>' : ''} ${dir.name}`;
+                pill.onclick = () => togglePreference(dir.id); container.appendChild(pill);
+            });
+        }
+        function togglePreference(id) {
+            const index = userPreferredDirs.indexOf(id);
+            if (index > -1) userPreferredDirs.splice(index, 1);
+            else { if (userPreferredDirs.length >= 4) return showToast(translations[currentLang].prefMax, "error"); userPreferredDirs.push(id); }
+            renderPreferences();
+        }
+        async function savePreferences() {
+            const btn = document.getElementById('btnSavePref'), originalText = btn.innerHTML, t = translations[currentLang];
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>'; btn.disabled = true;
+            try {
+                const res = await apiFetch('/api/preferences/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ directions: userPreferredDirs }) });
+                if (res.ok) showToast(t.prefSavedToast, "success"); else { const data = await res.json(); showToast(data.error || t.toastErr, "error"); }
+            } catch (e) { showToast(t.toastErr, "error"); } finally { btn.innerHTML = originalText; btn.disabled = false; }
+        }
+
+        function renderContextSelect() {
+            const sel = document.getElementById('contextSelect'), t = translations[currentLang];
+            sel.innerHTML = `<option value="">${t.chooseCtx}</option>`;
+            appData.my_direction.forEach(dir => sel.innerHTML += `<option value="dir_${dir.id || dir}">🔹 ${dir.name || 'Direction'}</option>`);
+            appData.my_commands.forEach(cmd => sel.innerHTML += `<option value="cmd_${cmd.id || cmd}">🔸 ${cmd.title}</option>`);
+            if (appData.my_direction.length === 0 && appData.my_commands.length === 0) sel.innerHTML = `<option value="">${t.emptyCtx}</option>`;
+            createCustomDropdown('contextSelect');
+        }
+
+        function updateTaskDropdown() {
+            const ctx = document.getElementById('contextSelect').value, sel = document.getElementById('taskSelect'), t = translations[currentLang];
+            sel.innerHTML = `<option value="">${ctx ? t.chooseTask : t.firstCtx}</option>`;
+            if (!ctx) { updateCalc(); createCustomDropdown('taskSelect'); return; }
+            const [type, targetId] = ctx.split('_');
+            const relevantTasks = appData.available_tasks.filter(tk => {
+                const titleLower = (tk.title || "").toLowerCase(); if (titleLower.includes("штраф") || titleLower.includes("penalty") || tk.is_penalty) return false;
+                const dId = extractId(tk, 'direction'), cId = extractId(tk, 'command');
+                return type === 'dir' ? (dId === targetId || (!cId && !dId)) : (cId === targetId || (!cId && !dId));
+            }).sort((a, b) => (parseInt(a.order) || 0) - (parseInt(b.order) || 0) || a.title.localeCompare(b.title));
+
+            if (relevantTasks.length === 0) sel.innerHTML = `<option value="">${t.noActive}</option>`;
+            else relevantTasks.forEach(tk => {
+                const disp = (currentLang === 'en' && tk.title_en) ? tk.title_en : tk.title;
+                const gen = (!tk.command_id && !tk.direction_id) ? ` (${t.general})` : "";
+                const pts = parseFloat(tk.points) > 0 ? `(+${tk.points})` : "(Гибкие)";
+                sel.innerHTML += `<option value="${tk.id}" data-points="${tk.points}">${disp}${gen} ${pts}</option>`;
+            }); 
+            updateCalc(); createCustomDropdown('taskSelect');
+        }
+        
+        function changeQty(delta) { const input = document.getElementById('taskQty'); input.value = Math.max(1, (parseInt(input.value) || 1) + delta); updateCalc(); }
+        function updateCalc() {
+            const sel = document.getElementById('taskSelect'), qty = parseInt(document.getElementById('taskQty').value) || 1, ptLabel = document.getElementById('calcTotalPoints');
+            if (!sel.value || !sel.options[sel.selectedIndex].getAttribute('data-points')) return ptLabel.innerText = "0";
+            const points = parseFloat(sel.options[sel.selectedIndex].getAttribute('data-points')) || 0;
+            ptLabel.innerText = points === 0 ? "???" : (points * qty).toFixed(1);
+        }
+
+        function setupDatePicker() {
+            const scrollDays = document.getElementById('scroll-days'), scrollMonths = document.getElementById('scroll-months'), taskDateInput = document.getElementById('taskDate');
+            const months = currentLang === 'en' ? ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'] : ['ЯНВ', 'ФЕВ', 'МАР', 'АПР', 'МАЙ', 'ИЮН', 'ИЮЛ', 'АВГ', 'СЕН', 'ОКТ', 'НОЯ', 'ДЕК'];
+            scrollMonths.innerHTML = ''; months.forEach(m => { const mon = document.createElement('div'); mon.className = 'scroll-item text-xs uppercase tracking-widest'; mon.textContent = m; scrollMonths.appendChild(mon); });
+            function updateDaysList() {
+                const mIdx = Math.round(scrollMonths.scrollTop / 44) + 1, count = new Date(new Date().getFullYear(), mIdx, 0).getDate();
+                if (scrollDays.querySelectorAll('.scroll-item').length !== count) {
+                    scrollDays.innerHTML = ''; for (let i = 1; i <= count; i++) { const d = document.createElement('div'); d.className = 'scroll-item text-lg'; d.textContent = i.toString().padStart(2, '0'); scrollDays.appendChild(d); }
+                }
+            }
+            function updateSelectedDate() {
+                updateDaysList(); const dIdx = Math.round(scrollDays.scrollTop / 44), mIdx = Math.round(scrollMonths.scrollTop / 44);
+                scrollDays.querySelectorAll('.scroll-item').forEach((item, idx) => item.classList.toggle('active', idx === dIdx));
+                scrollMonths.querySelectorAll('.scroll-item').forEach((item, idx) => item.classList.toggle('active', idx === mIdx));
+                taskDateInput.value = `${new Date().getFullYear()}-${(mIdx + 1).toString().padStart(2, '0')}-${(dIdx + 1).toString().padStart(2, '0')}`;
+            }
+            scrollDays.onscroll = updateSelectedDate; scrollMonths.onscroll = updateSelectedDate;
+            updateDaysList(); setTimeout(() => { scrollDays.scrollTop = (new Date().getDate() - 1) * 44; scrollMonths.scrollTop = new Date().getMonth() * 44; updateSelectedDate(); }, 50);
+        }
+
+        function renderTables() {
+            const container = document.getElementById('tablesContainer'), t = translations[currentLang]; container.innerHTML = '';
+            const customSort = (a, b) => (a.status === 'pending' && b.status !== 'pending') ? -1 : (!a.status === 'pending' && b.status === 'pending') ? 1 : new Date(b.date || b.created_at) - new Date(a.date || a.created_at);
+
+            appData.my_direction.forEach(dir => {
+                const dId = String(dir.id || dir);
+                const data = appData.history.filter(s => !s.is_penalty && ((extractId(s.task_details, 'direction') || extractId(s, 'direction')) === dId && !(extractId(s.task_details, 'command') || extractId(s, 'command')) || (!(extractId(s.task_details, 'direction') || extractId(s, 'direction')) && !(extractId(s.task_details, 'command') || extractId(s, 'command'))))).sort(customSort);
+                container.innerHTML += createTableHTML(dir.name || "Direction", t.dirSub, data);
+            });
+
+            appData.my_commands.forEach(cmd => {
+                const cId = String(cmd.id || cmd);
+                const data = appData.history.filter(s => !s.is_penalty && (extractId(s.task_details, 'command') || extractId(s, 'command')) === cId).sort(customSort);
+                container.innerHTML += createTableHTML(cmd.title, t.cmdSub, data);
+            });
+
+            const penalties = appData.history.filter(s => s.is_penalty);
+            if (penalties.length > 0) container.innerHTML += createPenaltyTableHTML(penalties);
+            if (container.innerHTML === '') container.innerHTML = `<div class="smooth-panel text-center py-16"><p class="text-muted font-bold text-lg">${t.historyEmpty}</p></div>`;
+        }
+
+        function toggleDetails(detailId, iconId) {
+            const row = document.getElementById(detailId), icon = document.getElementById(iconId);
+            if (row.classList.contains('hidden')) { row.classList.remove('hidden'); icon.style.transform = 'rotate(180deg)'; } 
+            else { row.classList.add('hidden'); icon.style.transform = 'rotate(0deg)'; }
+        }
+
+        function createTableHTML(title, subtitle, submissions) {
+            const t = translations[currentLang];
+            const totalPoints = submissions.filter(s => s.status === 'approved').reduce((sum, s) => sum + (s.points_awarded !== null ? parseFloat(s.points_awarded) : (parseFloat(s.task_details?.points) || 0) * (parseInt(s.quantity) || 1)), 0);
+            
+            const rows = submissions.length === 0 ? `<div class="text-muted text-sm font-semibold ml-8 mb-6 italic">${t.noRecords}</div>` : submissions.map(s => {
+                const sQty = parseInt(s.quantity) || 1;
+                const pts = s.points_awarded !== null ? parseFloat(s.points_awarded) : (parseFloat(s.task_details?.points) || 0) * sQty;
+                const taskTitle = (currentLang === 'en' && s.task_details?.title_en) ? s.task_details.title_en : (s.task_details?.title || t.delTask);
+                const esc = str => str ? str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;") : '';
+                const d = new Date(s.date || s.created_at);
+                const dateStr = `${d.getDate().toString().padStart(2, '0')} ${d.toLocaleDateString(currentLang==='en'?'en-US':'ru-RU', {month:'short'}).slice(0,3).toUpperCase()}`;
+
+                const cancelBtn = s.status === 'pending' ? `<button onclick="event.stopPropagation(); cancelSubmission(${s.id})" class="text-red-500 hover:text-red-400 p-2 transition hover:scale-110"><i class="fas fa-trash-alt"></i></button>` : '';
+
+                return `
+                    <div class="timeline-item cursor-pointer group" onclick="toggleDetails('detail-${s.id}', 'icon-${s.id}')">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-card">
+                            <div class="flex flex-col md:flex-row justify-between md:items-center gap-4">
+                                <div>
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <span class="text-xs font-black text-muted bg-input px-2.5 py-1 rounded-lg border border-soft">${dateStr}</span>
+                                        ${getStatusBadge(s.status, s.status_display)}
+                                    </div>
+                                    <h4 class="font-black text-lg text-main group-hover:text-primary transition-colors leading-tight">${taskTitle} ${sQty > 1 ? `<span class="inline-block bg-primary-soft text-primary text-xs px-2 py-0.5 rounded-md ml-2 align-middle">x${sQty}</span>` : ''}</h4>
+                                </div>
+                                <div class="flex items-center gap-5 self-end md:self-auto shrink-0">
+                                    <span class="font-black text-2xl ${pts > 0 ? 'text-primary' : 'text-muted'}">${pts > 0 ? '+' : ''}${pts.toFixed(1)}</span>
+                                    <div class="flex items-center gap-2 border-l border-soft pl-4">
+                                        ${cancelBtn}
+                                        <div class="w-8 h-8 rounded-full bg-input border border-soft flex items-center justify-center text-muted group-hover:bg-primary-soft group-hover:text-primary transition-colors">
+                                            <i id="icon-${s.id}" class="fas fa-chevron-down text-xs transition-transform duration-300"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="detail-${s.id}" class="hidden mt-5 pt-5 border-t border-soft space-y-4 animate-fade-in">
+                                ${s.task_details?.description ? `<div><p class="text-[10px] font-black text-muted uppercase tracking-widest mb-1.5">Описание задачи</p><p class="text-sm font-medium text-muted">${esc(s.task_details.description)}</p></div>` : ''}
+                                <div><p class="text-[10px] font-black text-muted uppercase tracking-widest mb-1.5">Ваш отчет</p><div class="bg-input p-4 rounded-xl border border-soft text-sm font-semibold text-main break-all shadow-inner">${esc(s.description) || '<span class="italic opacity-50">Нет комментария</span>'}</div></div>
+                            </div>
+                        </div>
+                    </div>`;
+            }).join('');
+
+            return `
+                <div class="mb-12">
+                    <div class="flex justify-between items-end mb-8 pl-2">
+                        <div>
+                            <span class="text-[11px] font-black text-primary uppercase tracking-widest block mb-1">${subtitle}</span>
+                            <h2 class="text-3xl font-black text-main tracking-tight">${title}</h2>
+                        </div>
+                        <div class="text-right bg-input px-4 py-3 rounded-2xl border border-soft shadow-sm">
+                            <span class="text-[10px] font-black text-muted uppercase tracking-widest block mb-1">${t.total}</span>
+                            <h3 class="text-2xl font-black text-primary leading-none">${totalPoints.toFixed(1)}</h3>
+                        </div>
+                    </div>
+                    <div>${rows}</div>
+                </div>`;
+        }
+
+        function createPenaltyTableHTML(penalties) {
+            const rows = penalties.map(p => {
+                const d = new Date(p.created_at);
+                const dateStr = `${d.getDate().toString().padStart(2, '0')} ${d.toLocaleDateString(currentLang==='en'?'en-US':'ru-RU', {month:'short'}).slice(0,3).toUpperCase()}`;
+                const esc = str => str ? str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;") : '';
+
+                return `
+                    <div class="timeline-item cursor-pointer group" onclick="toggleDetails('pen-detail-${p.id}', 'pen-icon-${p.id}')">
+                        <div class="timeline-dot penalty"></div>
+                        <div class="timeline-card penalty">
+                            <div class="flex flex-col md:flex-row justify-between md:items-center gap-4">
+                                <div>
+                                    <span class="text-xs font-black text-red-500/70 bg-red-500/10 px-2.5 py-1 rounded-lg border border-red-500/20 mb-2 inline-block">${dateStr}</span>
+                                    <h4 class="font-black text-lg text-red-500 uppercase tracking-tight">Взыскание / Penalty</h4>
+                                </div>
+                                <div class="flex items-center gap-5 self-end md:self-auto shrink-0">
+                                    <span class="font-black text-2xl text-red-500">-${parseFloat(p.points_awarded || 0).toFixed(1)}</span>
+                                    <div class="w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 transition-colors">
+                                        <i id="pen-icon-${p.id}" class="fas fa-chevron-down text-xs transition-transform duration-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="pen-detail-${p.id}" class="hidden mt-5 pt-5 border-t border-red-500/20">
+                                <p class="text-[10px] font-black text-red-500/70 uppercase tracking-widest mb-1.5">Причина</p>
+                                <div class="bg-red-500/5 p-4 rounded-xl border border-red-500/10 text-sm font-semibold text-red-500 break-all">${esc(p.description) || 'Нарушение регламента'}</div>
+                            </div>
+                        </div>
+                    </div>`;
+            }).join('');
+
+            return `
+                <div class="mt-12 pt-10 border-t border-soft">
+                    <h2 class="text-xl font-black uppercase text-red-500 tracking-widest mb-8 flex items-center gap-3 ml-2"><div class="w-10 h-10 bg-red-500/10 rounded-xl flex items-center justify-center"><i class="fas fa-gavel"></i></div> Штрафы</h2>
+                    <div>${rows}</div>
+                </div>`;
+        }
+        
+        function getStatusBadge(st, text) {
+            const s = { 'approved': 'bg-green-500/10 text-green-600 border-green-500/20', 'rejected': 'bg-red-500/10 text-red-500 border-red-500/20', 'pending': 'bg-orange-500/10 text-orange-500 border-orange-500/20' };
+            const i = { 'approved': 'fa-check-circle', 'rejected': 'fa-times-circle', 'pending': 'fa-clock' };
+            return `<span class="px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 ${s[st] || s['pending']}"><i class="fas ${i[st] || 'fa-question'}"></i> ${text || st}</span>`;
+        }
+
+        let submissionToCancel = null;
+        function closeCancelModal() { document.getElementById('cancelModal').classList.remove('open'); submissionToCancel = null; }
+
+        async function cancelSubmission(id) {
+            submissionToCancel = id; const t = translations[currentLang];
+            document.getElementById('t-cancelHeader').innerText = t.cancel; document.getElementById('t-cancelConfirmText').innerText = t.cancelConfirm;
+            document.getElementById('cancelModal').classList.add('open');
+            document.getElementById('confirmCancelBtn').onclick = async () => {
+                const btn = document.getElementById('confirmCancelBtn'); btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>'; btn.disabled = true;
+                try {
+                    const res = await apiFetch(`/api/activities/${id}/`, { method: 'DELETE' });
+                    if (res.ok || res.status === 204) { showToast(t.cancelSuccess); closeCancelModal(); init(); } else showToast("Error", "error");
+                } catch (e) { showToast("Network Error", "error"); } finally { btn.innerHTML = 'Удалить'; btn.disabled = false; }
+            };
+        }
+
+        async function sendReport() {
+            const btn = document.getElementById('sendBtn'), taskSelect = document.getElementById('taskSelect'), taskId = taskSelect.value, t = translations[currentLang];
+            if (!taskId) return showToast(t.toastMiss, "error");
+            const ctx = document.getElementById('contextSelect').value, qty = parseInt(document.getElementById('taskQty').value) || 1;
+            const pts = (parseFloat(taskSelect.options[taskSelect.selectedIndex].getAttribute('data-points')) || 0) * qty;
+            let cId = null, dId = null; if (ctx) { const [type, id] = ctx.split('_'); if (type === 'cmd') cId = parseInt(id); if (type === 'dir') dId = parseInt(id); }
+            const originalText = btn.innerHTML; btn.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i>`; btn.disabled = true;
+            const payload = { task: taskId, date: document.getElementById('taskDate').value, description: document.getElementById('taskComm').value, command: cId, direction: dId, quantity: qty };
+            if (pts > 0) payload.points_awarded = parseFloat(pts.toFixed(1));
+            try {
+                const res = await apiFetch('/api/activities/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if(res.ok) { showToast(t.toastSent); document.getElementById('taskComm').value = ""; document.getElementById('taskQty').value = 1; updateCalc(); init(); } 
+                else showToast(t.toastFail, "error");
+            } catch (e) { showToast(t.toastErr, "error"); } finally { btn.innerHTML = originalText; btn.disabled = false; }
+        }
+        
+        init();
+    </script>
+</body>
+</html>

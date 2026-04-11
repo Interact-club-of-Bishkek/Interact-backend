@@ -39,7 +39,8 @@ from rest_framework.decorators import api_view, permission_classes
 # Импорты моделей (лучше держать их вверху, если нет циклической зависимости)
 from .models import (
     AppSettings, Attendance, Volunteer, VolunteerApplication, BotAccessConfig, 
-    ActivityTask, ActivitySubmission, YellowCard, ChatSession, ChatMessage
+    ActivityTask, ActivitySubmission, YellowCard, ChatSession, ChatMessage, 
+    MiniTeam, MiniTeamMembership, SponsorTask
 )
 from directions.models import VolunteerDirection
 from commands.models import Command
@@ -49,7 +50,7 @@ from .serializers import (
     BulkAttendanceSerializer, VolunteerSerializer, VolunteerLoginSerializer, VolunteerRegisterSerializer,
     VolunteerApplicationSerializer, ActivityTaskSerializer, 
     ActivitySubmissionSerializer, VolunteerDirectionSerializer, CommandSerializer,
-    VolunteerListSerializer
+    VolunteerListSerializer, MiniTeamSerializer, SponsorTaskSerializer
 )
 from decimal import Decimal
 
@@ -1208,8 +1209,152 @@ def apply_distribution(request):
 
     return Response({"message": f"Успешно выполнено: {action}"})
 
+
+class MiniTeamViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class = MiniTeamSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        
+        # 1. Админы и Президент видят всё
+        if user.role in ['admin', 'president']:
+            return MiniTeam.objects.all()
+            
+        # 2. Кураторы видят мини-команды своих направлений/команд
+        curator_teams = MiniTeam.objects.filter(
+            Q(direction__responsible=user) | Q(command__leader=user)
+        )
+        
+        # 3. Волонтеры видят мини-команды, в которых они состоят
+        member_teams = MiniTeam.objects.filter(memberships__volunteer=user)
+        
+        return (curator_teams | member_teams).distinct()
+
+    @action(detail=True, methods=['post'])
+    def assign_member(self, request, pk=None):
+        """Эндпоинт для добавления участника в мини-команду и назначения ему роли"""
+        miniteam = self.get_object()
+        user = request.user
+        
+        # Проверка прав: назначать может Куратор направления/команды ИЛИ Мини-куратор этой мини-команды
+        is_parent_curator = (miniteam.direction and miniteam.direction.responsible == user) or \
+                            (miniteam.command and miniteam.command.leader == user)
+        is_mini_curator = MiniTeamMembership.objects.filter(
+            miniteam=miniteam, volunteer=user, role='mini_curator'
+        ).exists()
+        
+        if not (is_parent_curator or is_mini_curator or user.role in ['admin', 'president']):
+            return Response({"error": "У вас нет прав управлять составом этой мини-команды"}, status=403)
+
+        vol_id = request.data.get('volunteer_id')
+        role = request.data.get('role', 'member') # По умолчанию обычный участник
+
+        if role not in dict(MiniTeamMembership.ROLE_CHOICES).keys():
+            return Response({"error": "Недопустимая роль"}, status=400)
+
+        volunteer = get_object_or_404(Volunteer, pk=vol_id)
+        
+        # Создаем или обновляем роль участника
+        membership, created = MiniTeamMembership.objects.update_or_create(
+            miniteam=miniteam, 
+            volunteer=volunteer,
+            defaults={'role': role, 'assigned_by': user}
+        )
+        
+        action_text = "добавлен" if created else "обновлен"
+        return Response({"message": f"Волонтер {volunteer.name} {action_text} с ролью {membership.get_role_display()}"})
+    
+class SponsorTaskViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class = SponsorTaskSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        
+        # 1. Админы видят всё
+        if user.role in ['admin', 'president']:
+            return SponsorTask.objects.all().order_by('-created_at')
+            
+        # 2. Находим мини-команды, где юзер является Базистом или Мини-куратором
+        managed_miniteams = MiniTeamMembership.objects.filter(
+            volunteer=user, role__in=['basist', 'mini_curator']
+        ).values_list('miniteam_id', flat=True)
+
+        # 3. Находим мини-команды, где юзер — главный куратор родительского направления
+        parent_curator_miniteams = MiniTeam.objects.filter(
+            Q(direction__responsible=user) | Q(command__leader=user)
+        ).values_list('id', flat=True)
+
+        # 4. Собираем задачи, к которым юзер имеет доступ как управляющий
+        managed_tasks = SponsorTask.objects.filter(
+            miniteam_id__in=list(managed_miniteams) + list(parent_curator_miniteams)
+        )
+
+        # 5. Собираем задачи, которые назначены лично этому волонтеру на обзвон
+        assigned_tasks = SponsorTask.objects.filter(assigned_volunteer=user)
+
+        # Объединяем и убираем дубликаты
+        return (managed_tasks | assigned_tasks).distinct().order_by('-created_at')
+
+    def perform_create(self, serializer):
+        """Создание нового спонсора (доступно только Базистам и Кураторам)"""
+        user = self.request.user
+        miniteam_id = self.request.data.get('miniteam')
+        
+        miniteam = get_object_or_404(MiniTeam, id=miniteam_id)
+        
+        # Проверка прав: может ли юзер добавлять сюда спонсоров?
+        is_basist = MiniTeamMembership.objects.filter(miniteam=miniteam, volunteer=user, role='basist').exists()
+        is_parent_curator = (miniteam.direction and miniteam.direction.responsible == user) or \
+                            (miniteam.command and miniteam.command.leader == user)
+                            
+        if not (is_basist or is_parent_curator or user.role in ['admin', 'president']):
+            # Бросаем ошибку 403 через исключение DRF (чтобы serializer не сохранился)
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Только Базист может добавлять спонсоров в базу.")
+            
+        # Если проверки пройдены — сохраняем
+        serializer.save()
+
+    @action(detail=True, methods=['patch'])
+    def update_status(self, request, pk=None):
+        """Эндпоинт для волонтера-обзвонщика: изменить статус и оставить коммент"""
+        task = self.get_object()
+        user = request.user
+        
+        # Может ли юзер менять статус? (Либо назначен на нее, либо он Базист)
+        is_assigned = (task.assigned_volunteer == user)
+        is_basist = MiniTeamMembership.objects.filter(
+            miniteam=task.miniteam, volunteer=user, role__in=['basist', 'mini_curator']
+        ).exists()
+        
+        if not (is_assigned or is_basist or user.role in ['admin', 'president']):
+            return Response({"error": "У вас нет прав изменять статус этого спонсора"}, status=403)
+
+        new_status = request.data.get('status')
+        comment = request.data.get('comment')
+
+        # Обновляем статус
+        if new_status:
+            if new_status not in dict(SponsorTask.STATUS_CHOICES).keys():
+                return Response({"error": "Неверный статус"}, status=400)
+            task.status = new_status
+            
+        # Дописываем или обновляем комментарий
+        if comment is not None:
+            task.comment = comment
+            
+        task.save()
+        
+        return Response({
+            "message": "Данные по спонсору успешно обновлены", 
+            "status": task.get_status_display(),
+            "comment": task.comment
+        })
+
 class CuratorPanelView(TemplateView): template_name = "volunteers/curator_panel.html"
-class VolunteerCabinetView(TemplateView): template_name = "volunteers/volunteer_cabinet.html"
+class VolunteerCabinetView(TemplateView): template_name = "volunteers/page_volunteers/volunteer_cabinet.html"
 class BailiffBasePanelView(TemplateView): template_name = "volunteers/bailiff_base_panel.html"
 class LoginPageView(TemplateView): template_name = "volunteers/login.html"
 class VolunteerBoardView(TemplateView): template_name = "volunteers/columns.html"
