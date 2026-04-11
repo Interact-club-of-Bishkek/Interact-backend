@@ -1225,7 +1225,6 @@ def apply_distribution(request):
 
                 # 3. ЖЕСТКИЙ СБРОС СЕЗОНА
                 vol.point = 0
-                vol.yellow_card = 0
                 vol.preferred_directions.clear() 
                 vol.submissions.all().delete() 
                 vol.save()
