@@ -1226,7 +1226,6 @@ def apply_distribution(request):
 
                 # 3. ЖЕСТКИЙ СБРОС СЕЗОНА
                 vol.point = 0
-                vol.yellow_card = 0
                 vol.preferred_directions.clear() 
                 vol.submissions.all().delete() 
                 vol.save()
@@ -1259,6 +1258,36 @@ class MiniTeamViewSet(viewsets.ModelViewSet):
         member_teams = MiniTeam.objects.filter(memberships__volunteer=user)
         
         return (curator_teams | member_teams).distinct()
+
+    def perform_create(self, serializer):
+        """
+        Переопределяем сохранение: 
+        1. Автоматически привязываем мини-команду к куратору.
+        2. Делаем выбранного волонтера мини-куратором.
+        """
+        user = self.request.user
+        
+        # Находим глобальную команду или направление, за которое отвечает текущий куратор
+        # (Импортируйте ваши модели Command и Direction, если они лежат в другом месте        
+        user_command = Command.objects.filter(leader=user).first()
+        user_direction = VolunteerDirection.objects.filter(responsible=user).first()
+
+        # Сохраняем мини-команду с привязкой к текущему куратору
+        miniteam = serializer.save(command=user_command, direction=user_direction)
+        
+        # Ловим ID волонтера, которого выбрали на фронтенде
+        leader_id = self.request.data.get('leader')
+        
+        if leader_id:
+            volunteer = get_object_or_404(Volunteer, id=leader_id)
+            
+            # Автоматически выдаем ему роль "Мини-куратор"
+            MiniTeamMembership.objects.create(
+                miniteam=miniteam,
+                volunteer=volunteer,
+                role='mini_curator',
+                assigned_by=user
+            )
 
     @action(detail=True, methods=['post'])
     def assign_member(self, request, pk=None):

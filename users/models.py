@@ -529,7 +529,7 @@ class SponsorTask(models.Model):
     
     sponsor_name = models.CharField("Название/Имя спонсора", max_length=255)
     contact_info = models.TextField("Контактные данные (телефон, email, соцсети)")
-    
+        
     # Базист назначает обычного волонтера из ЭТОЙ мини-команды на обзвон
     assigned_volunteer = models.ForeignKey(
         'Volunteer', on_delete=models.SET_NULL, null=True, blank=True, 
