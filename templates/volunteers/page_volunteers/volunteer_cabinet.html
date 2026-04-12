@@ -5,7 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Платформа | Smooth UI</title>
     <link rel="icon" type="image/png" href="https://i.ibb.co/qFYrFSnD/2105176-1-removebg-preview.png">
+    
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: 'var(--primary)',
+                        'primary-soft': 'var(--primary-soft)',
+                        base: 'var(--bg-base)',
+                        surface: 'var(--bg-surface)',
+                        input: 'var(--bg-input)',
+                        main: 'var(--text-main)',
+                        muted: 'var(--text-muted)',
+                        soft: 'var(--border-color)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> 
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <style>
@@ -46,13 +67,6 @@
             margin: 0;
             transition: background-color 0.4s ease, color 0.4s ease;
         }
-
-        .bg-base { background-color: var(--bg-base); transition: 0.4s ease; }
-        .bg-surface { background-color: var(--bg-surface); transition: 0.4s ease; }
-        .bg-input { background-color: var(--bg-input); transition: 0.4s ease; }
-        .text-main { color: var(--text-main); transition: 0.4s ease; }
-        .text-muted { color: var(--text-muted); transition: 0.4s ease; }
-        .border-soft { border-color: var(--border-color); transition: 0.4s ease; }
 
         /* Плавные панели */
         .smooth-panel { 
@@ -148,12 +162,9 @@
         .toast.error { border-left-color: #ef4444; }
         .toast.success { border-left-color: #22c55e; }
 
-        /* Навигация (меню) стили */
         .nav-item { outline: none; border: 2px solid transparent; }
         .nav-item.active { background: var(--primary-soft); color: var(--primary); border-color: var(--primary-soft); }
         .nav-item:not(.active):hover { background: var(--bg-input); border-color: var(--border-color); color: var(--text-main); }
-        .nav-item i { transition: transform 0.3s ease; }
-        .nav-item:hover i { transform: scale(1.1); }
         
         .custom-select-dropdown::-webkit-scrollbar { width: 6px; }
         .custom-select-dropdown::-webkit-scrollbar-track { background: transparent; }
@@ -161,9 +172,14 @@
         .custom-select-dropdown::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
         .line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+        .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: var(--bg-input); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
     </style>
 </head>
-<body class="flex flex-col min-h-screen">
+<body class="flex flex-col min-h-screen bg-base">
     
     <div id="toast-container"></div>
 
@@ -172,7 +188,7 @@
             <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary to-blue-500"></div>
             <div class="flex justify-between items-center mb-8 pt-2">
                 <h3 class="font-black text-main text-2xl uppercase tracking-wider" id="t-editProfile">Настройки</h3>
-                <button onclick="closeProfileModal()" class="w-10 h-10 rounded-full bg-input text-muted hover:text-main hover:bg-border-soft flex items-center justify-center transition border border-soft"><i class="fas fa-times"></i></button>
+                <button onclick="closeProfileModal()" class="w-10 h-10 rounded-full bg-input text-muted hover:text-main hover:bg-soft flex items-center justify-center transition border border-soft"><i class="fas fa-times"></i></button>
             </div>
             <div class="space-y-5">
                 <div><label class="text-xs font-bold text-muted uppercase tracking-widest block mb-2 ml-2" id="t-profName">ФИО</label><input type="text" id="profName" class="input-smooth"></div>
@@ -269,10 +285,27 @@
                         <div class="w-10 h-10 rounded-xl bg-surface border border-soft flex items-center justify-center shadow-sm"><i class="fas fa-layer-group"></i></div>
                         <span id="t-navTasks">Задания</span>
                     </button>
+                    <button onclick="switchTab('miniboard')" id="nav-miniboard" class="hidden nav-item items-center gap-4 w-full p-4 rounded-2xl font-black text-[16px] text-blue-400 hover:text-blue-300 transition-all border border-blue-500/20 bg-blue-500/5 mt-4">
+                        <div class="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center transition-colors shadow-[0_0_15px_rgba(59,130,246,0.2)]">
+                            <i class="fas fa-users-cog"></i>
+                        </div>
+                        <span id="t-navMiniBoard">Мини Борд</span>
+                    </button>
                     <button onclick="switchTab('cabinet')" id="nav-cabinet" class="nav-item flex items-center gap-4 w-full p-4 rounded-2xl font-bold text-[16px] text-muted transition-all">
                         <div class="w-10 h-10 rounded-xl bg-input border border-soft flex items-center justify-center transition-colors"><i class="fas fa-chart-pie"></i></div>
                         <span id="t-navCabinet">Мой Кабинет</span>
                     </button>
+                    <button onclick="switchTab('stats')" id="nav-stats" class="nav-item flex items-center gap-4 w-full p-4 rounded-2xl font-bold text-[16px] text-muted transition-all">
+                        <div class="w-10 h-10 rounded-xl bg-input border border-soft flex items-center justify-center transition-colors">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <span id="t-navStats">Статистика</span>
+                    </button>
+                    
+                    <a href="/curator-panel/" id="nav-curator-panel" class="hidden nav-item items-center gap-4 w-full p-4 rounded-2xl font-black text-[16px] text-purple-400 hover:text-purple-300 transition-all border border-purple-500/20 bg-purple-500/5 mt-4">
+                        <div class="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center transition-colors shadow-[0_0_15px_rgba(168,85,247,0.2)]"><i class="fas fa-crown"></i></div>
+                        <span id="t-navCurator">Кабинет Куратора</span>
+                    </a>
                 </nav>
 
                 <div class="mt-8 flex bg-input border border-soft rounded-2xl p-1 self-center w-full max-w-[200px]">
@@ -292,8 +325,19 @@
                     </div>
                 </div>
 
-                <div id="tasksGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    </div>
+                <div class="mb-8">
+                    <h3 class="text-xl font-black text-main border-b border-soft pb-3 mb-6 flex items-center gap-3" id="t-tasksActive">
+                        <i class="fas fa-fire text-orange-500"></i> В процессе
+                    </h3>
+                    <div id="tasksGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"></div>
+                </div>
+
+                <div class="mb-8" id="completedTasksSection">
+                    <h3 class="text-xl font-black text-main border-b border-soft pb-3 mb-6 flex items-center gap-3 text-muted" id="t-tasksCompleted">
+                        <i class="fas fa-check-circle text-green-500"></i> Выполнено
+                    </h3>
+                    <div id="tasksCompletedGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 opacity-75 hover:opacity-100 transition-opacity"></div>
+                </div>
 
                 <div id="tasksEmptyState" class="hidden smooth-panel p-8 text-center flex flex-col items-center justify-center min-h-[50vh]">
                     <div class="w-24 h-24 bg-primary-soft rounded-[2rem] flex items-center justify-center text-primary mb-6 shadow-inner border border-primary/20">
@@ -302,8 +346,55 @@
                     <h2 class="text-3xl font-black text-main tracking-tight mb-3" id="t-tasksEmptyTitle">Нет доступных заданий</h2>
                     <p class="text-muted font-bold max-w-md mx-auto" id="t-tasksEmptyDesc">На данный момент активных заданий нет. Следите за обновлениями, скоро здесь появится работа!</p>
                 </div>
-            </div>
+            </div> 
+            
+            <div id="tab-miniboard" class="w-full max-w-6xl space-y-8 hidden animate-fade-in">
+                <div class="flex justify-between items-end mb-6 pl-2">
+                    <div>
+                        <span class="text-[11px] font-black text-primary uppercase tracking-widest block mb-1">Управление</span>
+                        <h2 class="text-3xl font-black text-main tracking-tight">Мини Борд</h2>
+                    </div>
+                </div>
 
+                <div id="basistSection" class="hidden mb-8">
+                    <h3 class="text-xl font-black text-main border-b border-soft pb-3 mb-6 flex items-center gap-3">
+                        <i class="fas fa-hand-holding-usd text-green-500"></i> База Спонсоров (Базист)
+                    </h3>
+                    <div class="smooth-panel p-6 bg-surface">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                            <div>
+                                <label class="text-[10px] font-bold text-muted uppercase tracking-widest block mb-2 ml-1">Команда</label>
+                                <select id="mbTeamSelect" class="input-smooth w-full hidden" onchange="loadBasistVolunteers()"></select>
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-bold text-muted uppercase tracking-widest block mb-2 ml-1">Ответственный волонтер</label>
+                                <select id="mbVolSelect" class="input-smooth w-full hidden"></select>
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-bold text-muted uppercase tracking-widest block mb-2 ml-1">Название спонсора</label>
+                                <input type="text" id="mbSponsorName" class="input-smooth w-full" placeholder="ООО Ромашка">
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-bold text-muted uppercase tracking-widest block mb-2 ml-1">Контакты</label>
+                                <input type="text" id="mbSponsorContact" class="input-smooth w-full" placeholder="+7 999 000 00 00">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="text-[10px] font-bold text-muted uppercase tracking-widest block mb-2 ml-1">Описание / Заметка к задаче</label>
+                                <textarea id="mbSponsorDesc" class="input-smooth w-full h-16 resize-none" placeholder="Что нужно обсудить..."></textarea>
+                            </div>
+                        </div>
+                        <div class="flex justify-end">
+                            <button onclick="addSponsorBasist()" id="btnMbSponsor" class="btn-smooth w-full md:w-auto px-10 py-3.5 bg-green-500 hover:bg-green-600 shadow-green-500/30">
+                                <i class="fas fa-plus mr-2"></i> Добавить спонсора
+                            </button>
+                        </div>
+                        
+                        <div id="basistSponsorsList" class="mt-8">
+                            </div>
+                    </div>
+                </div>
+            </div> 
+            
             <div id="tab-cabinet" class="w-full max-w-5xl space-y-8 hidden animate-fade-in">
                 <div id="preferencesCard" class="hidden smooth-panel p-8 border-l-4 border-l-yellow-500 relative overflow-hidden">
                     <div class="absolute top-0 right-0 p-8 opacity-5 pointer-events-none text-[100px] leading-none"><i class="fas fa-star text-yellow-500"></i></div>
@@ -316,7 +407,7 @@
                     </div>
                     <div id="prefOptions" class="relative z-10 flex flex-wrap gap-3"></div>
                 </div>
-
+                
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     
                     <div class="lg:col-span-5">
@@ -387,6 +478,63 @@
 
                 </div>
             </div>
+
+            <div id="tab-stats" class="w-full max-w-6xl space-y-8 hidden animate-fade-in">
+                <div class="flex justify-between items-end mb-6 pl-2">
+                    <div>
+                        <span class="text-[11px] font-black text-primary uppercase tracking-widest block mb-1" id="t-statsSub">Аналитика</span>
+                        <h2 class="text-3xl font-black text-main tracking-tight" id="t-statsTitle">Моя Статистика</h2>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="smooth-panel p-6 flex flex-col justify-center border-t-4 border-t-green-500 relative overflow-hidden">
+                        <i class="fas fa-check-square absolute -right-4 -bottom-4 text-[80px] text-green-500/10 pointer-events-none"></i>
+                        <p class="text-xs font-bold text-muted uppercase tracking-widest mb-1" id="t-statCompleted">Выполнено заданий</p>
+                        <p id="statTotalCompleted" class="text-4xl font-black text-main">0</p>
+                    </div>
+                    <div class="smooth-panel p-6 flex flex-col justify-center border-t-4 border-t-orange-500 relative overflow-hidden">
+                        <i class="fas fa-hourglass-half absolute -right-4 -bottom-4 text-[80px] text-orange-500/10 pointer-events-none"></i>
+                        <p class="text-xs font-bold text-muted uppercase tracking-widest mb-1" id="t-statPending">Отчетов в ожидании</p>
+                        <p id="statTotalPending" class="text-4xl font-black text-main">0</p>
+                    </div>
+                    <div class="smooth-panel p-6 flex flex-col justify-center border-t-4 border-t-primary relative overflow-hidden">
+                        <i class="fas fa-star absolute -right-4 -bottom-4 text-[80px] text-primary/10 pointer-events-none"></i>
+                        <p class="text-xs font-bold text-muted uppercase tracking-widest mb-1" id="t-statEarned">Всего баллов</p>
+                        <p id="statTotalEarned" class="text-4xl font-black text-primary">0</p>
+                    </div>
+                </div>
+
+                <div class="smooth-panel p-6 md:p-8 border-l-4 border-l-purple-500 relative">
+                    <div class="flex flex-col md:flex-row justify-between md:items-end gap-6 mb-6">
+                        <div class="flex-1">
+                            <h3 class="text-xl font-black text-main uppercase tracking-tight flex items-center gap-3 mb-2" id="t-goalTitle"><i class="fas fa-bullseye text-purple-500"></i> Моя Цель (Баллы)</h3>
+                            <p class="text-sm text-muted font-semibold" id="t-goalDesc">Установите себе цель по баллам и следите за прогрессом!</p>
+                        </div>
+                        <div class="flex gap-3 w-full md:w-auto">
+                            <input type="number" id="goalInput" class="input-smooth w-full md:w-32 text-center" placeholder="100" min="1">
+                            <button onclick="saveGoal()" class="bg-purple-500 hover:bg-purple-400 text-white font-black uppercase px-6 py-3 rounded-xl transition shadow-lg shadow-purple-500/30 active:scale-95 whitespace-nowrap" id="t-goalSave">Задать</button>
+                        </div>
+                    </div>
+                    <div class="w-full bg-input rounded-full h-6 border border-soft relative overflow-hidden">
+                        <div id="goalProgressBar" class="bg-gradient-to-r from-purple-500 to-primary h-6 rounded-full transition-all duration-1000 ease-out flex items-center justify-end px-2" style="width: 0%">
+                            <span id="goalProgressText" class="text-[10px] font-black text-white drop-shadow-md">0%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="smooth-panel p-6">
+                        <h4 class="text-sm font-black text-muted uppercase tracking-widest mb-6 text-center" id="t-chartPoints">Динамика баллов</h4>
+                        <div class="relative h-[250px] w-full"><canvas id="pointsChart"></canvas></div>
+                    </div>
+                    <div class="smooth-panel p-6">
+                        <h4 class="text-sm font-black text-muted uppercase tracking-widest mb-6 text-center" id="t-chartStatus">Статусы отчетов</h4>
+                        <div class="relative h-[250px] w-full flex justify-center"><canvas id="statusChart"></canvas></div>
+                    </div>
+                </div>
+            </div>
+
         </main>
     </div>
 
@@ -420,22 +568,28 @@
         function switchTab(tabId) {
             document.getElementById('tab-tasks').classList.add('hidden');
             document.getElementById('tab-cabinet').classList.add('hidden');
+            document.getElementById('tab-stats').classList.add('hidden');
+            document.getElementById('tab-miniboard').classList.add('hidden');
             document.getElementById('tab-' + tabId).classList.remove('hidden');
 
             document.querySelectorAll('.nav-item').forEach(el => {
                 el.classList.remove('active', 'text-primary');
-                el.classList.add('text-muted');
-                const iconBox = el.querySelector('div');
-                iconBox.classList.remove('bg-surface');
-                iconBox.classList.add('bg-input');
+                if (el.id !== 'nav-curator-panel') {
+                    el.classList.add('text-muted');
+                    const iconBox = el.querySelector('div');
+                    iconBox.classList.remove('bg-surface');
+                    iconBox.classList.add('bg-input');
+                }
             });
 
             const activeBtn = document.getElementById('nav-' + tabId);
-            activeBtn.classList.add('active', 'text-primary');
-            activeBtn.classList.remove('text-muted');
-            const activeIconBox = activeBtn.querySelector('div');
-            activeIconBox.classList.remove('bg-input');
-            activeIconBox.classList.add('bg-surface');
+            if(activeBtn) {
+                activeBtn.classList.add('active', 'text-primary');
+                activeBtn.classList.remove('text-muted');
+                const activeIconBox = activeBtn.querySelector('div');
+                activeIconBox.classList.remove('bg-input');
+                activeIconBox.classList.add('bg-surface');
+            }
 
             if(window.innerWidth < 1024) toggleMobileMenu(true);
         }
@@ -476,7 +630,7 @@
                     <span class="text-main font-bold text-[15px] truncate mr-4">${selectedText}</span>
                     <div class="w-8 h-8 rounded-full bg-surface border border-soft flex items-center justify-center text-muted shrink-0 transition-transform duration-300 icon-wrapper"><i class="fas fa-chevron-down text-xs"></i></div>
                 </div>
-                <div class="custom-select-dropdown">
+                <div class="custom-select-dropdown custom-scrollbar">
             `;
             
             Array.from(select.options).forEach((opt, index) => {
@@ -512,13 +666,13 @@
                 if (isOpen) {
                     dropdown.classList.remove('open');
                     trigger.classList.remove('active');
-                    iconWrap.style.transform = 'rotate(0deg)';
-                    wrapper.style.zIndex = 10;
+                    iconWrap.style.transform = 'rotate(0deg)'; // Исправлено: Возвращаем стрелку обратно
+                    wrapper.style.zIndex = 10; // Исправлено: Сбрасываем z-index чтобы не ломать слои
                 } else {
                     dropdown.classList.add('open');
                     trigger.classList.add('active');
-                    iconWrap.style.transform = 'rotate(180deg)';
-                    wrapper.style.zIndex = 50;
+                    iconWrap.style.transform = 'rotate(180deg)'; // Поворачиваем стрелку
+                    wrapper.style.zIndex = 50; // Поднимаем список над всеми остальными элементами
                 }
             });
             
@@ -531,7 +685,7 @@
                     dropdown.classList.remove('open');
                     trigger.classList.remove('active');
                     iconWrap.style.transform = 'rotate(0deg)';
-                    wrapper.style.zIndex = 10;
+                    wrapper.style.zIndex = 10; // Опускаем z-index после выбора
                     createCustomDropdown(selectId);
                 });
             });
@@ -554,7 +708,7 @@
         let currentUser = null; 
         let allDirectionsList = [];
         let userPreferredDirs = [];
-        let appData = { my_direction: [], my_commands: [], available_tasks: [], history: [], sponsors: [] };
+        let appData = { my_direction: [], my_commands: [], available_tasks: [], history: [], sponsors: [], miniteams: [] };
 
         async function apiFetch(url, options = {}) {
             let access = localStorage.getItem('access');
@@ -581,10 +735,10 @@
 
         const translations = {
             ru: {
-                navTasks: "Задания", navCabinet: "Мой Кабинет",
+                navTasks: "Задания", navCabinet: "Мой Кабинет", navCurator: "Кабинет Куратора",
                 tasksSub: "Доступные вам", tasksTitle: "Задания", doTask: "Выполнить",
                 tasksEmptyTitle: "Нет доступных заданий", tasksEmptyDesc: "На данный момент активных заданий нет. Следите за обновлениями, скоро здесь появится работа!",
-                status_pending: "Ожидает внимания", status_review: "На рассмотрении", status_agreed: "Согласие", status_rejected: "Отказ", saveSp: "Сохранить", spComment: "Комментарий к звонку...",
+                status_pending: "В процессе", status_review: "В обработке", status_agreed: "Согласие", status_rejected: "Отказ", saveSp: "Сохранить", spComment: "Комментарий к звонку...",
                 score: "Счет", yc: "ЖК", newreport: "Новый отчет",
                 step1: "1. Куда отправляем?", step2: "2. Задание",
                 stepQty: "Количество", calcLabel: "Итого баллов",
@@ -605,10 +759,11 @@
                 cancelConfirm: "Вы уверены, что хотите отменить этот отчет?", cancelSuccess: "Удалено",
                 prefTitle: "Выбор направлений", prefDesc: "Выберите ровно 4 направления:",
                 prefMax: "Лимит: 4 направления", prefSave: "Сохранить",
-                prefSavedToast: "Сохранено!", closedMsg: "Прием отчетов закрыт. Ожидайте."
+                prefSavedToast: "Сохранено!", closedMsg: "Прием отчетов закрыт. Ожидайте.",
+                navStats: "Статистика", statsSub: "Аналитика", statsTitle: "Моя Статистика", statCompleted: "Выполнено заданий", statPending: "Отчетов в ожидании", statEarned: "Всего баллов",
             },
             en: {
-                navTasks: "Tasks", navCabinet: "Dashboard",
+                navTasks: "Tasks", navCabinet: "Dashboard", navCurator: "Curator Panel",
                 tasksSub: "Available to you", tasksTitle: "Tasks", doTask: "Perform",
                 tasksEmptyTitle: "No Available Tasks", tasksEmptyDesc: "There are currently no active tasks. Check back later for updates!",
                 status_pending: "Pending", status_review: "Under Review", status_agreed: "Agreed", status_rejected: "Rejected", saveSp: "Save", spComment: "Call comments...",
@@ -632,9 +787,13 @@
                 cancelConfirm: "Confirm report deletion.", cancelSuccess: "Deleted",
                 prefTitle: "Directions", prefDesc: "Select 4 directions:",
                 prefMax: "Limit: 4 directions", prefSave: "Save",
-                prefSavedToast: "Saved!", closedMsg: "System locked. Standby."
+                prefSavedToast: "Saved!", closedMsg: "System locked. Standby.",
+                navStats: "Statistics", statsSub: "Analytics", statsTitle: "My Statistics", statCompleted: "Completed Tasks", statPending: "Pending Reports", statEarned: "Total Points Earned",
             }
         };
+
+        let pointsChartInstance = null;
+        let statusChartInstance = null;
 
         function setLang(lang) {
             currentLang = lang; localStorage.setItem('lang', lang);
@@ -644,6 +803,16 @@
             const t = translations[lang];
             document.getElementById('t-navTasks').innerText = t.navTasks;
             document.getElementById('t-navCabinet').innerText = t.navCabinet;
+            if (document.getElementById('t-navCurator')) document.getElementById('t-navCurator').innerText = t.navCurator;
+
+            t.tasksActive = lang === 'en' ? "In Progress" : "В процессе";
+            t.tasksCompleted = lang === 'en' ? "Completed" : "Выполнено";
+            t.goalTitle = lang === 'en' ? "My Goal (Points)" : "Моя Цель (Баллы)";
+            t.goalDesc = lang === 'en' ? "Set a points target and track your progress!" : "Установите себе цель по баллам и следите за прогрессом!";
+            t.goalSave = lang === 'en' ? "Set" : "Задать";
+            t.chartPoints = lang === 'en' ? "Points Dynamics" : "Динамика баллов";
+            t.chartStatus = lang === 'en' ? "Report Statuses" : "Статусы отчетов";
+            t.toastGoal = lang === 'en' ? "Goal updated!" : "Цель сохранена!";
             
             document.getElementById('t-tasksSub').innerText = t.tasksSub;
             document.getElementById('t-tasksTitle').innerText = t.tasksTitle;
@@ -672,12 +841,21 @@
             document.getElementById('t-prefTitle').innerText = t.prefTitle;
             document.getElementById('t-prefDesc').innerText = t.prefDesc;
             document.getElementById('t-prefSave').innerText = t.prefSave;
+            
+            if(document.getElementById('t-tasksActive')) document.getElementById('t-tasksActive').innerText = t.tasksActive;
+            if(document.getElementById('t-tasksCompleted')) document.getElementById('t-tasksCompleted').innerText = t.tasksCompleted;
+            if(document.getElementById('t-goalTitle')) document.getElementById('t-goalTitle').innerHTML = `<i class="fas fa-bullseye text-purple-500"></i> ${t.goalTitle}`;
+            if(document.getElementById('t-goalDesc')) document.getElementById('t-goalDesc').innerText = t.goalDesc;
+            if(document.getElementById('t-goalSave')) document.getElementById('t-goalSave').innerText = t.goalSave;
+            if(document.getElementById('t-chartPoints')) document.getElementById('t-chartPoints').innerText = t.chartPoints;
+            if(document.getElementById('t-chartStatus')) document.getElementById('t-chartStatus').innerText = t.chartStatus;
 
             renderContextSelect(); 
             updateTaskDropdown(); 
             renderTables(); 
             setupDatePicker();
             renderTasksPage(); 
+            renderStats();
         }
 
         function showToast(message, type = 'success') {
@@ -688,7 +866,282 @@
             setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 400); }, 3000);
         }
 
+        function saveGoal() {
+            const input = document.getElementById('goalInput').value;
+            if(input && input > 0) {
+                localStorage.setItem('userPointsGoal', input);
+                renderStats();
+                showToast(translations[currentLang].toastGoal || "Сохранено!");
+            }
+        }
+
+        function renderTasksPage() {
+            const gridActive = document.getElementById('tasksGrid');
+            const gridCompleted = document.getElementById('tasksCompletedGrid');
+            const completedSection = document.getElementById('completedTasksSection');
+            const emptyState = document.getElementById('tasksEmptyState');
+            const t = translations[currentLang];
+            
+            const validTasks = appData.available_tasks.filter(tk => { 
+                const titleLower = (tk.title || "").toLowerCase(); 
+                if (titleLower.includes("штраф") || titleLower.includes("penalty") || tk.is_penalty) return false; 
+                return tk.is_personal === true || tk.assigned_to === currentUser.id || tk.miniteam_id;
+            });
+
+            const sponsors = appData.sponsors || [];
+
+            if (validTasks.length === 0 && sponsors.length === 0) { 
+                gridActive.parentElement.classList.add('hidden'); 
+                completedSection.classList.add('hidden');
+                emptyState.classList.remove('hidden'); return; 
+            }
+            
+            gridActive.parentElement.classList.remove('hidden');
+            emptyState.classList.add('hidden');
+
+            let htmlActive = '';
+            let htmlCompleted = '';
+
+            if (sponsors.length > 0) {
+                const assignedToMe = sponsors.filter(sp => String(sp.assigned_volunteer) === String(currentUser.id));
+
+                assignedToMe.forEach(sp => {
+                    let statusColor = 'text-orange-500 bg-orange-500/10 border-orange-500/20';
+                    if (sp.status === 'review') statusColor = 'text-blue-500 bg-blue-500/10 border-blue-500/20';
+                    if (sp.status === 'agreed') statusColor = 'text-green-500 bg-green-500/10 border-green-500/20';
+                    if (sp.status === 'rejected') statusColor = 'text-red-500 bg-red-500/10 border-red-500/20';
+
+                    const safeStatus = sp.status || 'pending';
+                    const statusLabel = t[`status_${safeStatus}`] || sp.status_display || safeStatus;
+                    const miniteamTitle = sp.miniteam_title || (currentLang === 'en' ? 'Team' : 'Мини-команда');
+                    const isCompleted = (sp.status === 'agreed' || sp.status === 'rejected');
+
+                    const cardHtml = `
+                        <div class="smooth-panel p-6 flex flex-col h-full bg-surface border-2 border-primary-soft relative group">
+                            <div class="absolute top-0 right-0 p-6 opacity-[0.05] pointer-events-none text-[80px] leading-none text-primary">
+                                <i class="fas fa-headset"></i>
+                            </div>
+                            <div class="relative z-10 flex flex-col h-full">
+                                <div class="flex justify-between items-start mb-4 gap-4">
+                                    <span class="text-[10px] font-black text-primary bg-primary-soft px-2.5 py-1.5 rounded-lg uppercase tracking-widest flex items-center gap-1.5"><i class="fas fa-user-tag"></i> Лично вам</span>
+                                    <span class="px-2 py-1 text-[10px] font-black uppercase tracking-widest rounded border ${statusColor}">${statusLabel}</span>
+                                </div>
+                                <h3 class="font-black text-xl text-main leading-tight mb-1">Обзвон: ${sp.sponsor_name}</h3>
+                                <p class="text-xs font-bold text-muted mb-4 uppercase tracking-widest">${miniteamTitle}</p>
+                                
+                                <div class="bg-input p-3 rounded-xl border border-soft mb-4">
+                                    <p class="text-[11px] font-bold text-muted mb-1 uppercase tracking-wider"><i class="fas fa-address-card mr-1"></i> Контакты</p>
+                                    <p class="text-sm font-semibold text-main break-all">${sp.contact_info}</p>
+                                </div>
+                                
+                                ${(sp.comment) ? `
+                                <div class="bg-input p-3 rounded-xl border border-soft mb-4">
+                                    <p class="text-[11px] font-bold text-muted mb-1 uppercase tracking-wider"><i class="fas fa-info-circle mr-1"></i> Описание / Задача</p>
+                                    <p class="text-sm font-semibold text-main break-all">${sp.comment}</p>
+                                </div>` : ''}
+                                
+                                <div class="mt-auto space-y-3 pt-4 border-t border-soft">
+                                    <select id="sp-status-select-${sp.id}" class="hidden">
+                                        <option value="pending" ${safeStatus === 'pending' ? 'selected' : ''}>${t.status_pending}</option>
+                                        <option value="review" ${safeStatus === 'review' ? 'selected' : ''}>${t.status_review}</option>
+                                        <option value="agreed" ${safeStatus === 'agreed' ? 'selected' : ''}>${t.status_agreed}</option>
+                                        <option value="rejected" ${safeStatus === 'rejected' ? 'selected' : ''}>${t.status_rejected}</option>
+                                    </select>
+                                    <textarea id="sp-comment-${sp.id}" class="input-smooth h-20 text-sm p-3 resize-none bg-surface" placeholder="${t.spComment}">${sp.comment || ''}</textarea>
+                                    <button onclick="updateSponsorStatus(${sp.id})" id="sp-btn-${sp.id}" class="btn-smooth w-full py-2.5 text-sm flex items-center justify-center gap-2">
+                                        <i class="fas fa-save"></i> <span>${t.saveSp}</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    if (isCompleted) htmlCompleted += cardHtml;
+                    else htmlActive += cardHtml;
+                });
+            }
+
+            if (validTasks.length > 0) {
+                htmlActive += validTasks.map(tk => {
+                    const disp = (currentLang === 'en' && tk.title_en) ? tk.title_en : tk.title;
+                    const desc = tk.description ? tk.description : (currentLang === 'en' ? 'No detailed description' : 'Описание отсутствует');
+                    const pts = parseFloat(tk.points) > 0 ? `+${tk.points}` : (currentLang === 'en' ? 'VAR' : 'Гибкие');
+
+                    let ctxName = t.general; let ctxValue = "";
+                    if (tk.direction_id || tk.direction) {
+                        const dId = String(tk.direction_id || tk.direction);
+                        const dir = appData.my_direction.find(d => String(d.id || d) === dId);
+                        if (dir) { ctxName = dir.name; ctxValue = `dir_${dId}`; }
+                    } else if (tk.command_id || tk.command) {
+                        const cId = String(tk.command_id || tk.command);
+                        const cmd = appData.my_commands.find(c => String(c.id || c) === cId);
+                        if (cmd) { ctxName = cmd.title; ctxValue = `cmd_${cId}`; }
+                    }
+                    
+                    const cmdBadge = tk.command_name ? `<span class="bg-blue-500/10 text-blue-500 border border-blue-500/20 px-2 py-1 rounded-md text-[9px] uppercase font-black tracking-widest truncate"><i class="fas fa-users mr-1"></i> ${tk.command_name}</span>` : '';
+                    
+                    return `
+                        <div class="smooth-panel p-6 flex flex-col h-full hover:border-primary transition-all duration-300 group relative overflow-hidden bg-surface">
+                            <div class="absolute top-0 right-0 p-6 opacity-[0.03] pointer-events-none transform group-hover:scale-110 transition-transform text-[80px] leading-none">
+                                <i class="fas fa-cube text-primary"></i>
+                            </div>
+                            <div class="relative z-10 flex flex-col h-full">
+                            <div class="flex justify-between items-start mb-4 gap-4">
+                                <div class="flex flex-col gap-1.5 max-w-[65%]">
+                                    ${cmdBadge}
+                                </div>
+                                <span class="font-black text-xl text-primary shrink-0">${pts}</span>
+                            </div>
+                                <h3 class="font-black text-lg text-main leading-tight mb-3 group-hover:text-primary transition-colors">${disp}</h3>
+                                <p class="text-sm font-semibold text-muted mb-6 line-clamp-3">${desc}</p>
+                                
+                                <div class="mt-auto pt-4 border-t border-soft">
+                                    <button onclick="selectTaskAndGo('${ctxValue}', '${tk.id}')" class="w-full bg-input hover:bg-primary-soft text-main hover:text-primary border border-soft hover:border-primary-soft font-black text-sm uppercase tracking-widest py-3 rounded-xl transition-all flex items-center justify-center gap-2">
+                                        <i class="fas fa-play text-xs"></i> <span>${t.doTask}</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            gridActive.innerHTML = htmlActive;
+            
+            if (htmlCompleted === '') {
+                completedSection.classList.add('hidden');
+            } else {
+                completedSection.classList.remove('hidden');
+                gridCompleted.innerHTML = htmlCompleted;
+            }
+
+            if (sponsors.length > 0) {
+                sponsors.forEach(sp => {
+                    createCustomDropdown(`sp-status-select-${sp.id}`);
+                });
+            }
+        }
+
+        function renderStats() {
+            const validHistory = appData.history.filter(s => !s.is_penalty);
+            
+            const completed = validHistory.filter(s => s.status === 'approved').length;
+            const pending = validHistory.filter(s => s.status === 'pending').length;
+            const rejected = validHistory.filter(s => s.status === 'rejected').length;
+            
+            const earned = validHistory.filter(s => s.status === 'approved')
+                .reduce((sum, s) => sum + (s.points_awarded !== null ? parseFloat(s.points_awarded) : (parseFloat(s.task_details?.points) || 0) * (parseInt(s.quantity) || 1)), 0);
+
+            if(document.getElementById('statTotalCompleted')) {
+                document.getElementById('statTotalCompleted').innerText = completed;
+                document.getElementById('statTotalPending').innerText = pending;
+                document.getElementById('statTotalEarned').innerText = earned.toFixed(1);
+            }
+
+            let userGoal = localStorage.getItem('userPointsGoal') || 100;
+            const goalInput = document.getElementById('goalInput');
+            if(goalInput) goalInput.value = userGoal;
+
+            const progress = Math.min((earned / userGoal) * 100, 100).toFixed(1);
+            const bar = document.getElementById('goalProgressBar');
+            const barText = document.getElementById('goalProgressText');
+            if (bar && barText) {
+                bar.style.width = `${progress}%`;
+                barText.innerText = `${progress}%`;
+                if(progress >= 100) {
+                    bar.classList.replace('from-purple-500', 'from-green-400');
+                    bar.classList.replace('to-primary', 'to-green-600');
+                } else {
+                    bar.classList.replace('from-green-400', 'from-purple-500');
+                    bar.classList.replace('to-green-600', 'to-primary');
+                }
+            }
+
+            const datesMap = {};
+            validHistory.filter(s => s.status === 'approved').forEach(s => {
+                const date = new Date(s.date || s.created_at).toLocaleDateString(currentLang === 'en' ? 'en-US' : 'ru-RU', {day: 'numeric', month: 'short'});
+                const pts = s.points_awarded !== null ? parseFloat(s.points_awarded) : (parseFloat(s.task_details?.points) || 0) * (parseInt(s.quantity) || 1);
+                datesMap[date] = (datesMap[date] || 0) + pts;
+            });
+            
+            if (Object.keys(datesMap).length === 0) {
+                datesMap[new Date().toLocaleDateString(currentLang === 'en' ? 'en-US' : 'ru-RU', {day: 'numeric', month: 'short'})] = 0;
+            }
+
+            const chartLabels = Object.keys(datesMap).reverse(); 
+            const chartData = Object.values(datesMap).reverse();
+
+            const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim() || '#8b9bb4';
+            const gridColor = getComputedStyle(document.documentElement).getPropertyValue('--border-color').trim() || 'rgba(255, 255, 255, 0.08)';
+
+            Chart.defaults.color = textColor;
+            Chart.defaults.font.family = "'Nunito', sans-serif";
+
+            const ctxPoints = document.getElementById('pointsChart');
+            if (ctxPoints) {
+                if (pointsChartInstance) pointsChartInstance.destroy();
+                pointsChartInstance = new Chart(ctxPoints, {
+                    type: 'line',
+                    data: {
+                        labels: chartLabels,
+                        datasets: [{
+                            label: currentLang === 'en' ? 'Points Earned' : 'Получено баллов',
+                            data: chartData,
+                            borderColor: '#00c6ff',
+                            backgroundColor: 'rgba(0, 198, 255, 0.2)',
+                            borderWidth: 3,
+                            tension: 0.4, 
+                            fill: true,
+                            pointBackgroundColor: '#151b2b',
+                            pointBorderColor: '#00c6ff',
+                            pointRadius: 5,
+                            pointHoverRadius: 7
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { beginAtZero: true, grid: { color: gridColor }, border: { dash: [5, 5] } },
+                            x: { grid: { display: false } }
+                        }
+                    }
+                });
+            }
+
+            const ctxStatus = document.getElementById('statusChart');
+            if (ctxStatus) {
+                if (statusChartInstance) statusChartInstance.destroy();
+                statusChartInstance = new Chart(ctxStatus, {
+                    type: 'doughnut',
+                    data: {
+                        labels: [
+                            currentLang === 'en' ? 'Approved' : 'Одобрено', 
+                            currentLang === 'en' ? 'Pending' : 'Ожидает', 
+                            currentLang === 'en' ? 'Rejected' : 'Отклонено'
+                        ],
+                        datasets: [{
+                            data: [completed, pending, rejected],
+                            backgroundColor: ['#22c55e', '#f97316', '#ef4444'],
+                            borderWidth: 0,
+                            hoverOffset: 10
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '75%', 
+                        plugins: {
+                            legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true } }
+                        }
+                    }
+                });
+            }
+        }
+
         function logout() { localStorage.removeItem('access'); localStorage.removeItem('refresh'); location.href = '/login/'; }
+        
         function openProfileModal() {
             if (currentUser) {
                 document.getElementById('profName').value = currentUser.name || "";
@@ -698,6 +1151,7 @@
             }
             document.getElementById('profileModal').classList.add('open');
         }
+        
         function closeProfileModal() { document.getElementById('profileModal').classList.remove('open'); }
 
         async function saveProfile() {
@@ -716,6 +1170,7 @@
         }
 
         document.getElementById('profileModal').addEventListener('click', (e) => { if (e.target === document.getElementById('profileModal')) closeProfileModal(); });
+        
         function extractId(obj, fieldName) {
             if (!obj) return null; const directId = obj[`${fieldName}_id`];
             if (directId !== undefined && directId !== null) return String(directId);
@@ -724,25 +1179,56 @@
             if (val !== undefined && val !== null && typeof val !== 'object') return String(val); return null; 
         }
 
+        function loadBasistVolunteers() {
+            const teamId = document.getElementById('mbTeamSelect').value;
+            const volSelect = document.getElementById('mbVolSelect');
+            
+            volSelect.innerHTML = '<option value="">Выберите волонтера...</option>';
+            
+            if (!teamId || !appData.miniteams) {
+                createCustomDropdown('mbVolSelect');
+                return;
+            }
+
+            const team = appData.miniteams.find(t => String(t.id) === String(teamId));
+            
+            if (team && team.members) {
+                team.members.forEach(m => {
+                    if (String(m.volunteer) !== String(currentUser.id)) {
+                        volSelect.innerHTML += `<option value="${m.volunteer}">${m.volunteer_name || m.volunteer_login}</option>`;
+                    }
+                });
+            }
+            createCustomDropdown('mbVolSelect');
+        }
+
         async function init() {
             if(!localStorage.getItem('access')) return location.href = '/login/';
             document.getElementById('taskDate').value = new Date().toISOString().split('T')[0];
             try {
-                const [uRes, dRes, hRes, pRes] = await Promise.all([ 
+                const [uRes, dRes, hRes, pRes, mtRes] = await Promise.all([ 
                     apiFetch('/api/profile/'), 
                     apiFetch('/api/discovery/'), 
                     apiFetch('/api/activities/'), 
-                    apiFetch('/api/preferences/') 
+                    apiFetch('/api/preferences/'),
+                    apiFetch('/api/miniteams/') 
                 ]);
                 if (uRes.status === 401 || dRes.status === 401) return logout();
                 if (!uRes.ok || !dRes.ok || !hRes.ok) throw new Error("Server Error");
 
                 const user = await uRes.json(), disc = await dRes.json(), hist = await hRes.json(), t = translations[currentLang];
 
-                // Подгрузка спонсоров
+                if(mtRes.ok) {
+                    const mtData = await mtRes.json();
+                    appData.miniteams = mtData.results ? mtData.results : mtData;
+                }
+
                 try {
                     const spRes = await apiFetch('/api/sponsors/');
-                    if(spRes.ok) appData.sponsors = await spRes.json();
+                    if(spRes.ok) {
+                        const spData = await spRes.json();
+                        appData.sponsors = spData.results ? spData.results : spData;
+                    }
                 } catch(e) { console.log("Sponsors endpoint not ready"); }
 
                 if (disc.is_points_submission_open === false) {
@@ -761,11 +1247,39 @@
                 const headerImg = document.getElementById('headerProfileImg'), headerIcon = document.getElementById('headerProfileIcon');
                 if (user.image_url || user.image) { headerImg.src = user.image_url || user.image; headerImg.classList.remove('hidden'); headerIcon.classList.add('hidden'); } 
                 else { headerImg.classList.add('hidden'); headerIcon.classList.remove('hidden'); }
+                
+                let isBasist = false;
+
+                if (appData.miniteams) {
+                    appData.miniteams.forEach(mt => {
+                        const myMember = mt.members.find(m => String(m.volunteer) === String(user.id) && m.role === 'basist');
+                        if (myMember) {
+                            isBasist = true;
+                        }
+                    });
+                }
+
+                if (isBasist) {
+                    document.getElementById('nav-miniboard').classList.remove('hidden');
+                    document.getElementById('nav-miniboard').classList.add('flex');
+                    renderMiniBoard(isBasist);
+                }
 
                 document.getElementById('vName').innerText = user.name || user.login;
-                document.getElementById('vRole').innerText = user.role_display || "Volunteer";
+                
+                let rolesArr = [];
+                if (user.role_display) rolesArr.push(user.role_display);
+                document.getElementById('vRole').innerText = rolesArr.length > 0 ? rolesArr.join(' • ') : "Волонтер";
+
+                const showCuratorPanel = user.role === 'admin' || user.role === 'curator' || user.is_team_leader;
+
+                if (showCuratorPanel) {
+                    document.getElementById('nav-curator-panel').classList.remove('hidden');
+                    document.getElementById('nav-curator-panel').classList.add('flex');
+                }
+
                 document.getElementById('vPoints').innerText = user.point || 0;
-                document.getElementById('vYellowCards').innerText = user.yellow_card_count ?? user.yellow_card ?? 0;
+                document.getElementById('vYellowCards').innerText = user.yellow_card_count ?? 0;
 
                 appData.my_direction = Array.isArray(disc.my_direction) ? disc.my_direction : (disc.my_direction ? [disc.my_direction] : []);
                 appData.my_commands = Array.isArray(disc.my_commands) ? disc.my_commands : (disc.my_commands ? [disc.my_commands] : []);
@@ -781,118 +1295,6 @@
             } catch(e) { showToast(translations[currentLang].toastErr, "error"); }
         }
 
-        // РЕНДЕР СТРАНИЦЫ ЗАДАНИЙ (Общие + Персональные спонсоры)
-        function renderTasksPage() {
-            const grid = document.getElementById('tasksGrid'), emptyState = document.getElementById('tasksEmptyState'), t = translations[currentLang];
-            
-            const validTasks = appData.available_tasks.filter(tk => { 
-                const titleLower = (tk.title || "").toLowerCase(); 
-                return !(titleLower.includes("штраф") || titleLower.includes("penalty") || tk.is_penalty); 
-            });
-
-            const sponsors = appData.sponsors || [];
-
-            if (validTasks.length === 0 && sponsors.length === 0) { 
-                grid.classList.add('hidden'); emptyState.classList.remove('hidden'); return; 
-            }
-            
-            grid.classList.remove('hidden'); emptyState.classList.add('hidden');
-
-            let html = '';
-
-            // 1. СНАЧАЛА РЕНДЕРИМ ЛИЧНЫЕ ЗАДАНИЯ ПО СПОНСОРАМ
-            if (sponsors.length > 0) {
-                html += sponsors.map(sp => {
-                    let statusColor = 'text-orange-500 bg-orange-500/10 border-orange-500/20';
-                    if (sp.status === 'review') statusColor = 'text-blue-500 bg-blue-500/10 border-blue-500/20';
-                    if (sp.status === 'agreed') statusColor = 'text-green-500 bg-green-500/10 border-green-500/20';
-                    if (sp.status === 'rejected') statusColor = 'text-red-500 bg-red-500/10 border-red-500/20';
-
-                    const statusLabel = t[`status_${sp.status}`] || sp.status_display || sp.status;
-                    const miniteamTitle = sp.miniteam_title || (currentLang === 'en' ? 'Team' : 'Мини-команда');
-
-                    return `
-                        <div class="smooth-panel p-6 flex flex-col h-full bg-surface border-2 border-primary-soft relative group">
-                            <div class="absolute top-0 right-0 p-6 opacity-[0.05] pointer-events-none text-[80px] leading-none text-primary">
-                                <i class="fas fa-headset"></i>
-                            </div>
-                            <div class="relative z-10 flex flex-col h-full">
-                                <div class="flex justify-between items-start mb-4 gap-4">
-                                    <span class="text-[10px] font-black text-primary bg-primary-soft px-2.5 py-1.5 rounded-lg uppercase tracking-widest flex items-center gap-1.5"><i class="fas fa-user-tag"></i> Лично вам</span>
-                                    <span class="px-2 py-1 text-[10px] font-black uppercase tracking-widest rounded border ${statusColor}">${statusLabel}</span>
-                                </div>
-                                <h3 class="font-black text-xl text-main leading-tight mb-1">Обзвон: ${sp.sponsor_name}</h3>
-                                <p class="text-xs font-bold text-muted mb-4 uppercase tracking-widest">${miniteamTitle}</p>
-                                
-                                <div class="bg-input p-3 rounded-xl border border-soft mb-4">
-                                    <p class="text-[11px] font-bold text-muted mb-1 uppercase tracking-wider"><i class="fas fa-address-card mr-1"></i> Контакты</p>
-                                    <p class="text-sm font-semibold text-main break-all">${sp.contact_info}</p>
-                                </div>
-                                
-                                <div class="mt-auto space-y-3 pt-4 border-t border-soft">
-                                    <select id="sp-status-select-${sp.id}" class="input-smooth py-2 text-sm bg-surface">
-                                        <option value="pending" ${sp.status === 'pending' ? 'selected' : ''}>${t.status_pending}</option>
-                                        <option value="review" ${sp.status === 'review' ? 'selected' : ''}>${t.status_review}</option>
-                                        <option value="agreed" ${sp.status === 'agreed' ? 'selected' : ''}>${t.status_agreed}</option>
-                                        <option value="rejected" ${sp.status === 'rejected' ? 'selected' : ''}>${t.status_rejected}</option>
-                                    </select>
-                                    <textarea id="sp-comment-${sp.id}" class="input-smooth h-20 text-sm p-3 resize-none bg-surface" placeholder="${t.spComment}">${sp.comment || ''}</textarea>
-                                    <button onclick="updateSponsorStatus(${sp.id})" id="sp-btn-${sp.id}" class="btn-smooth w-full py-2.5 text-sm flex items-center justify-center gap-2">
-                                        <i class="fas fa-save"></i> <span>${t.saveSp}</span>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            }
-
-            // 2. ЗАТЕМ РЕНДЕРИМ ОБЩИЕ ЗАДАНИЯ
-            if (validTasks.length > 0) {
-                html += validTasks.map(tk => {
-                    const disp = (currentLang === 'en' && tk.title_en) ? tk.title_en : tk.title;
-                    const desc = tk.description ? tk.description : (currentLang === 'en' ? 'No detailed description' : 'Описание отсутствует');
-                    const pts = parseFloat(tk.points) > 0 ? `+${tk.points}` : (currentLang === 'en' ? 'VAR' : 'Гибкие');
-
-                    let ctxName = t.general; let ctxValue = "";
-                    if (tk.direction_id || tk.direction) {
-                        const dId = String(tk.direction_id || tk.direction);
-                        const dir = appData.my_direction.find(d => String(d.id || d) === dId);
-                        if (dir) { ctxName = dir.name; ctxValue = `dir_${dId}`; }
-                    } else if (tk.command_id || tk.command) {
-                        const cId = String(tk.command_id || tk.command);
-                        const cmd = appData.my_commands.find(c => String(c.id || c) === cId);
-                        if (cmd) { ctxName = cmd.title; ctxValue = `cmd_${cId}`; }
-                    }
-
-                    return `
-                        <div class="smooth-panel p-6 flex flex-col h-full hover:border-primary transition-all duration-300 group relative overflow-hidden bg-surface">
-                            <div class="absolute top-0 right-0 p-6 opacity-[0.03] pointer-events-none transform group-hover:scale-110 transition-transform text-[80px] leading-none">
-                                <i class="fas fa-cube text-primary"></i>
-                            </div>
-                            <div class="relative z-10 flex flex-col h-full">
-                                <div class="flex justify-between items-start mb-4 gap-4">
-                                    <span class="text-[10px] font-black text-muted bg-input px-2.5 py-1.5 rounded-lg border border-soft uppercase tracking-widest truncate max-w-[65%]">${ctxName}</span>
-                                    <span class="font-black text-xl text-primary shrink-0">${pts}</span>
-                                </div>
-                                <h3 class="font-black text-lg text-main leading-tight mb-3 group-hover:text-primary transition-colors">${disp}</h3>
-                                <p class="text-sm font-semibold text-muted mb-6 line-clamp-3">${desc}</p>
-                                
-                                <div class="mt-auto pt-4 border-t border-soft">
-                                    <button onclick="selectTaskAndGo('${ctxValue}', '${tk.id}')" class="w-full bg-input hover:bg-primary-soft text-main hover:text-primary border border-soft hover:border-primary-soft font-black text-sm uppercase tracking-widest py-3 rounded-xl transition-all flex items-center justify-center gap-2">
-                                        <i class="fas fa-play text-xs"></i> <span>${t.doTask}</span>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            }
-
-            grid.innerHTML = html;
-        }
-
-        // ОБНОВЛЕНИЕ СТАТУСА СПОНСОРА
         async function updateSponsorStatus(taskId) {
             const btn = document.getElementById(`sp-btn-${taskId}`);
             const originalText = btn.innerHTML;
@@ -918,7 +1320,8 @@
                         appData.sponsors[taskIndex].status = newStatus;
                         appData.sponsors[taskIndex].comment = newComment;
                     }
-                    renderTasksPage(); // Перерисовываем для обновления цвета
+                    renderTasksPage(); 
+                    init();
                 } else {
                     showToast(t.toastFail, "error");
                 }
@@ -937,6 +1340,152 @@
             const tSelect = document.getElementById('taskSelect'); tSelect.value = String(taskId);
             updateCalc(); createCustomDropdown('contextSelect'); createCustomDropdown('taskSelect');
             setTimeout(() => { const form = document.getElementById('reportFormContainer'); if (form) form.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 100);
+        }
+
+        function renderMiniBoard(isBasist) {
+            let basistTeams = [];
+            
+            if (appData.miniteams) {
+                appData.miniteams.forEach(mt => {
+                    const myMember = mt.members.find(m => String(m.volunteer) === String(currentUser.id) && m.role === 'basist');
+                    if (myMember) {
+                        basistTeams.push({ id: mt.id, name: mt.title || `Команда ${mt.id}` });
+                    }
+                });
+            }
+
+            if (isBasist) {
+                document.getElementById('basistSection').classList.remove('hidden');
+                
+                const teamSelect = document.getElementById('mbTeamSelect');
+                teamSelect.innerHTML = basistTeams.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+                
+                if (basistTeams.length > 0) {
+                    teamSelect.value = basistTeams[0].id;
+                }
+                
+                teamSelect.classList.add('hidden');
+                createCustomDropdown('mbTeamSelect');
+
+                if (basistTeams.length > 0) {
+                    loadBasistVolunteers();
+                }
+                
+                const list = document.getElementById('basistSponsorsList');
+                const basistTeamIds = basistTeams.map(t => String(t.id));
+                const mySponsors = (appData.sponsors || []).filter(sp => basistTeamIds.includes(String(sp.miniteam)));
+                
+                if (mySponsors.length === 0) {
+                    list.innerHTML = '<div class="smooth-panel p-8 text-center text-muted font-bold italic border-dashed border-2 border-soft bg-transparent">Спонсоров пока нет. Заполните форму выше, чтобы добавить первого и назначить волонтеру!</div>';
+                } else {
+                    const t = translations[currentLang];
+                    let html = `
+                        <div class="overflow-x-auto w-full border border-soft rounded-2xl bg-input custom-scrollbar shadow-inner">
+                            <table class="w-full text-left border-collapse min-w-[600px]">
+                                <thead>
+                                    <tr class="border-b border-soft bg-surface text-[10px] uppercase tracking-widest text-muted font-black">
+                                        <th class="p-4 pl-6">Спонсор / Кому назначен</th>
+                                        <th class="p-4">Команда</th>
+                                        <th class="p-4">Статус</th>
+                                        <th class="p-4">Комментарий / Заметка</th>
+                                        <th class="p-4 pr-6 text-right">Управление</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                    `;
+                    
+                    html += mySponsors.map(sp => {
+                        let statusColor = 'text-orange-500 bg-orange-500/10 border-orange-500/20';
+                        if (sp.status === 'review') statusColor = 'text-blue-500 bg-blue-500/10 border-blue-500/20';
+                        if (sp.status === 'agreed') statusColor = 'text-green-500 bg-green-500/10 border-green-500/20';
+                        if (sp.status === 'rejected') statusColor = 'text-red-500 bg-red-500/10 border-red-500/20';
+                        
+                        const safeStatus = sp.status || 'pending';
+                        const statusLabel = t[`status_${safeStatus}`] || sp.status_display || safeStatus;
+                        
+                        const volName = sp.assigned_volunteer_name || 'Не назначен';
+                        const teamName = sp.miniteam_title || `Команда ${sp.miniteam}`;
+
+                        return `
+                            <tr class="border-b border-soft/30 hover:bg-surface transition-colors group">
+                                <td class="p-4 pl-6">
+                                    <div class="font-black text-main text-[15px]">${sp.sponsor_name}</div>
+                                    <div class="text-[10px] text-green-500 mt-1 uppercase font-bold flex items-center gap-1.5 opacity-80"><i class="fas fa-user"></i> ${volName}</div>
+                                </td>
+                                <td class="p-4 text-xs font-black text-muted uppercase tracking-widest">${teamName}</td>
+                                <td class="p-4">
+                                    <span class="px-2.5 py-1 rounded-md border text-[9px] font-black uppercase tracking-widest whitespace-nowrap ${statusColor}">
+                                        ${statusLabel}
+                                    </span>
+                                </td>
+                                <td class="p-4">
+                                    <div class="text-xs font-bold text-main break-all max-w-[200px] line-clamp-2" title="${sp.comment || ''}"><span class="text-primary opacity-50">О:</span> ${sp.comment || '<span class="italic opacity-30">Нет описания</span>'}</div>
+                                </td>
+                                <td class="p-4 pr-6 text-right">
+                                    <button onclick="deleteSponsorBasist(${sp.id})" class="w-8 h-8 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/20 transition-all flex items-center justify-center ml-auto shadow-sm active:scale-95" title="Удалить спонсора">
+                                        <i class="fas fa-trash-alt text-xs"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                    
+                    html += `</tbody></table></div>`;
+                    list.innerHTML = html;
+                }
+            }
+        }
+
+        async function addSponsorBasist() {
+            const name = document.getElementById('mbSponsorName').value;
+            const contact = document.getElementById('mbSponsorContact').value;
+            const desc = document.getElementById('mbSponsorDesc').value;
+            const volId = document.getElementById('mbVolSelect').value;
+            const teamId = document.getElementById('mbTeamSelect').value;
+
+            if(!name || !contact || !volId || !teamId) return showToast("Заполните все поля (Спонсор, Контакты, Команда, Волонтер)", "error");
+
+            const btn = document.getElementById('btnMbSponsor');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; btn.disabled = true;
+
+            try {
+                const res = await apiFetch('/api/sponsors/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        sponsor_name: name, 
+                        contact_info: contact, 
+                        comment: desc,
+                        assigned_volunteer: volId, 
+                        miniteam: teamId
+                    })
+                });
+                if (res.ok) {
+                    showToast("Спонсор добавлен и назначен!");
+                    document.getElementById('mbSponsorName').value = '';
+                    document.getElementById('mbSponsorContact').value = '';
+                    document.getElementById('mbSponsorDesc').value = '';
+                    init(); 
+                } else {
+                    showToast("Ошибка при добавлении", "error");
+                }
+            } catch(e) { showToast("Ошибка сети", "error"); }
+            finally { btn.innerHTML = '<i class="fas fa-plus mr-2"></i> Добавить спонсора'; btn.disabled = false; }
+        }
+
+        async function deleteSponsorBasist(id) {
+            if(!confirm("Вы уверены, что хотите удалить этого спонсора из базы?")) return;
+            try {
+                const res = await apiFetch(`/api/sponsors/${id}/`, { method: 'DELETE' });
+                if (res.ok || res.status === 204) {
+                    showToast("Спонсор удален");
+                    init();
+                } else {
+                    showToast("Ошибка при удалении", "error");
+                }
+            } catch(e) {
+                showToast("Ошибка сети", "error");
+            }
         }
 
         function renderPreferences() {
@@ -996,6 +1545,7 @@
         }
         
         function changeQty(delta) { const input = document.getElementById('taskQty'); input.value = Math.max(1, (parseInt(input.value) || 1) + delta); updateCalc(); }
+        
         function updateCalc() {
             const sel = document.getElementById('taskSelect'), qty = parseInt(document.getElementById('taskQty').value) || 1, ptLabel = document.getElementById('calcTotalPoints');
             if (!sel.value || !sel.options[sel.selectedIndex].getAttribute('data-points')) return ptLabel.innerText = "0";

@@ -337,9 +337,14 @@
                     </select>
                 </div>
             </div>
-            <div class="flex gap-3">
-                <button onclick="closeRoleModal()" class="flex-1 py-3 bg-white/5 hover:bg-white/10 text-gray-400 font-bold uppercase rounded-xl text-[10px] transition">Отмена</button>
-                <button onclick="submitRoleAssignment()" id="btnConfirmRole" class="flex-1 py-3 bg-blue-500 hover:bg-blue-600 text-white font-black uppercase rounded-xl text-[10px] shadow-lg shadow-blue-500/20 transition transform active:scale-95">Сохранить</button>
+            <div class="flex flex-col gap-3">
+                <div class="flex gap-3">
+                    <button onclick="closeRoleModal()" class="flex-1 py-3 bg-white/5 hover:bg-white/10 text-gray-400 font-bold uppercase rounded-xl text-[10px] transition">Отмена</button>
+                    <button onclick="submitRoleAssignment()" id="btnConfirmRole" class="flex-1 py-3 bg-blue-500 hover:bg-blue-600 text-white font-black uppercase rounded-xl text-[10px] shadow-lg shadow-blue-500/20 transition transform active:scale-95">Сохранить</button>
+                </div>
+                <button onclick="removeRoleAssignment()" id="btnRemoveRole" class="w-full py-3 bg-red-500/5 hover:bg-red-500 text-red-500 hover:text-white font-bold uppercase rounded-xl text-[10px] border border-red-500/20 transition transform active:scale-95">
+                    <i class="fas fa-user-times mr-2"></i> Забрать роль (удалить из мини-команды)
+                </button>
             </div>
         </div>
     </div>
@@ -453,6 +458,7 @@
         sponsors: [],
         myManagedTeams: [],
         myLeadingTeams: [],
+        myMiniteamIds: [], 
         appsView: [],
         appSubTab: 'pending',
         currentAppIndex: 0,
@@ -563,6 +569,13 @@
             questionMap = {};
             state.commands.forEach(c => c.questions?.forEach(q => questionMap[`q_${q.id}`] = q.label));
 
+            // Собираем права пользователя в мини-командах (Мини-куратор, базист, лидер)
+            const me = state.volunteers.find(v => String(v.id) === String(state.user.id));
+            const myMtRoles = me ? (me.miniteam_roles || []) : [];
+            const myMtIds = myMtRoles.map(r => String(r.miniteam_id || r.miniteam));
+            state.miniteams.filter(mt => String(mt.leader?.id || mt.leader) === String(state.user.id)).forEach(mt => myMtIds.push(String(mt.id)));
+            state.myMiniteamIds = [...new Set(myMtIds)];
+
             let dbTeams = [], leadTeams = [];
             const label1 = document.getElementById('managedTeamsLabel');
             const label2 = document.getElementById('managedTeamsLabelSide');
@@ -582,16 +595,28 @@
             } else {
                 dbTeams = state.commands.filter(c => String(c.leader?.id || c.leader) === String(state.user.id));
                 leadTeams = dbTeams;
-                const txt = dbTeams.map(t => t.title).join(' / ') || "Команда не назначена";
+                
+                let txt = dbTeams.map(t => t.title).join(' / ');
+                const mtTitles = state.miniteams.filter(mt => state.myMiniteamIds.includes(String(mt.id))).map(mt => mt.title);
+                
+                if (mtTitles.length > 0) {
+                    txt = txt ? `${txt} | Мини: ${mtTitles.join(', ')}` : `Мини-команды: ${mtTitles.join(', ')}`;
+                }
+                if (!txt) txt = "Команда не назначена";
+                
                 label1.innerText = txt; label2.innerText = txt;
             }
 
             state.myManagedTeams = dbTeams;
             state.myLeadingTeams = leadTeams;
 
-            if (leadTeams.length === 0 && state.user.role !== 'admin' && state.user.role !== 'curator') {
-                const addVolBtnContainer = document.getElementById('addVolBtnContainer');
-                if(addVolBtnContainer) addVolBtnContainer.style.display = 'none';
+            const addVolBtnContainer = document.getElementById('addVolBtnContainer');
+            if (addVolBtnContainer) {
+                if (leadTeams.length === 0 && state.user.role !== 'admin' && state.user.role !== 'curator' && state.myMiniteamIds.length === 0) {
+                    addVolBtnContainer.style.display = 'none';
+                } else {
+                    addVolBtnContainer.style.display = 'flex';
+                }
             }
 
             renderCommandFilter();
@@ -602,20 +627,22 @@
         } catch (e) { console.error("Load Data Error:", e); }
     }
 
-    // ============================================
-    //  БАЗА СПОНСОРОВ И УПРАВЛЕНИЕ (С ГРУППИРОВКОЙ)
-    // ============================================
-function renderSponsorsTable() {
+    function renderSponsorsTable() {
         const container = document.getElementById('sponsorsContainer');
         if(!container) return;
 
-        if(state.miniteams.length === 0) {
-            container.innerHTML = `<div class="text-center py-20 text-gray-600 font-black uppercase text-xs italic tracking-widest border-2 border-dashed border-white/5 rounded-3xl">Мини-команды не созданы</div>`;
+        let visibleMiniteams = state.miniteams;
+        if (state.user.role !== 'admin' && state.user.role !== 'curator') {
+            visibleMiniteams = state.miniteams.filter(mt => state.myMiniteamIds.includes(String(mt.id)));
+        }
+
+        if(visibleMiniteams.length === 0) {
+            container.innerHTML = `<div class="text-center py-20 text-gray-600 font-black uppercase text-xs italic tracking-widest border-2 border-dashed border-white/5 rounded-3xl">Мини-команды не созданы или нет доступа</div>`;
             return;
         }
 
         let html = '';
-        state.miniteams.forEach(mt => {
+        visibleMiniteams.forEach(mt => {
             const mtSponsors = state.sponsors.filter(sp => 
                 String(sp.miniteam) === String(mt.id) || 
                 String(sp.miniteam_id) === String(mt.id)
@@ -682,13 +709,49 @@ function renderSponsorsTable() {
     function openAddSponsorModal() {
         const mtSelect = document.getElementById('spMiniteam');
         mtSelect.innerHTML = '<option value="" disabled selected>Выберите мини-команду...</option>';
-        state.miniteams.forEach(mt => {
+        
+        let availableMts = state.miniteams;
+        if (state.user.role !== 'admin' && state.user.role !== 'curator') {
+            availableMts = state.miniteams.filter(mt => state.myMiniteamIds.includes(String(mt.id)));
+        }
+
+        availableMts.forEach(mt => {
             mtSelect.innerHTML += `<option value="${mt.id}">${mt.title}</option>`;
         });
 
+        // --- ЛОГИКА ФИЛЬТРАЦИИ ВОЛОНТЕРОВ ТОЛЬКО ДЛЯ СВОИХ КОМАНД ---
+        const isAdmin = state.user.role === 'admin';
+        const isCurator = state.user.role === 'curator';
+        const myDirIds = getIds(state.user.direction); 
+        const myManagedTeamIds = state.myManagedTeams.map(t => String(t.id));
+        const myMiniteamIds = state.myMiniteamIds || [];
+
+        let myVolunteers = [];
+        if (isAdmin) {
+            myVolunteers = state.volunteers;
+        } else if (isCurator) {
+            myVolunteers = state.volunteers.filter(v => {
+                const vDirIds = getIds(v.direction);
+                const hasDirMatch = vDirIds.some(id => myDirIds.includes(id));
+                const vCmdIds = getIds(v.volunteer_commands || v.commands);
+                const hasCmdMatch = vCmdIds.some(id => myManagedTeamIds.includes(id));
+                const vMtRoles = v.miniteam_roles || [];
+                const hasMtMatch = vMtRoles.some(r => myMiniteamIds.includes(String(r.miniteam_id || r.miniteam)));
+                return hasDirMatch || hasCmdMatch || hasMtMatch;
+            });
+        } else {
+            myVolunteers = state.volunteers.filter(v => {
+                const vCmdIds = getIds(v.volunteer_commands || v.commands);
+                const hasCmdMatch = vCmdIds.some(id => myManagedTeamIds.includes(id));
+                const vMtRoles = v.miniteam_roles || [];
+                const hasMtMatch = vMtRoles.some(r => myMiniteamIds.includes(String(r.miniteam_id || r.miniteam)));
+                return hasCmdMatch || hasMtMatch;
+            });
+        }
+
         const volSelect = document.getElementById('spVol');
         volSelect.innerHTML = '<option value="">Любой (не назначен)</option>';
-        state.volunteers.forEach(v => {
+        myVolunteers.forEach(v => {
             volSelect.innerHTML += `<option value="${v.id}">${v.name || v.login}</option>`;
         });
 
@@ -744,10 +807,7 @@ function renderSponsorsTable() {
         } catch(e) { showToast("Ошибка сети", "error"); }
     }
 
-    // ============================================
-    //  СОЗДАНИЕ МИНИ-КОМАНД 
-    // ============================================
-function openCreateMiniteamModal() {
+    function openCreateMiniteamModal() {
         const leaderSelect = document.getElementById('miniteamLeader');
         leaderSelect.innerHTML = '<option value="" disabled selected>Выберите волонтера...</option>';
         
@@ -757,12 +817,10 @@ function openCreateMiniteamModal() {
         
         const myVolunteers = state.volunteers.filter(v => {
             if (String(v.id) === String(state.user.id)) return false;
-
             if (isAdmin) return true; 
 
             const vCmdIds = getIds(v.volunteer_commands || v.commands);
             const hasCmdMatch = vCmdIds.some(id => myManagedTeamIds.includes(id));
-            
             const vDirIds = getIds(v.direction);
             const hasDirMatch = vDirIds.some(id => myDirIds.includes(id));
             
@@ -796,8 +854,6 @@ function openCreateMiniteamModal() {
             const res = await fetch(API.miniteams, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                // Отправляем leader вместо direction. 
-                // Если бэкенд ждет другое поле (например "leader_id"), поменяйте ключ 'leader'
                 body: JSON.stringify({ title: title, leader: leaderId }) 
             });
 
@@ -822,10 +878,16 @@ function openCreateMiniteamModal() {
         
         const mtSelect = document.getElementById('roleMiniteamSelect');
         mtSelect.innerHTML = '';
-        if(state.miniteams.length === 0) {
+        
+        let availableMts = state.miniteams;
+        if (state.user.role !== 'admin' && state.user.role !== 'curator') {
+            availableMts = state.miniteams.filter(mt => state.myMiniteamIds.includes(String(mt.id)));
+        }
+
+        if(availableMts.length === 0) {
             mtSelect.innerHTML = '<option value="" disabled selected>Нет доступных мини-команд</option>';
         } else {
-            state.miniteams.forEach(mt => { mtSelect.innerHTML += `<option value="${mt.id}">${mt.title}</option>`; });
+            availableMts.forEach(mt => { mtSelect.innerHTML += `<option value="${mt.id}">${mt.title}</option>`; });
         }
         document.getElementById('roleModal').classList.remove('hidden');
     }
@@ -864,9 +926,44 @@ function openCreateMiniteamModal() {
         }
     }
 
-    // ============================================
-    //  ВОЛОНТЕРЫ
-    // ============================================
+    async function removeRoleAssignment() {
+        if(!roleTargetId) return;
+        const mtId = document.getElementById('roleMiniteamSelect').value;
+        const role = document.getElementById('roleSelect').value; 
+        
+        if(!mtId) return showToast("Выберите мини-команду!", "error");
+        if(!role) return showToast("Выберите роль для удаления!", "error");
+
+        if(!confirm("Вы уверены, что хотите забрать эту должность у волонтера?")) return;
+
+        const btn = document.getElementById('btnRemoveRole');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Удаление...'; 
+        btn.disabled = true;
+
+        try {
+            const res = await fetch(`${API.miniteams}${mtId}/remove_member/`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ volunteer_id: roleTargetId, role: role }) 
+            });
+            
+            if(res.ok) {
+                showToast("🗑️ Роль успешно забрана!");
+                closeRoleModal();
+                loadAllData();
+            } else {
+                const data = await res.json();
+                showToast(data.error || "Ошибка при удалении роли", "error");
+            }
+        } catch(e) {
+            showToast("Ошибка сети", "error");
+        } finally {
+            btn.innerHTML = originalText; 
+            btn.disabled = false;
+        }
+    }
+
     function renderVolunteers() {
         const table = document.getElementById('vTable');
         if (!table) return;
@@ -875,6 +972,7 @@ function openCreateMiniteamModal() {
         const isCurator = state.user.role === 'curator';
         const myDirIds = getIds(state.user.direction); 
         const myManagedTeamIds = state.myManagedTeams.map(t => String(t.id));
+        const myMiniteamIds = state.myMiniteamIds || [];
 
         let myVolunteers = [];
         if (isAdmin) {
@@ -886,13 +984,20 @@ function openCreateMiniteamModal() {
                 const hasDirMatch = vDirIds.some(id => myDirIds.includes(id));
                 const vCmdIds = getIds(v.volunteer_commands || v.commands);
                 const hasCmdMatch = vCmdIds.some(id => myManagedTeamIds.includes(id));
-                return hasDirMatch || hasCmdMatch;
+                const vMtRoles = v.miniteam_roles || [];
+                const hasMtMatch = vMtRoles.some(r => myMiniteamIds.includes(String(r.miniteam_id || r.miniteam)));
+
+                return hasDirMatch || hasCmdMatch || hasMtMatch;
             });
         } else {
             myVolunteers = state.volunteers.filter(v => {
                 if (String(v.id) === String(state.user.id)) return false;
                 const vCmdIds = getIds(v.volunteer_commands || v.commands);
-                return vCmdIds.some(id => myManagedTeamIds.includes(id));
+                const hasCmdMatch = vCmdIds.some(id => myManagedTeamIds.includes(id));
+                const vMtRoles = v.miniteam_roles || [];
+                const hasMtMatch = vMtRoles.some(r => myMiniteamIds.includes(String(r.miniteam_id || r.miniteam)));
+
+                return hasCmdMatch || hasMtMatch;
             });
         }
 
@@ -968,9 +1073,6 @@ function openCreateMiniteamModal() {
         }).join('');
     }
 
-    // ============================================
-    //  ПРОСМОТР ВОЛОНТЕРА / МОДАЛКИ / ШТРАФЫ
-    // ============================================
     function openVolModal(volId) {
         const v = state.volunteers.find(vol => vol.id === volId);
         if(!v) return;
@@ -1040,7 +1142,7 @@ function openCreateMiniteamModal() {
                     ${profileAvatarHtml}
                 </div>
                 <div class="flex-1">
-                    <h3 class="text-2xl font-black text-white uppercase italic leading-none mb-1">${v.name || 'Без имени'}</h3>
+                    <h3 class="text-2xl md:text-3xl font-black text-white uppercase italic leading-none mb-1">${v.name || 'Без имени'}</h3>
                     <p class="text-[10px] text-gray-400 font-mono mb-3">${v.login}</p>
                     <div class="flex flex-wrap gap-4 mt-2">
                         <div class="bg-white/5 px-4 py-2 rounded-xl border border-white/5">

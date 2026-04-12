@@ -48,7 +48,8 @@ class VolunteerSerializer(serializers.ModelSerializer):
             'role', 'role_display', 'direction', 'commands', 
             'point', 
             'yellow_card_count', # 🔥 2. Обязательно добавляем в список полей
-            'is_team_leader'
+            'is_team_leader',
+            'point_goal'
         ]
         read_only_fields = ['point', 'role', 'login', 'yellow_card_count']
 
