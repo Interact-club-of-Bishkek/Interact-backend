@@ -10,7 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
     <style>
         :root { --primary: #00c6ff; --bg: #020408; --border: rgba(255,255,255,0.1); }
-        /* ИСПРАВЛЕНИЕ: разрешаем скролл всей страницы */
+        
         body { background: var(--bg); color: white; font-family: 'Inter', sans-serif; min-height: 100vh; display: flex; flex-direction: column; overflow-y: auto; padding-bottom: 20px; }
         
         ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -20,8 +20,9 @@
 
         .btn-glass { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: #94a3b8; transition: all 0.3s ease; border-radius: 12px; }
         .btn-glass:hover { background: rgba(255, 255, 255, 0.1); color: white; border-color: rgba(255, 255, 255, 0.3); }
+        .btn-glass.active { background: rgba(0, 198, 255, 0.1); color: var(--primary); border-color: var(--primary); }
         
-        .btn-action { font-weight: 800; text-transform: uppercase; font-size: 11px; letter-spacing: 0.1em; padding: 12px 20px; border-radius: 12px; transition: 0.3s; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+        .btn-action { font-weight: 800; text-transform: uppercase; font-size: 11px; letter-spacing: 0.1em; padding: 12px 20px; border-radius: 12px; transition: 0.3s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; }
         .btn-primary { background: var(--primary); color: black; box-shadow: 0 4px 15px rgba(0, 198, 255, 0.2); }
         .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0, 198, 255, 0.3); }
         .btn-danger { background: #ef4444; color: white; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.2); }
@@ -37,7 +38,6 @@
         #toast-container { position: fixed; top: 20px; right: 20px; z-index: 2000; }
         .toast { padding: 16px 24px; border-radius: 16px; background: rgba(15, 23, 42, 0.95); border-left: 4px solid var(--primary); color: white; margin-bottom: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); font-weight: 600; font-size: 13px; }
 
-        /* ИСПРАВЛЕНИЕ: фиксируем высоту карточки, чтобы скроллились только люди внутри нее */
         .board-column { height: 400px; display: flex; flex-direction: column; background: #0f172a; border: 1px solid var(--border); border-radius: 20px; overflow: hidden; }
         .board-header { padding: 16px; background: #1e293b; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
         .board-body { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
@@ -73,33 +73,23 @@
     </div>
 
     <div class="p-6 pb-4 flex flex-col gap-6 flex-shrink-0">
-        <div class="flex justify-between items-center">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
                 <h1 class="text-2xl font-black italic uppercase text-white tracking-widest leading-none">
                     BAILIFF <span class="text-primary">BASE</span>
                 </h1>
-                <p class="text-[10px] text-gray-500 font-bold uppercase mt-1">Распределение волонтеров (Режим Доски)</p>
+                <p id="pageSubtitle" class="text-[10px] text-gray-500 font-bold uppercase mt-1">Распределение волонтеров</p>
             </div>
-            <button onclick="logout()" class="btn-glass px-4 py-3"><i class="fas fa-power-off"></i></button>
-        </div>
-
-        <div class="flex flex-wrap items-center justify-between gap-4 bg-[#0b1120] border border-white/5 p-4 rounded-2xl">
-            <button onclick="generateDistribution()" class="btn-action btn-glass text-white" id="btnGenerate">
-                <i class="fas fa-magic"></i> Авто-распределение
-            </button>
             
-            <div class="flex gap-3">
-                <button onclick="saveDistribution('save_only')" class="btn-action btn-primary" id="btnSaveOnly">
-                    <i class="fas fa-save"></i> Сохранить (Только список)
+            <div class="flex gap-2 bg-[#0b1120] p-1.5 rounded-xl border border-white/5">
+                <button onclick="switchTab('board')" id="tabBoard" class="btn-action btn-glass active min-w-[120px]">
+                    <i class="fas fa-columns"></i> Доска
                 </button>
-                <button onclick="saveDistribution('distribute_and_reset')" class="btn-action btn-danger" id="btnSaveReset">
-                    <i class="fas fa-sync-alt"></i> Распределить и Сбросить
+                <button onclick="switchTab('prefs')" id="tabPrefs" class="btn-action btn-glass min-w-[120px]">
+                    <i class="fas fa-star"></i> Выбор волонтеров
                 </button>
+                <button onclick="logout()" class="btn-glass px-4 py-2 ml-2" title="Выход"><i class="fas fa-power-off"></i></button>
             </div>
-        </div>
-
-        <div class="flex gap-4 overflow-x-auto pb-2" id="statsContainer">
-            <div class="text-sm text-gray-500 italic mt-2">Нажмите "Авто-распределение", чтобы загрузить списки</div>
         </div>
     </div>
 
@@ -109,12 +99,50 @@
         </div>
 
         <div id="emptyState" class="absolute inset-0 flex flex-col items-center justify-center opacity-50 z-10 pointer-events-none">
-            <i class="fas fa-columns text-5xl mb-4 text-gray-600"></i>
-            <p class="text-sm font-bold text-gray-400">Сгенерируйте распределение для просмотра досок</p>
+            <i class="fas fa-database text-5xl mb-4 text-gray-600"></i>
+            <p class="text-sm font-bold text-gray-400">Сгенерируйте распределение для загрузки данных</p>
         </div>
 
-        <div id="boardsContainer" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 items-start hidden">
+        <div id="boardTabContent" class="hidden flex flex-col gap-6">
+            <div class="flex flex-wrap items-center justify-between gap-4 bg-[#0b1120] border border-white/5 p-4 rounded-2xl">
+                <button onclick="generateDistribution()" class="btn-action btn-glass text-white" id="btnGenerate">
+                    <i class="fas fa-magic"></i> Авто-распределение
+                </button>
+                
+                <div class="flex flex-wrap gap-3">
+                    <button onclick="saveDistribution('save_only')" class="btn-action btn-primary" id="btnSaveOnly">
+                        <i class="fas fa-save"></i> Сохранить (Только список)
+                    </button>
+                    <button onclick="saveDistribution('distribute_and_reset')" class="btn-action btn-danger" id="btnSaveReset">
+                        <i class="fas fa-sync-alt"></i> Распределить и Сбросить
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex gap-4 overflow-x-auto pb-2" id="statsContainer">
+                </div>
+
+            <div id="boardsContainer" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 items-start">
+                </div>
         </div>
+
+        <div id="prefsTabContent" class="hidden h-full flex flex-col">
+            <div class="bg-[#0f172a] border border-[rgba(255,255,255,0.1)] rounded-2xl overflow-hidden flex-1 flex flex-col">
+                <div class="overflow-y-auto flex-1 custom-scrollbar p-4">
+                    <table class="w-full text-left border-collapse min-w-[600px]">
+                        <thead>
+                            <tr class="bg-[#1e293b] text-[10px] uppercase tracking-widest text-gray-400">
+                                <th class="p-4 rounded-tl-lg rounded-bl-lg">Волонтер</th>
+                                <th class="p-4 rounded-tr-lg rounded-br-lg">Выбранные направления (Предпочтения)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="prefsTableBody">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script>
@@ -144,19 +172,102 @@
                 const disc = await dRes.json();
                 allDirections = disc.all_directions || disc.directions || [];
 
+                await fetchDistributionData();
+                switchTab('board'); // Открываем вкладку с доской по умолчанию
+            } catch(e) { console.error("Ошибка инициализации", e); }
+        }
+
+        async function fetchDistributionData() {
+            try {
                 const distRes = await fetch(API.apply, { headers: { 'Authorization': `Bearer ${token}` } });
                 if (distRes.ok) {
                     const distData = await distRes.json();
                     if (distData.distribution && distData.distribution.length > 0) {
                         currentDistribution = distData.distribution;
+                        document.getElementById('emptyState').classList.add('hidden');
+                        
                         renderBoards();
                         updateCounters();
-                        document.getElementById('boardsContainer').classList.remove('hidden');
-                        document.getElementById('emptyState').classList.add('hidden');
+                        renderPrefsTable();
                     }
                 }
-            } catch(e) { console.error("Ошибка инициализации", e); }
+            } catch(e) { console.error("Ошибка загрузки данных", e); }
         }
+
+        // --- ЛОГИКА ВКЛАДОК ---
+        function switchTab(tab) {
+            document.getElementById('tabBoard').classList.remove('active');
+            document.getElementById('tabPrefs').classList.remove('active');
+            document.getElementById('boardTabContent').classList.add('hidden');
+            document.getElementById('prefsTabContent').classList.add('hidden');
+
+            if (tab === 'board') {
+                document.getElementById('tabBoard').classList.add('active');
+                document.getElementById('pageSubtitle').innerText = "Распределение волонтеров (Режим Доски)";
+                
+                if (currentDistribution.length > 0) {
+                    document.getElementById('boardTabContent').classList.remove('hidden');
+                    document.getElementById('boardTabContent').classList.add('flex');
+                    document.getElementById('emptyState').classList.add('hidden');
+                } else {
+                    document.getElementById('emptyState').classList.remove('hidden');
+                }
+            } else if (tab === 'prefs') {
+                document.getElementById('tabPrefs').classList.add('active');
+                document.getElementById('pageSubtitle').innerText = "Выбранные направления волонтерами";
+                
+                if (currentDistribution.length > 0) {
+                    document.getElementById('prefsTabContent').classList.remove('hidden');
+                    document.getElementById('emptyState').classList.add('hidden');
+                } else {
+                    document.getElementById('emptyState').classList.remove('hidden');
+                }
+            }
+        }
+
+        // --- ОТРИСОВКА ТАБЛИЦЫ ПРЕДПОЧТЕНИЙ ---
+        function renderPrefsTable() {
+            const tbody = document.getElementById('prefsTableBody');
+            if (currentDistribution.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="2" class="p-8 text-center text-gray-500 font-bold italic">Нет данных</td></tr>';
+                return;
+            }
+
+            let html = '';
+            currentDistribution.forEach((v, index) => {
+                const isEven = index % 2 === 0;
+                const bgClass = isEven ? 'bg-[rgba(255,255,255,0.02)]' : 'bg-transparent';
+                
+                let prefsHtml = '';
+                if (v.preferred_directions && v.preferred_directions.length > 0) {
+                    prefsHtml = v.preferred_directions.map(p => 
+                        `<span class="bg-[#1e293b] border border-white/10 text-gray-300 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm">${p}</span>`
+                    ).join(' ');
+                } else {
+                    prefsHtml = `<span class="text-gray-500 italic text-xs font-semibold">Ничего не выбрано</span>`;
+                }
+
+                html += `
+                    <tr class="${bgClass} border-b border-white/5 hover:bg-[rgba(255,255,255,0.05)] transition-colors">
+                        <td class="p-4 font-bold text-sm text-gray-200 w-1/3">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-black">
+                                    ${v.volunteer_name.charAt(0).toUpperCase()}
+                                </div>
+                                ${v.volunteer_name}
+                            </div>
+                        </td>
+                        <td class="p-4">
+                            <div class="flex flex-wrap gap-2">
+                                ${prefsHtml}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+
 
         async function generateDistribution() {
             document.getElementById('loader').classList.remove('hidden');
@@ -170,7 +281,9 @@
                     currentDistribution = data.distribution;
                     renderBoards();
                     updateCounters();
-                    document.getElementById('boardsContainer').classList.remove('hidden');
+                    renderPrefsTable(); // Обновляем и таблицу тоже
+                    document.getElementById('boardTabContent').classList.remove('hidden');
+                    document.getElementById('boardTabContent').classList.add('flex');
                     showToast('Распределение сгенерировано', 'success');
                 } else {
                     showToast(data.error || 'Ошибка генерации', 'error');
@@ -282,47 +395,34 @@
             container.innerHTML = html;
         }
 
-        // --- ЛОГИКА МОДАЛЬНОГО ОКНА ---
         function openConfirmModal() {
             const modal = document.getElementById('confirmModal');
             modal.classList.remove('hidden');
-            // Маленькая задержка для плавного появления (transition opacity)
-            setTimeout(() => {
-                modal.classList.remove('opacity-0');
-            }, 10);
+            setTimeout(() => { modal.classList.remove('opacity-0'); }, 10);
         }
 
         function closeConfirmModal() {
             const modal = document.getElementById('confirmModal');
             modal.classList.add('opacity-0');
-            // Ждем завершения анимации исчезновения перед скрытием (display: none)
-            setTimeout(() => {
-                modal.classList.add('hidden');
-            }, 300);
+            setTimeout(() => { modal.classList.add('hidden'); }, 300);
         }
 
         async function saveDistribution(action) {
             if(currentDistribution.length === 0) {
                 return showToast('Сначала сгенерируйте распределение', 'error');
             }
-
-            // Если нажали СБРОС - прерываем функцию и показываем модалку
             if(action === 'distribute_and_reset') {
                 openConfirmModal();
                 return;
             }
-
-            // Если нажали просто Сохранить - сразу отправляем на сервер
             await executeSave(action);
         }
 
-        // Эта функция вызывается кнопкой "Да, сбросить всё" внутри модалки
         async function confirmReset() {
             closeConfirmModal();
             await executeSave('distribute_and_reset');
         }
 
-        // Вынесенная логика запроса к API
         async function executeSave(action) {
             const mapping = currentDistribution.map(v => ({
                 vol_id: v.volunteer_id,

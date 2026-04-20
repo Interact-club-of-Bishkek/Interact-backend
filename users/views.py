@@ -1072,7 +1072,8 @@ def apply_distribution(request):
         return Response({"error": "Нет прав"}, status=403)
 
     if request.method == 'GET':
-        volunteers = Volunteer.objects.filter(is_active=True, role='volunteer')
+        # prefetch_related ускорит работу, доставая все направления разом
+        volunteers = Volunteer.objects.filter(is_active=True, role='volunteer').prefetch_related('preferred_directions', 'direction')
         dist = []
         for vol in volunteers:
             if vol.draft_direction:
@@ -1080,10 +1081,14 @@ def apply_distribution(request):
             else:
                 dir_id = vol.direction.first().id if vol.direction.exists() else ''
                 
+            # Собираем названия выбранных направлений
+            prefs = list(vol.preferred_directions.values_list('name', flat=True))
+            
             dist.append({
                 "volunteer_id": vol.id,
                 "volunteer_name": vol.name or vol.login,
-                "assigned_direction_id": dir_id
+                "assigned_direction_id": dir_id,
+                "preferred_directions": prefs  # <-- Добавили отправку предпочтений
             })
         return Response({"distribution": dist})
 
