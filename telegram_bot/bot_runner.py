@@ -43,31 +43,35 @@ async def main():
         logging.error("[ERROR] Токен не найден! Проверьте файл .env")
         return
 
-    # 1. Инициализация ЕДИНСТВЕННОГО бота
-    # !!! ИСПРАВЛЕНИЕ: Используем DefaultBotProperties для parse_mode="HTML" (Aiogram 3.7+)
-    bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode='HTML'))
+    bot = Bot(
+        token=TOKEN,
+        default=DefaultBotProperties(parse_mode='HTML')
+    )
+
     dp = Dispatcher()
 
-    # 2. Передаем этого бота в менеджер крокодила
-    if crocodile_manager:
-        try:
-            crocodile_manager.bot = bot
-        except Exception as e:
-            logging.warning(f"Ошибка при передаче бота в crocodile_manager: {e}")
+    try:
+        # Передача бота
+        if crocodile_manager:
+            try:
+                crocodile_manager.bot = bot
+            except Exception as e:
+                logging.warning(f"Ошибка при передаче бота в crocodile_manager: {e}")
 
-    # 3. Подключение роутеров (FSM ПЕРВЫМ)
-    dp.include_router(application_router) # <-- FSM (анкеты)
-    dp.include_router(project_creation_router)
-    dp.include_router(general_router) 
-    
-    # Подключаем игровые роутеры
-    dp.include_router(crocodile_router)
-    dp.include_router(mafia_router)
+        # Роутеры
+        dp.include_router(application_router)
+        dp.include_router(project_creation_router)
+        dp.include_router(general_router)
+        dp.include_router(crocodile_router)
+        dp.include_router(mafia_router)
 
-    logging.info("[INFO] Бот запущен...")
-    # Удаляем ожидающие обновления и запускаем polling
-    await bot.delete_webhook(drop_pending_updates=True)
-    await dp.start_polling(bot)
+        logging.info("[INFO] Бот запущен...")
+
+        await bot.delete_webhook(drop_pending_updates=True)
+        await dp.start_polling(bot)
+
+    finally:
+        await bot.session.close()
 
 if __name__ == "__main__":
     try:
