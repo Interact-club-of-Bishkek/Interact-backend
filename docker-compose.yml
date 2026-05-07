@@ -64,12 +64,22 @@ services:
     image: interact_telegram_bot:latest
     container_name: interact_telegram_bot
     env_file: .env
+  
     depends_on:
       - backend
+  
     restart: always
+  
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+  
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=1
+  
     networks:
       - backend_network
-
+  
 volumes:
   postgres_data:
   static_volume:
