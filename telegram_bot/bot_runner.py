@@ -26,6 +26,20 @@ except ImportError as e:
     logging.warning(f"Не удалось импортировать Мафию: {e}")
     mafia_router = Router()
 
+
+from aiohttp import ClientTimeout
+
+from aiogram.client.session.aiohttp import AiohttpSession
+
+timeout = ClientTimeout(
+    total=60,
+    connect=20,
+    sock_connect=20,
+    sock_read=60
+)
+
+session = AiohttpSession(timeout=timeout)
+
 # --- Главные роутеры ---
 # Предполагаем, что эти модули существуют и находятся на нужном пути
 from general.handlers import general_router 
@@ -45,20 +59,19 @@ async def main():
 
     bot = Bot(
         token=TOKEN,
+        session=session,
         default=DefaultBotProperties(parse_mode='HTML')
     )
 
     dp = Dispatcher()
 
     try:
-        # Передача бота
         if crocodile_manager:
             try:
                 crocodile_manager.bot = bot
             except Exception as e:
                 logging.warning(f"Ошибка при передаче бота в crocodile_manager: {e}")
 
-        # Роутеры
         dp.include_router(application_router)
         dp.include_router(project_creation_router)
         dp.include_router(general_router)
@@ -67,11 +80,17 @@ async def main():
 
         logging.info("[INFO] Бот запущен...")
 
+        logging.info("Удаляем webhook...")
         await bot.delete_webhook(drop_pending_updates=True)
+
+        logging.info("Webhook удалён")
+
+        logging.info("Запуск polling...")
         await dp.start_polling(bot)
 
     finally:
         await bot.session.close()
+
 
 if __name__ == "__main__":
     try:
@@ -79,4 +98,5 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         logging.info("Бот остановлен")
     except Exception as e:
-        logging.critical(f"Критическая ошибка запуска: {e}")
+        logging.exception(f"Критическая ошибка запуска: {e}")
+        raise
