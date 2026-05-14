@@ -10,8 +10,8 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 import os
+from datetime import timedelta  # <-- ДОБАВЛЕНО ДЛЯ РАБОТЫ СО ВРЕМЕНЕМ ТОКЕНА
 from dotenv import load_dotenv
-
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     'django.contrib.sitemaps',
 
     'rest_framework',
+    'rest_framework_simplejwt', # <-- Убедись, что это добавлено, если вдруг нет
 
     'users',
     # 'form',
@@ -98,10 +99,6 @@ FINIK_QR_NAME = os.getenv("FINIK_QR_NAME")
 FINIK_REDIRECT_URL = os.getenv("FINIK_REDIRECT_URL")
 FINIK_WEBHOOK_URL = os.getenv("FINIK_WEBHOOK_URL")
 
-
-
-
-# settings.py
 
 # settings.py
 
@@ -208,29 +205,22 @@ REST_FRAMEWORK = {
     ],
 }
 
-
+# 🔥 ИСПРАВЛЕННЫЙ БЛОК НАСТРОЕК ТОКЕНОВ 🔥
 SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=1),    # Основной токен живет 1 день
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=14),  # Токен обновления живет 14 дней
+    "ROTATE_REFRESH_TOKENS": True,                 # Выдавать новый refresh при обновлении
+    "BLACKLIST_AFTER_ROTATION": True,              # Блокировать старые токены
 }
 
 AUTH_USER_MODEL = 'users.Volunteer'
-
-
 
 WSGI_APPLICATION = 'interact.wsgi.application'
 
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
-
-
-
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
 
 DATABASES = {
     'default': {
@@ -282,8 +272,9 @@ EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'interact.club.kg@gmail.com'  # твоя почта
-EMAIL_HOST_PASSWORD = 'jumxjpogwlwzjalx'       # пароль приложения Google
+# ⚠️ Рекомендуется вынести эти данные в .env файл (os.environ.get('EMAIL_HOST_USER') и т.д.)
+EMAIL_HOST_USER = 'interact.club.kg@gmail.com'  
+EMAIL_HOST_PASSWORD = 'jumxjpogwlwzjalx'       
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 
