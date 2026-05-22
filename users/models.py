@@ -2,14 +2,15 @@ import random
 import string
 from django.db import models
 from django.core.exceptions import ValidationError
-from django.utils import timezone   
+from django.utils import timezone
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
-# 🔥 ИСПРАВЛЕНИЕ: Добавлен импорт F
-from django.db.models import DecimalField, Sum, F 
+from django.db.models import DecimalField, Sum, F, Q, Value
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
-from directions.models import VolunteerDirection 
 from django.db.models.functions import Coalesce
+
+from directions.models import VolunteerDirection
+
 
 # --- МЕНЕДЖЕР ПОЛЬЗОВАТЕЛЕЙ ---
 class VolunteerManager(BaseUserManager):
@@ -112,19 +113,6 @@ class Volunteer(AbstractBaseUser, PermissionsMixin):
             if not Volunteer.objects.filter(login=login_candidate).exists():
                 return login_candidate
             
-    def update_total_points(self):
-        total = self.submissions.filter(status='approved').aggregate(
-            total=Sum(
-                Coalesce(
-                    'points_awarded', 
-                    F('task__points') * F('quantity'),
-                    output_field=DecimalField()
-                )
-            )
-        )['total'] or 0
-        
-        self.point = total
-        self.save(update_fields=['point'])
 
     def save(self, *args, **kwargs):
         if not self.pk:
@@ -241,45 +229,23 @@ class ActivitySubmission(models.Model):
     quantity = models.IntegerField(default=1)
     
     def save(self, *args, **kwargs):
-        if self.pk:
-            old_instance = ActivitySubmission.objects.get(pk=self.pk)
-            old_qty = getattr(old_instance, 'quantity', 1)
-            new_qty = getattr(self, 'quantity', 1)
-            
-            old_points = old_instance.points_awarded if old_instance.points_awarded is not None else (old_instance.task.points * old_qty)
-            new_points = self.points_awarded if self.points_awarded is not None else (self.task.points * new_qty)
+        is_new = self.pk is None
+        old_status = None
 
-            if old_instance.status != 'approved' and self.status == 'approved':
-                self.volunteer.point = (self.volunteer.point or 0) + new_points
-            elif old_instance.status == 'approved' and self.status != 'approved':
-                self.volunteer.point = (self.volunteer.point or 0) - old_points
-            elif old_instance.status == 'approved' and self.status == 'approved':
-                diff = new_points - old_points
-                self.volunteer.point = (self.volunteer.point or 0) + diff
-
-            self.volunteer.save(update_fields=['point'])
-        else:
-            if self.status == 'approved':
-                new_qty = getattr(self, 'quantity', 1)
-                points = self.points_awarded if self.points_awarded is not None else (self.task.points * new_qty)
-                self.volunteer.point = (self.volunteer.point or 0) + points
-                self.volunteer.save(update_fields=['point'])
+        if not is_new:
+            old_status = ActivitySubmission.objects.get(pk=self.pk).status
 
         super().save(*args, **kwargs)
 
+        if is_new or old_status != self.status:
+            recalc_volunteer_points(self.volunteer_id)
+
     def delete(self, *args, **kwargs):
-        if self.status == 'approved':
-            qty = getattr(self, 'quantity', 1)
-            points = self.points_awarded if self.points_awarded is not None else (self.task.points * qty)
-            self.volunteer.point = (self.volunteer.point or 0) - points
-            self.volunteer.save(update_fields=['point'])
-            
+        vol_id = self.volunteer_id
         super().delete(*args, **kwargs)
 
-    class Meta:
-        verbose_name = "Заявка на баллы"
-        verbose_name_plural = "Заявки на баллы"
-        ordering = ['-date']
+        if vol_id:
+            recalc_volunteer_points(vol_id)
 
 # --- АНКЕТЫ ---
 class VolunteerApplication(models.Model):
@@ -382,12 +348,6 @@ class YellowCard(models.Model):
     def __str__(self):
         return f"Yellow Card for {self.volunteer.name}"
     
-@receiver(post_save, sender=ActivitySubmission)
-@receiver(post_delete, sender=ActivitySubmission)
-def update_volunteer_points_on_submission_change(sender, instance, **kwargs):
-    if instance.volunteer:
-        instance.volunteer.update_total_points()
-
 class ChatSession(models.Model):
     session_id = models.CharField(max_length=100, unique=True, verbose_name="ID Сессии")
     created_at = models.DateTimeField(default=timezone.now, verbose_name="Создано")
@@ -491,3 +451,33 @@ class SponsorTask(models.Model):
         verbose_name = "Спонсор / Задача"
         verbose_name_plural = "База спонсоров"
         ordering = ['-created_at']
+
+
+from django.db.models import Sum, F, DecimalField, Value
+from django.db.models.functions import Coalesce
+
+
+def recalc_volunteer_points(volunteer_id):
+    total = (
+        Volunteer.objects.filter(id=volunteer_id)
+        .annotate(
+            total=Coalesce(
+                Sum(
+                    Coalesce(
+                        'submissions__points_awarded',
+                        F('submissions__task__points') * F('submissions__quantity'),
+                        output_field=DecimalField()
+                    ),
+                    filter=Q(submissions__status='approved')
+                ),
+                Value(0),
+                output_field=DecimalField()
+            )
+        )
+        .values_list('total', flat=True)
+        .first()
+    )
+
+    Volunteer.objects.filter(id=volunteer_id).update(
+        point=total or 0
+    )
