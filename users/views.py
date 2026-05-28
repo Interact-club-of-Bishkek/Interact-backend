@@ -1073,7 +1073,10 @@ def apply_distribution(request):
 
     if request.method == 'GET':
         # prefetch_related ускорит работу, доставая все направления разом
-        volunteers = Volunteer.objects.filter(is_active=True, role='volunteer').prefetch_related('preferred_directions', 'direction')
+        volunteers = Volunteer.objects.filter(
+            is_active=True, role='volunteer'
+        ).prefetch_related('preferred_directions', 'direction')
+        
         dist = []
         for vol in volunteers:
             if vol.draft_direction:
@@ -1088,14 +1091,15 @@ def apply_distribution(request):
                 "volunteer_id": vol.id,
                 "volunteer_name": vol.name or vol.login,
                 "assigned_direction_id": dir_id,
-                "preferred_directions": prefs  # <-- Добавили отправку предпочтений
+                "preferred_directions": prefs  
             })
         return Response({"distribution": dist})
 
     action = request.data.get('action') 
     mapping = request.data.get('mapping', [])
 
-    if action not in ['save_only', 'distribute_and_reset']:
+    # Разрешаем все три действия
+    if action not in ['save_only', 'distribute', 'distribute_and_reset']:
         return Response({"error": "Неизвестное действие"}, status=400)
 
     with transaction.atomic():
@@ -1108,23 +1112,31 @@ def apply_distribution(request):
             except Volunteer.DoesNotExist:
                 continue
 
+            # 1. Просто сохранение черновика
             if action == 'save_only':
                 vol.draft_direction_id = dir_id if dir_id else None
                 vol.save()
                 
-            elif action == 'distribute_and_reset':
+            # 2. Логика для распределения (сброс или без сброса)
+            elif action in ['distribute', 'distribute_and_reset']:
+                # Меняем основное направление
                 vol.direction.clear()
                 if dir_id:
                     vol.direction.add(dir_id)
                 
+                # Очищаем черновик, так как распределение завершено
                 vol.draft_direction = None
 
-                vol.point = 0
-                vol.preferred_directions.clear() 
-                vol.submissions.all().delete() 
+                # Если это полный сброс, обнуляем прогресс волонтера
+                if action == 'distribute_and_reset':
+                    vol.point = 0
+                    vol.preferred_directions.clear() 
+                    vol.submissions.all().delete() 
+                    
                 vol.save()
                 
-    if action == 'distribute_and_reset':
+    # Закрываем выбор направлений для обоих вариантов финального распределения
+    if action in ['distribute', 'distribute_and_reset']:
         settings = AppSettings.get_settings()
         settings.is_direction_selection_open = False
         settings.save()
