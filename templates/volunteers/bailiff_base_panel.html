@@ -27,6 +27,10 @@
         .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0, 198, 255, 0.3); }
         .btn-danger { background: #ef4444; color: white; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.2); }
         .btn-danger:hover { background: #dc2626; transform: translateY(-2px); }
+        
+        /* Добавлен стиль для новой кнопки сохранения данных */
+        .btn-success { background: #10b981; color: white; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2); }
+        .btn-success:hover { background: #059669; transform: translateY(-2px); }
 
         .stat-card { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 16px; padding: 16px; min-width: 150px; text-align: center; transition: 0.3s; flex-shrink: 0; }
         .stat-card.active { border-color: var(--primary); background: rgba(0,198,255,0.05); }
@@ -113,6 +117,9 @@
                     <button onclick="saveDistribution('save_only')" class="btn-action btn-primary" id="btnSaveOnly">
                         <i class="fas fa-save"></i> Сохранить (Только список)
                     </button>
+                    <button onclick="saveDistribution('distribute')" class="btn-action btn-success" id="btnDistributeKeep">
+                        <i class="fas fa-check"></i> Распределить (Без сброса)
+                    </button>
                     <button onclick="saveDistribution('distribute_and_reset')" class="btn-action btn-danger" id="btnSaveReset">
                         <i class="fas fa-sync-alt"></i> Распределить и Сбросить
                     </button>
@@ -173,7 +180,7 @@
                 allDirections = disc.all_directions || disc.directions || [];
 
                 await fetchDistributionData();
-                switchTab('board'); // Открываем вкладку с доской по умолчанию
+                switchTab('board'); 
             } catch(e) { console.error("Ошибка инициализации", e); }
         }
 
@@ -194,7 +201,6 @@
             } catch(e) { console.error("Ошибка загрузки данных", e); }
         }
 
-        // --- ЛОГИКА ВКЛАДОК ---
         function switchTab(tab) {
             document.getElementById('tabBoard').classList.remove('active');
             document.getElementById('tabPrefs').classList.remove('active');
@@ -225,7 +231,6 @@
             }
         }
 
-        // --- ОТРИСОВКА ТАБЛИЦЫ ПРЕДПОЧТЕНИЙ ---
         function renderPrefsTable() {
             const tbody = document.getElementById('prefsTableBody');
             if (currentDistribution.length === 0) {
@@ -268,7 +273,6 @@
             tbody.innerHTML = html;
         }
 
-
         async function generateDistribution() {
             document.getElementById('loader').classList.remove('hidden');
             document.getElementById('emptyState').classList.add('hidden');
@@ -281,7 +285,7 @@
                     currentDistribution = data.distribution;
                     renderBoards();
                     updateCounters();
-                    renderPrefsTable(); // Обновляем и таблицу тоже
+                    renderPrefsTable(); 
                     document.getElementById('boardTabContent').classList.remove('hidden');
                     document.getElementById('boardTabContent').classList.add('flex');
                     showToast('Распределение сгенерировано', 'success');
@@ -442,7 +446,8 @@
                 
                 if(res.ok) {
                     showToast('Успешно сохранено!', 'success');
-                    if(action === 'distribute_and_reset') {
+                    // Добавили перезагрузку и для обычного distribute
+                    if(action === 'distribute_and_reset' || action === 'distribute') {
                         setTimeout(() => location.reload(), 1500); 
                     }
                 } else {
