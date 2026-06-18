@@ -49,7 +49,7 @@ services:
       - static_volume:/app/staticfiles
       - media_volume:/app/media
       # Если вы на сервере, раскомментируйте строку ниже:
-      # - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       - backend
     restart: always
