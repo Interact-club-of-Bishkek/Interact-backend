@@ -1,0 +1,5 @@
+# Файл: docker-compose.override.yml
+services:
+  nginx:
+    volumes:
+      - ./nginx/dev.conf:/etc/nginx/conf.d/default.conf:ro

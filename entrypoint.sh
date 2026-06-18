@@ -1,43 +1,23 @@
 #!/bin/bash
 
-# ----------------------------------------------------
-# 1. УСТАНОВКА ПРАВ ДОСТУПА К СКРИПТУ ENTRYPOINT
-# ----------------------------------------------------
-chmod +x /app/entrypoint.sh
-
-# ----------------------------------------------------
-# 2. ОЖИДАНИЕ БАЗЫ ДАННЫХ
-# ----------------------------------------------------
+# Ожидание базы данных
 echo "Ожидание PostgreSQL..."
-while ! nc -z db 5432; do
+while ! nc -z $DB_HOST $DB_PORT; do
   sleep 0.5
 done
 echo "PostgreSQL запущен!"
 
-# ----------------------------------------------------
-# 3. УСТАНОВКА ПРАВ ДОСТУПА К ТОМАМ (ФИКС ОШИБКИ ПРАВ)
-# ----------------------------------------------------
-echo "Установка прав доступа (775) для смонтированных томов media и staticfiles..."
-# Убеждаемся, что appuser — владелец смонтированных томов
-chown -R appuser:appuser /app/media
-chown -R appuser:appuser /app/staticfiles
-chmod -R 775 /app/media
-chmod -R 775 /app/staticfiles
+# Установка прав доступа (так как мы уже appuser, права должны быть настроены заранее)
+# Если здесь будут ошибки "permission denied", значит chown нужно делать в Dockerfile
+echo "Проверка прав доступа..."
 
-# ----------------------------------------------------
-# 4. ПОДГОТОВКА (Миграции и Статика)
-# ----------------------------------------------------
-echo "Применение миграций Django..."
-python manage.py makemigrations --noinput
-
+# Подготовка
 echo "Применение миграций Django..."
 python manage.py migrate --noinput
 
 echo "Сбор статических файлов..."
 python manage.py collectstatic --noinput
 
-# ----------------------------------------------------
-# 5. ЗАПУСК GUNICORN
-# ----------------------------------------------------
+# Запуск Gunicorn (теперь без gosu)
 echo "Запуск Gunicorn..."
-exec gosu appuser gunicorn interact.wsgi:application --bind 0.0.0.0:8000 --workers 3    
+exec gunicorn interact.wsgi:application --bind 0.0.0.0:8000 --workers 3
