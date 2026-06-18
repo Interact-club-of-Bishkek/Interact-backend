@@ -3,10 +3,9 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Game Interact Club of Bishkek</title>
-        <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-7Z6NZE9HKP"></script>
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-7Z6NZE9HKP"></script>
     <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
@@ -16,29 +15,27 @@
     </script>
     
     <meta name="description" content="Официальный сайт Interact Club of Bishkek. Мы занимаемся благотворительностью, реализацией социальных проектов и помощью нуждающимся. Присоединяйтесь к нашему клубу волонтеров!">
-    
     <meta name="keywords" content="благотворительность, помощь, интеракт, Interact Club, Bishkek, Бишкек, волонтерство, волонтеры, социальные проекты, помощь детям, Rotary International, клуб">
-    
     <meta name="robots" content="index, follow">
     <meta name="author" content="Interact Club of Bishkek">
-
     <meta name="google-site-verification" content="5HU02qzphZQdQWPcZeK2JNaSeLfDP-TxWti-N11pftw" />
     
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Interact Club of Bishkek">
     <meta property="og:title" content="Interact Club of Bishkek | Клуб волонтеров">
     <meta property="og:description" content="Мы занимаемся благотворительностью, социальными проектами и помощью в Бишкеке. Узнайте больше о нашей деятельности!">
-    <meta property="og:url" content="https://interact-club.kg/"> <meta property="og:image" content="{% static 'img/logo.png' %}"> <meta property="og:locale" content="ru_RU">
+    <meta property="og:url" content="https://interact-club.kg/"> 
+    <meta property="og:image" content="{% static 'img/logo.png' %}"> 
+    <meta property="og:locale" content="ru_RU">
 
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Interact Club of Bishkek | Благотворительность">
     <meta name="twitter:description" content="Официальный сайт клуба волонтеров. Благотворительность, социальные проекты и помощь нуждающимся.">
     <meta name="twitter:image" content="{% static 'img/logo.png' %}">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Cormorant:wght@400;600;700&family=Geologica:wght@300;400;500;600&display=swap" rel="stylesheet">
-    
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <link rel="icon" type="image/png" href="{% static 'img/logo.png' %}">
     
@@ -50,20 +47,21 @@
             background-color: #121212;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             min-height: 100vh; font-family: 'Nunito', sans-serif;
-            overflow: hidden; touch-action: none; 
+            overflow: hidden; touch-action: none; /* Запрет свайпов и зума на телефонах */
         }
 
         #game-wrapper {
             position: relative; width: 100%; max-width: 900px;
             display: flex; flex-direction: column; align-items: center;
+            padding: 0 10px; box-sizing: border-box;
         }
 
         #ui {
             display: flex; gap: 15px; margin-bottom: 10px;
             background: rgba(255, 255, 255, 0.95); padding: 10px 25px;
             border-radius: 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.5);
-            border: 4px solid #2563EB; z-index: 10; align-items: center; width: 95%;
-            justify-content: space-between;
+            border: 4px solid #2563EB; z-index: 10; align-items: center; width: 100%;
+            justify-content: space-between; box-sizing: border-box;
         }
 
         .level-badge {
@@ -81,8 +79,10 @@
             border-radius: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.5);
             border: 4px solid #fff; width: 100%; max-width: 900px;
             background-color: #000;
-            image-rendering: pixelated; /* Для ретро-стиля */
+            image-rendering: pixelated; 
             cursor: pointer;
+            aspect-ratio: 8 / 5; /* Важно: сохраняем пропорции игрового поля */
+            height: auto;
         }
 
         /* Экраны сюжета */
@@ -94,7 +94,7 @@
         .modal.active { opacity: 1; pointer-events: all; }
         .modal-content {
             background: #fff; padding: 30px; border-radius: 16px; text-align: center;
-            max-width: 450px; border: 4px solid #2563EB;
+            max-width: 450px; width: 90%; border: 4px solid #2563EB; box-sizing: border-box;
         }
         .modal h1 { margin-top: 0; color: #2563EB; font-size: 24px; font-weight: 900; }
         .modal p { color: #4B5563; font-size: 16px; margin-bottom: 20px; }
@@ -106,11 +106,54 @@
         .btn:hover { background: #1D4ED8; transform: translateY(-2px); }
 
         .controls-hint {
-            margin-top: 10px; color: #aaa; font-size: 14px; font-weight: bold; text-align: center;
+            margin-top: 10px; color: #aaa; font-size: 14px; font-weight: bold; text-align: center; padding: 0 10px;
+        }
+
+        /* --- АДАПТИВНОСТЬ ПОД МОБИЛЬНЫЕ УСТРОЙСТВА --- */
+        #rotate-device { display: none; }
+
+        @media (max-width: 768px) {
+            #ui { padding: 8px 15px; gap: 8px; border-width: 3px; }
+            .level-badge { padding: 6px 12px; font-size: 12px; }
+            .score-value { font-size: 18px; }
+            .score-title { font-size: 9px; }
+            canvas { border-width: 3px; }
+            .modal-content { padding: 20px; }
+            .modal h1 { font-size: 20px; }
+            .modal p { font-size: 14px; }
+            .btn { padding: 10px 20px; font-size: 14px; }
+            .controls-hint { font-size: 12px; }
+        }
+
+        /* Экран-заглушка: просит повернуть телефон горизонтально */
+        @media (max-width: 850px) and (orientation: portrait) {
+            #game-wrapper, .controls-hint { display: none !important; }
+            #rotate-device {
+                display: flex; flex-direction: column; align-items: center; justify-content: center;
+                position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+                background-color: #121212; color: white; text-align: center; z-index: 9999; padding: 20px; box-sizing: border-box;
+            }
+            #rotate-device i {
+                font-size: 60px; color: #2563EB; margin-bottom: 25px;
+                animation: rotatePhone 2s ease-in-out infinite alternate;
+            }
+            #rotate-device h2 { font-family: 'Nunito', sans-serif; font-weight: 900; margin-bottom: 10px; }
+            #rotate-device p { font-family: 'Geologica', sans-serif; color: #aaa; font-size: 14px; max-width: 300px; }
+        }
+
+        @keyframes rotatePhone {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(-90deg); }
         }
     </style>
 </head>
 <body>
+
+    <div id="rotate-device">
+        <i class="fas fa-mobile-alt"></i>
+        <h2>Поверните устройство</h2>
+        <p>Для лучшего игрового опыта, пожалуйста, поверните ваш телефон горизонтально.</p>
+    </div>
 
     <div id="game-wrapper">
         <div id="ui">
@@ -158,7 +201,7 @@
         </div>
     </div>
     
-    <div class="controls-hint">👆 Кликай по дорожке или используй WASD / Стрелочки для ходьбы.</div>
+    <div class="controls-hint">👆 Касайтесь дороги (или используйте WASD на ПК) для движения.</div>
 
     <script>
         // --- БАЗА ДАННЫХ ЛОКАЦИЙ (RPG СТИЛЬ) ---
@@ -166,20 +209,20 @@
             {
                 name: "1. Детские дома", desc: "Соберите игрушки и отвезите их детям.",
                 grass: "#7CFC00", path: "#DEB887", treeLeaves: "#228B22", treeTrunk: "#8B4513",
-                b1: { name: "Магазин", color: "#F4A460", roof: "#CD5C5C", emoji: "🧸" }, // Здание спонсора
-                b2: { name: "Детдом", color: "#FFB6C1", roof: "#FF69B4", emoji: "👧" }, // Здание нуждающегося
+                b1: { name: "Магазин", color: "#F4A460", roof: "#CD5C5C", emoji: "🧸" }, 
+                b2: { name: "Детдом", color: "#FFB6C1", roof: "#FF69B4", emoji: "👧" }, 
                 sponsorColor: "#8B5A2B", needyColor: "#FF69B4", resColor: "#EC4899"
             },
             {
                 name: "2. Дома престарелых", desc: "Осень. Отнесите продукты дедушкам и бабушкам.",
-                grass: "#DAA520", path: "#8B4513", treeLeaves: "#D2691E", treeTrunk: "#5C4033", // Осень
+                grass: "#DAA520", path: "#8B4513", treeLeaves: "#D2691E", treeTrunk: "#5C4033", 
                 b1: { name: "Супермаркет", color: "#B0C4DE", roof: "#4682B4", emoji: "🥖" },
                 b2: { name: "Дом", color: "#F5DEB3", roof: "#A0522D", emoji: "👵" },
                 sponsorColor: "#4169E1", needyColor: "#A9A9A9", resColor: "#10B981"
             },
             {
                 name: "3. Больницы", desc: "Город. Соберите медикаменты в аптеке.",
-                grass: "#A9A9A9", path: "#696969", treeLeaves: "#2E8B57", treeTrunk: "#333", // Асфальт
+                grass: "#A9A9A9", path: "#696969", treeLeaves: "#2E8B57", treeTrunk: "#333", 
                 b1: { name: "Аптека", color: "#E0FFFF", roof: "#20B2AA", emoji: "💊" },
                 b2: { name: "Больница", color: "#FFFFFF", roof: "#DC143C", emoji: "🏥" },
                 sponsorColor: "#059669", needyColor: "#60A5FA", resColor: "#EF4444"
@@ -193,7 +236,7 @@
             },
             {
                 name: "5. Малоимущие", desc: "Зима. Развезите уголь и теплые вещи.",
-                grass: "#F0FFFF", path: "#B0E0E6", treeLeaves: "#E0FFFF", treeTrunk: "#A0522D", // Зима
+                grass: "#F0FFFF", path: "#B0E0E6", treeLeaves: "#E0FFFF", treeTrunk: "#A0522D", 
                 b1: { name: "Склад", color: "#778899", roof: "#2F4F4F", emoji: "🏭" },
                 b2: { name: "Окраина", color: "#D2B48C", roof: "#8B4513", emoji: "🥶" },
                 sponsorColor: "#333", needyColor: "#555", resColor: "#1F2937"
@@ -252,8 +295,12 @@
 
         function getMousePos(evt) {
             const rect = canvas.getBoundingClientRect();
-            const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
-            const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+            // Поддержка и мыши и касаний
+            const clientX = evt.touches && evt.touches.length > 0 ? evt.touches[0].clientX : evt.clientX;
+            const clientY = evt.touches && evt.touches.length > 0 ? evt.touches[0].clientY : evt.clientY;
+            
+            if (clientX === undefined || clientY === undefined) return targetPos;
+
             return {
                 x: (clientX - rect.left) / (rect.right - rect.left) * canvas.width,
                 y: (clientY - rect.top) / (rect.bottom - rect.top) * canvas.height
@@ -274,12 +321,10 @@
             document.getElementById('level-badge').innerText = lvl.name;
             document.getElementById('level-badge').style.backgroundColor = lvl.resColor;
             
-            // Расставляем деревья по краям (чтобы не мешали ходить)
             trees = [];
             for(let i=0; i<40; i++) {
                 let tx = Math.random() * canvas.width;
                 let ty = Math.random() * canvas.height;
-                // Не ставим на дорогу и здания
                 if ((tx > 250 && tx < 550 && ty > 150 && ty < 400) || 
                     (tx < 250 && ty < 250) || (tx > 500 && ty > 250)) {
                     continue;
@@ -287,7 +332,6 @@
                 trees.push({ x: tx, y: ty, size: 20 + Math.random()*15 });
             }
 
-            // Ставим NPC рядом со зданиями
             sponsorObj.x = bldgs[0].x + bldgs[0].w + 30;
             sponsorObj.y = bldgs[0].y + bldgs[0].h + 20;
             
@@ -320,7 +364,6 @@
             particles.push({ x: x, y: y, text: text, color: color, life: 60, maxLife: 60 });
         }
 
-        // Проверка столкновения со стенами зданий (AABB)
         function checkWallCollision(newX, newY) {
             for(let b of bldgs) {
                 if (newX + player.radius > b.x && newX - player.radius < b.x + b.w &&
@@ -359,25 +402,21 @@
 
             if (dx !== 0 || dy !== 0) {
                 player.isMoving = true;
-                // Применяем движение по осям отдельно для скольжения вдоль стен
                 if (!checkWallCollision(player.x + dx, player.y)) player.x += dx;
                 if (!checkWallCollision(player.x, player.y + dy)) player.y += dy;
             }
 
-            // Границы экрана
             player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
             player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
 
             const lvl = LOCATIONS[lvlIdx];
 
-            // Дистанция до NPC
             let distToSponsor = Math.sqrt((player.x - sponsorObj.x)**2 + (player.y - sponsorObj.y)**2);
             let distToNeedy = Math.sqrt((player.x - needyObj.x)**2 + (player.y - needyObj.y)**2);
 
-            if (distToSponsor < 40) { // Чуть больше радиуса для удобства
+            if (distToSponsor < 40) {
                 resources++; updateUI();
                 spawnParticles(sponsorObj.x, sponsorObj.y - 40, '+1 ' + lvl.b1.emoji, lvl.resColor);
-                // Телепорт спонсора чуть в сторону, чтобы не фармить на месте
                 sponsorObj.x = bldgs[0].x + Math.random()*bldgs[0].w;
                 sponsorObj.y = bldgs[0].y + bldgs[0].h + 20 + Math.random()*30;
             }
@@ -405,19 +444,16 @@
         // --- ОТРИСОВКА ---
 
         function drawMap(lvl) {
-            // Трава
             ctx.fillStyle = lvl.grass;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Дорожка (Г-образная от первого здания ко второму)
             ctx.fillStyle = lvl.path;
             ctx.beginPath();
-            ctx.roundRect(100, 160, 200, 80, 10); // У спонсора
-            ctx.roundRect(220, 160, 80, 200, 10); // Вертикально вниз
-            ctx.roundRect(220, 320, 350, 80, 10); // Вправо к нуждающемуся
+            ctx.roundRect(100, 160, 200, 80, 10); 
+            ctx.roundRect(220, 160, 80, 200, 10); 
+            ctx.roundRect(220, 320, 350, 80, 10); 
             ctx.fill();
 
-            // Текстура на дорожке
             ctx.fillStyle = 'rgba(0,0,0,0.1)';
             for(let i=0; i<30; i++) {
                 ctx.fillRect(100 + Math.random()*400, 160 + Math.random()*240, 5, 3);
@@ -427,16 +463,13 @@
         function drawBuilding(b, isSponsor, lvl) {
             const data = isSponsor ? lvl.b1 : lvl.b2;
             
-            // Тень
             ctx.fillStyle = 'rgba(0,0,0,0.3)';
             ctx.fillRect(b.x + 10, b.y + 10, b.w, b.h);
 
-            // Стены
             ctx.fillStyle = data.color;
             ctx.fillRect(b.x, b.y, b.w, b.h);
             ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.lineWidth = 2; ctx.strokeRect(b.x, b.y, b.w, b.h);
 
-            // Крыша
             ctx.fillStyle = data.roof;
             ctx.beginPath();
             ctx.moveTo(b.x - 10, b.y);
@@ -445,13 +478,11 @@
             ctx.fill();
             ctx.stroke();
 
-            // Дверь
             ctx.fillStyle = '#8B4513';
             ctx.fillRect(b.x + b.w/2 - 15, b.y + b.h - 40, 30, 40);
-            ctx.fillStyle = '#FFD700'; // Ручка
+            ctx.fillStyle = '#FFD700';
             ctx.fillRect(b.x + b.w/2 + 5, b.y + b.h - 20, 4, 4);
 
-            // Вывеска
             ctx.fillStyle = '#fff';
             ctx.fillRect(b.x + 10, b.y + 10, b.w - 20, 25);
             ctx.fillStyle = '#000'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center';
@@ -459,15 +490,12 @@
         }
 
         function drawTree(x, y, lvl) {
-            // Тень
             ctx.fillStyle = 'rgba(0,0,0,0.2)';
             ctx.beginPath(); ctx.ellipse(x, y + 10, 20, 8, 0, 0, Math.PI*2); ctx.fill();
             
-            // Ствол
             ctx.fillStyle = lvl.treeTrunk;
             ctx.fillRect(x - 6, y - 20, 12, 30);
             
-            // Крона (3 круга)
             ctx.fillStyle = lvl.treeLeaves;
             ctx.beginPath(); ctx.arc(x - 12, y - 25, 20, 0, Math.PI*2); ctx.fill();
             ctx.beginPath(); ctx.arc(x + 12, y - 25, 20, 0, Math.PI*2); ctx.fill();
@@ -480,22 +508,18 @@
 
             let bobbing = (isPlayer && player.isMoving) ? Math.sin(time * 0.5) * 3 : Math.sin(time * 0.1) * 1;
 
-            // Тело
             ctx.fillStyle = bodyColor;
             ctx.beginPath(); ctx.roundRect(x - 10, y - 8 + bobbing, 20, 18, 6); ctx.fill();
 
-            // Голова
             ctx.fillStyle = headColor;
             ctx.beginPath(); ctx.arc(x, y - 12 + bobbing, 10, 0, Math.PI*2); ctx.fill();
 
-            // Глаза
             ctx.fillStyle = '#000';
             ctx.fillRect(x - 4, y - 14 + bobbing, 2, 2);
             ctx.fillRect(x + 2, y - 14 + bobbing, 2, 2);
 
-            // Кепка Волонтеру
             if (isPlayer) {
-                ctx.fillStyle = '#2563EB'; // Синяя кепка Interact
+                ctx.fillStyle = '#2563EB';
                 ctx.beginPath(); ctx.arc(x, y - 13 + bobbing, 10, Math.PI, 0); ctx.fill();
                 ctx.fillRect(x - 8, y - 13 + bobbing, 16, 3);
             }
@@ -507,26 +531,20 @@
 
             drawMap(lvl);
 
-            // Метка пути
             if (targetPos && gameState === 'PLAYING') {
                 ctx.beginPath(); ctx.arc(targetPos.x, targetPos.y, 8 + Math.sin(time*0.2)*2, 0, Math.PI*2);
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'; ctx.lineWidth = 2; ctx.stroke();
             }
 
-            // Деревья на заднем плане (y < 250)
             trees.filter(t => t.y < 250).forEach(t => drawTree(t.x, t.y, lvl));
 
-            // Здания
             drawBuilding(bldgs[0], true, lvl);
             drawBuilding(bldgs[1], false, lvl);
 
-            // Персонажи
             if (gameState === 'PLAYING') {
-                // Спонсор
                 drawCharacter(sponsorObj.x, sponsorObj.y, lvl.sponsorColor, '#FDBA74');
                 ctx.fillStyle = '#fff'; ctx.font = 'bold 12px Arial'; ctx.textAlign='center'; ctx.fillText('Спонсор', sponsorObj.x, sponsorObj.y - 30);
                 
-                // Нуждающийся
                 drawCharacter(needyObj.x, needyObj.y, lvl.needyColor, '#FFDAB9');
                 if (resources === 0) {
                     ctx.fillStyle = '#fff'; ctx.fillRect(needyObj.x - 15, needyObj.y - 45, 30, 20);
@@ -535,17 +553,14 @@
                     ctx.fillStyle = '#10B981'; ctx.font = 'bold 12px Arial'; ctx.fillText('Помочь', needyObj.x, needyObj.y - 30);
                 }
 
-                // Игрок
                 drawCharacter(player.x, player.y, '#2563EB', '#FDBA74', true);
                 if (resources > 0) {
-                    ctx.fillStyle = lvl.resColor; ctx.fillRect(player.x - 12, player.y - 5, 8, 8); // Несет коробку
+                    ctx.fillStyle = lvl.resColor; ctx.fillRect(player.x - 12, player.y - 5, 8, 8);
                 }
             }
 
-            // Деревья на переднем плане (y >= 250)
             trees.filter(t => t.y >= 250).forEach(t => drawTree(t.x, t.y, lvl));
 
-            // Эффекты
             particles.forEach(p => {
                 ctx.globalAlpha = p.life / p.maxLife; ctx.fillStyle = p.color; ctx.font = 'bold 20px Arial'; 
                 ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.strokeText(p.text, p.x, p.y); ctx.fillText(p.text, p.x, p.y);
