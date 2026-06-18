@@ -20,7 +20,8 @@ from .views import (
     sponsorship_page,
     terms_page,
     # test_page,
-    volunteer_page
+    volunteer_page,
+    game_page
 )
 
 urlpatterns = [
@@ -39,6 +40,7 @@ urlpatterns = [
     path('volunteer/', volunteer_page, name='volunteer-html'),
     path('privacy-policy/', privacy_page, name='privacy-html'),
     path('terms-of-use/', terms_page, name='terms-html'),
+    path('game/', game_page, name='game-html'),
     # path('test/', test_page, name='test-html'),
 
     # --- API Endpoints (Возвращают JSON для JavaScript) ---

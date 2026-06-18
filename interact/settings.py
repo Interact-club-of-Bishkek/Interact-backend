@@ -215,14 +215,10 @@ SIMPLE_JWT = {
 
 AUTH_USER_MODEL = 'users.Volunteer'
 
-
-
 WSGI_APPLICATION = 'interact.wsgi.application'
-
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
-
 
 
 # DATABASES = {
@@ -282,7 +278,7 @@ EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'interact.club.kg@gmail.com'  # твоя почта
+EMAIL_HOST_USER = 'info@interact-club.kg'  # твоя почта
 EMAIL_HOST_PASSWORD = 'jumxjpogwlwzjalx'       # пароль приложения Google
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 

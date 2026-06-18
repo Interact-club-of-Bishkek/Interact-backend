@@ -153,3 +153,6 @@ def terms_page(request):
 
 def volunteer_page(request):
     return render(request, 'main_page/volunteer.html')  
+
+def game_page(request):
+    return render(request, 'main_page/game.html')  
