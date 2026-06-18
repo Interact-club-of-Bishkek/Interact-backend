@@ -58,18 +58,37 @@ services:
     restart: always
 
   telegram_bot:
+
     build:
+
       context: .
+
       dockerfile: ./telegram_bot/Dockerfile
-    image: interact_telegram_bot:latest
+
     container_name: interact_telegram_bot
-    env_file: .env
-    depends_on:
-      - backend
+
     restart: always
+
+    env_file: .env
+
+    depends_on:
+
+      - backend
+
     networks:
+
       - backend_network
 
+    # 🔥 ВАЖНО: убираем sysctls и dns — они часто ломают Docker routing
+
+    # если очень надо DNS:
+
+    dns:
+
+      - 1.1.1.1
+
+      - 8.8.8.8
+  
 volumes:
   postgres_data:
   static_volume:

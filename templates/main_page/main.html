@@ -2,12 +2,11 @@
 <!DOCTYPE html>
 <html lang="ru" class="scroll-smooth">
 <head>
-<meta charset="UTF-8">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
     <title>Interact Club of Bishkek</title>
     
-    <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-7Z6NZE9HKP"></script>
     <script>
     window.dataLayer = window.dataLayer || [];
@@ -29,7 +28,7 @@
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Interact Club of Bishkek">
     <meta property="og:title" content="Interact Club of Bishkek | Клуб волонтеров">
-    <meta property="og:description" content="Мы занимаемся благотворительностью, социальными проектами и помощью в Бишкеке. Узнайте больше о нашей деятельности!">
+    <meta property="og:description" content="Мы занимаемся благотворительностью, социальными проектов и помощью в Бишкеке. Узнайте больше о нашей деятельности!">
     <meta property="og:url" content="https://interact-club.kg/"> <meta property="og:image" content="{% static 'img/logo.png' %}"> <meta property="og:locale" content="ru_RU">
 
     <meta name="twitter:card" content="summary_large_image">
@@ -104,6 +103,32 @@
         }
         
         body { -webkit-tap-highlight-color: transparent; }
+
+        /* --- СТИЛИ ИИ ЧАТА --- */
+        .chat-widget { position: fixed; bottom: 24px; right: 24px; z-index: 1000; }
+        .chat-btn { width: 60px; height: 60px; border-radius: 50%; background: #2563EB; color: white; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 10px 25px rgba(37, 99, 235, 0.4); cursor: pointer; transition: transform 0.3s ease; }
+        .chat-btn:hover { transform: scale(1.1); }
+        .chat-window { position: absolute; bottom: 80px; right: 0; width: 350px; height: 500px; background: #121212; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.8); display: flex; flex-direction: column; overflow: hidden; opacity: 0; pointer-events: none; transform: translateY(20px) scale(0.95); transition: all 0.3s ease; transform-origin: bottom right; }
+        .chat-window.active { opacity: 1; pointer-events: auto; transform: translateY(0) scale(1); }
+        .chat-header { background: #2563EB; padding: 15px 20px; font-weight: bold; font-family: 'Cormorant', serif; font-size: 20px; display: flex; justify-content: space-between; align-items: center; color: white; }
+        .chat-header i { cursor: pointer; opacity: 0.8; transition: 0.2s; }
+        .chat-header i:hover { opacity: 1; }
+        .chat-messages { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+        .msg-bubble { max-width: 85%; padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.4; word-wrap: break-word; font-family: 'Geologica', sans-serif; white-space: pre-wrap; }        .msg-ai { align-self: flex-start; background: rgba(255,255,255,0.1); color: white; border-bottom-left-radius: 4px; }
+        .msg-user { align-self: flex-end; background: #2563EB; color: white; border-bottom-right-radius: 4px; }
+        .chat-input-area { padding: 15px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; gap: 10px; background: #121212; }
+        .chat-input { flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 10px 15px; border-radius: 20px; color: white; outline: none; transition: 0.2s; font-family: 'Geologica', sans-serif; font-size: 14px;}
+        .chat-input:focus { border-color: #2563EB; }
+        .chat-send { background: #2563EB; border: none; width: 42px; height: 42px; border-radius: 50%; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; flex-shrink: 0;}
+        .chat-send:hover { background: #1D4ED8; }
+        .typing { display: inline-flex; gap: 4px; align-items: center; padding: 14px 16px; }
+        .typing span { width: 6px; height: 6px; background: #fff; border-radius: 50%; animation: blink 1.4s infinite both; }
+        .typing span:nth-child(2) { animation-delay: 0.2s; }
+        .typing span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes blink { 0% { opacity: 0.2; } 20% { opacity: 1; } 100% { opacity: 0.2; } }
+        @media (max-width: 480px) {
+            .chat-window { width: calc(100vw - 48px); bottom: 75px; height: 420px; }
+        }
     </style>
 </head>
 <body class="bg-black text-white font-body antialiased overflow-x-hidden selection:bg-royal-blue selection:text-white flex flex-col min-h-screen"> 
@@ -424,6 +449,26 @@
         </section>
     </main>
 
+    <div class="chat-widget">
+        <div class="chat-window" id="chat-window">
+            <div class="chat-header">
+                <span>ИИ-Помощник клуба</span>
+                <i class="fas fa-times close-chat" onclick="toggleChat()"></i>
+            </div>
+            <div class="chat-messages" id="chat-messages">
+                <div class="msg-bubble msg-ai">Привет! Я ИИ-помощник Interact Club of Bishkek. Задайте мне вопрос о наших проектах, вступлении в клуб или правилах!</div>
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="chat-input" class="chat-input" placeholder="Напишите сообщение..." onkeypress="handleChatKeypress(event)">
+                <button class="chat-send" onclick="sendChatMessage()">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+        <div class="chat-btn" onclick="toggleChat()" title="Чат с ИИ">
+            <i class="fas fa-robot"></i>
+        </div>
+    </div>
     <footer class="bg-[#09152E] border-t border-white/10 pt-12 pb-12 mt-auto">
         <div class="container mx-auto px-4 md:px-6">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 md:gap-8 text-center md:text-left items-start">
@@ -1024,6 +1069,94 @@
                 el.querySelector('h3').classList.add('text-light-blue');
             }
         }
+
+        // ====== СКРИПТ ИИ-ЧАТА ======
+        let chatSessionId = localStorage.getItem('chatSessionId');
+        if (!chatSessionId) {
+            chatSessionId = 'session_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('chatSessionId', chatSessionId);
+        }
+
+        function toggleChat() {
+            document.getElementById('chat-window').classList.toggle('active');
+        }
+
+        function handleChatKeypress(e) {
+            if (e.key === 'Enter') sendChatMessage();
+        }
+
+        async function sendChatMessage() {
+            const inputField = document.getElementById('chat-input');
+            const messagesContainer = document.getElementById('chat-messages');
+            const message = inputField.value.trim();
+
+            if (!message) return;
+
+            // Отображаем сообщение юзера
+            messagesContainer.innerHTML += `<div class="msg-bubble msg-user">${message}</div>`;
+            inputField.value = '';
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            // Отображаем индикатор "ИИ печатает..."
+            const typingId = 'typing_' + Date.now();
+            messagesContainer.innerHTML += `
+                <div id="${typingId}" class="msg-bubble msg-ai typing">
+                    <span></span><span></span><span></span>
+                </div>`;
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            try {
+                // ОТПРАВЛЯЕМ ЗАПРОС К НАШЕМУ DJANGO VIEWS.PY
+                const response = await fetch('/api/chat/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken') // Функция Django CSRF
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        session_id: chatSessionId
+                    })
+                });
+
+                const data = await response.json();
+                document.getElementById(typingId).remove(); // Удаляем три точки
+
+                if (response.ok) {
+                    // 1. Превращаем **текст** в жирный HTML
+                    let formattedAnswer = data.answer.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+                    
+                    // 2. Превращаем [текст](ссылка) в кликабельные HTML-ссылки
+                    formattedAnswer = formattedAnswer.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-light-blue underline hover:text-white" target="_blank">$1</a>');
+                    
+                    // 3. Выводим красивый ответ
+                    messagesContainer.innerHTML += `<div class="msg-bubble msg-ai">${formattedAnswer}</div>`;
+                } else {
+                    messagesContainer.innerHTML += `<div class="msg-bubble msg-ai text-red-400">Ошибка: ${data.error}</div>`;
+                }
+            } catch (err) {
+                document.getElementById(typingId).remove();
+                messagesContainer.innerHTML += `<div class="msg-bubble msg-ai text-red-400">Ошибка сети. Попробуйте позже.</div>`;
+            }
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Вспомогательная функция для CSRF-токена в Django
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        // ============================
     </script>
 </body>
 </html>

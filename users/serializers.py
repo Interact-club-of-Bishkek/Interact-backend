@@ -48,7 +48,8 @@ class VolunteerSerializer(serializers.ModelSerializer):
             'role', 'role_display', 'direction', 'commands', 
             'point', 
             'yellow_card_count', # 🔥 2. Обязательно добавляем в список полей
-            'is_team_leader'
+            'is_team_leader',
+            'point_goal'
         ]
         read_only_fields = ['point', 'role', 'login', 'yellow_card_count']
 
@@ -181,3 +182,53 @@ class BulkAttendanceSerializer(serializers.Serializer):
     records = serializers.ListField(
         child=serializers.DictField()
     )
+
+
+from rest_framework import serializers
+from .models import MiniTeam, MiniTeamMembership, SponsorTask
+
+class MiniTeamMembershipSerializer(serializers.ModelSerializer):
+    """Сериализатор для участников мини-команды (с деталями волонтера)"""
+    volunteer_name = serializers.CharField(source='volunteer.name', read_only=True)
+    volunteer_login = serializers.CharField(source='volunteer.login', read_only=True)
+    role_display = serializers.CharField(source='get_role_display', read_only=True)
+
+    class Meta:
+        model = MiniTeamMembership
+        fields = [
+            'id', 'volunteer', 'volunteer_name', 'volunteer_login', 
+            'role', 'role_display', 'assigned_by'
+        ]
+        read_only_fields = ['assigned_by']
+
+
+class MiniTeamSerializer(serializers.ModelSerializer):
+    """Сериализатор для мини-команд"""
+    # Вложенный сериализатор, чтобы сразу отдавать список участников
+    members = MiniTeamMembershipSerializer(source='memberships', many=True, read_only=True)
+    
+    # Для удобства отдаем названия родительских групп
+    direction_name = serializers.CharField(source='direction.name', read_only=True)
+    command_title = serializers.CharField(source='command.title', read_only=True)
+
+    class Meta:
+        model = MiniTeam
+        fields = [
+            'id', 'title', 'direction', 'direction_name', 
+            'command', 'command_title', 'members', 'created_at'
+        ]
+
+
+class SponsorTaskSerializer(serializers.ModelSerializer):
+    """Сериализатор для задач (базы спонсоров)"""
+    assigned_volunteer_name = serializers.CharField(source='assigned_volunteer.name', read_only=True)
+    miniteam_title = serializers.CharField(source='miniteam.title', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+
+    class Meta:
+        model = SponsorTask
+        fields = [
+            'id', 'miniteam', 'miniteam_title', 'sponsor_name', 'contact_info',
+            'assigned_volunteer', 'assigned_volunteer_name', 'status', 'status_display',
+            'comment', 'created_at', 'updated_at'
+        ]

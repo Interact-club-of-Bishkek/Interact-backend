@@ -31,13 +31,13 @@
         .input-field:focus + .input-icon { color: var(--primary); }
         
         .btn-primary { background: var(--primary); color: black; font-weight: 800; width: 100%; padding: 16px; border-radius: 16px; text-transform: uppercase; letter-spacing: 0.05em; transition: 0.3s; box-shadow: 0 4px 15px rgba(0, 198, 255, 0.2); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
-        .btn-primary:active { transform: scale(0.98); }
-        .btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }
+        .btn-primary:active:not(:disabled) { transform: scale(0.98); }
+        .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
 
         .link-text { color: #94a3b8; font-size: 12px; font-weight: 600; text-align: center; margin-top: 20px; cursor: pointer; transition: 0.3s; }
         .link-text:hover { color: var(--primary); }
 
-        .hidden { display: none; }
+        .hidden { display: none !important; }
         .fade-in { animation: fadeIn 0.4s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -90,13 +90,27 @@
                     <i class="fas fa-lock input-icon"></i>
                 </div>
                 
+                <label id="tosGroup" class="hidden items-center gap-3 mb-6 cursor-pointer group flex">
+                    <div class="relative flex items-center justify-center w-5 h-5 shrink-0">
+                        <input type="checkbox" id="tosCheckbox" class="peer sr-only" onchange="checkTos()">
+                        <div class="w-full h-full rounded-md border border-white/20 bg-black/30 peer-checked:bg-primary peer-checked:border-primary transition-all flex items-center justify-center">
+                            <i class="fas fa-check text-black text-[10px] opacity-0 peer-checked:opacity-100 transition-all transform scale-50 peer-checked:scale-100"></i>
+                        </div>
+                    </div>
+                    <span class="text-[10px] text-gray-400 group-hover:text-gray-300 transition-colors select-none leading-tight" id="tosLabel">
+                        Я согласен с правилами клуба и обработкой данных
+                    </span>
+                </label>
+
                 <button type="submit" id="authBtn" class="btn-primary">
                     <span id="btn-auth-text">Войти</span>
                     <i class="fas fa-arrow-right"></i>
                 </button>
             </form>
             
-            <p onclick="toggleAuth()" id="toggleBtn" class="link-text">Нет аккаунта? <span class="text-primary underline">Зарегистрироваться</span></p>
+            <div id="toggleBtnWrapper" class="mt-5 text-center">
+                <p onclick="toggleAuth()" id="toggleBtn" class="link-text m-0 inline-block"></p>
+            </div>
         </div>
 
         <div id="appSection" class="hidden">
@@ -146,9 +160,9 @@
 
     <script>
         let isLogin = true;
+        let isRegistrationOpen = true; // Глобальный статус регистрации
         let currentLang = localStorage.getItem('lang') || 'ru';
 
-        // --- УМНЫЙ FETCH С АВТО-ОБНОВЛЕНИЕМ ТОКЕНА ---
         async function apiFetch(url, options = {}) {
             let access = localStorage.getItem('access');
             if (!options.headers) options.headers = {};
@@ -160,7 +174,6 @@
                 const refresh = localStorage.getItem('refresh');
                 if (refresh) {
                     try {
-                        // Пытаемся получить новый access токен
                         const refreshRes = await fetch('/api/token/refresh/', { 
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -171,7 +184,6 @@
                             const data = await refreshRes.json();
                             localStorage.setItem('access', data.access);
                             options.headers['Authorization'] = `Bearer ${data.access}`;
-                            // Повторяем изначальный запрос
                             res = await fetch(url, options);
                         } else {
                             doLogout();
@@ -187,7 +199,23 @@
         function doLogout() {
             localStorage.removeItem('access');
             localStorage.removeItem('refresh');
-            // Мы уже на странице логина, так что просто ничего не делаем или скрываем админку
+        }
+
+        // --- 1. ФУНКЦИЯ ПРОВЕРКИ СТАТУСА РЕГИСТРАЦИИ С БЭКЕНДА ---
+        async function fetchRegistrationStatus() {
+            try {
+                // Создай этот эндпоинт в views.py (чтобы отдавал { "is_registration_open": true/false })
+                const res = await fetch('/api/settings/'); 
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.is_registration_open !== undefined) {
+                        isRegistrationOpen = data.is_registration_open;
+                    }
+                }
+            } catch (e) {
+                console.error("Не удалось получить настройки с бэкенда", e);
+            }
+            updateToggleUI(); // Обновляем кнопку переключения после ответа
         }
 
         const translations = {
@@ -198,8 +226,10 @@
                 regNextBtn: "Продолжить",
                 noAcc: "Нет аккаунта? <span class='text-primary underline'>Зарегистрироваться</span>",
                 haveAcc: "Уже есть аккаунт? <span class='text-primary underline'>Войти</span>",
+                regClosed: "<span class='text-gray-500'>Регистрация закрыта</span>", // Добавлено
                 loginPlace: "Логин",
                 passPlace: "Пароль",
+                tosLabel: "Я согласен с правилами клуба и обработкой данных",
                 appTitle: "Почти готово",
                 namePlace: "Ваше ФИО",
                 phonePlace: "Телефон",
@@ -221,8 +251,10 @@
                 regNextBtn: "Continue",
                 noAcc: "No account? <span class='text-primary underline'>Sign Up</span>",
                 haveAcc: "Already have an account? <span class='text-primary underline'>Sign In</span>",
+                regClosed: "<span class='text-gray-500'>Registration is closed</span>", // Добавлено
                 loginPlace: "Username",
                 passPlace: "Password",
+                tosLabel: "I agree to the club rules and data processing",
                 appTitle: "Almost done",
                 namePlace: "Your Full Name",
                 phonePlace: "Phone number",
@@ -251,8 +283,8 @@
             document.getElementById('title').innerText = isLogin ? t.loginTitle : t.regTitle;
             document.getElementById('userLogin').placeholder = t.loginPlace;
             document.getElementById('userPass').placeholder = t.passPlace;
+            document.getElementById('tosLabel').innerText = t.tosLabel;
             document.getElementById('btn-auth-text').innerText = isLogin ? t.loginBtn : t.regNextBtn;
-            document.getElementById('toggleBtn').innerHTML = isLogin ? t.noAcc : t.haveAcc;
 
             document.getElementById('app-title').innerText = t.appTitle;
             document.getElementById('fullName').placeholder = t.namePlace;
@@ -262,6 +294,53 @@
                 document.getElementById('selectedOptionLabel').innerText = t.dirPlace;
             }
             document.getElementById('btn-app-text').innerText = t.finishBtn;
+            
+            updateToggleUI();
+        }
+
+        // --- 2. ЛОГИКА ОТОБРАЖЕНИЯ ПЕРЕКЛЮЧАТЕЛЯ И КНОПКИ СОГЛАСИЯ ---
+        function updateToggleUI() {
+            const t = translations[currentLang];
+            const toggleBtn = document.getElementById('toggleBtn');
+            const tosGroup = document.getElementById('tosGroup');
+            
+            if (isLogin) {
+                tosGroup.classList.add('hidden'); // Скрываем правила
+                document.getElementById('authBtn').disabled = false; // Кнопка "Войти" всегда активна
+                
+                if (isRegistrationOpen) {
+                    toggleBtn.innerHTML = t.noAcc;
+                    toggleBtn.style.pointerEvents = "auto";
+                    toggleBtn.onclick = toggleAuth;
+                } else {
+                    toggleBtn.innerHTML = t.regClosed;
+                    toggleBtn.style.pointerEvents = "none"; // Запрещаем кликать
+                    toggleBtn.onclick = null;
+                }
+            } else {
+                tosGroup.classList.remove('hidden'); // Показываем правила при регистрации
+                checkTos(); // Проверяем, стоит ли галочка
+                
+                toggleBtn.innerHTML = t.haveAcc;
+                toggleBtn.style.pointerEvents = "auto";
+                toggleBtn.onclick = toggleAuth;
+            }
+        }
+
+        function checkTos() {
+            if (!isLogin) {
+                const isChecked = document.getElementById('tosCheckbox').checked;
+                document.getElementById('authBtn').disabled = !isChecked;
+            }
+        }
+
+        function toggleAuth() {
+            if (isLogin && !isRegistrationOpen) return; // Защита
+            isLogin = !isLogin;
+            setLang(currentLang);
+            // Сбрасываем чекбокс при переходе
+            document.getElementById('tosCheckbox').checked = false;
+            checkTos();
         }
 
         function showToast(message, type = 'error') {
@@ -321,6 +400,7 @@
         });
 
         function navigateUser(user) {
+            if (user.role === 'bailiff_base') { location.href = '/bailiff-base-panel/'; return; }
             if (user.role === 'equity_officer') { location.href = '/equity-panel/'; return; }
             if (user.role === 'bailiff_activity') { location.href = '/bailiff-panel/'; return; }
             if (user.role === 'admin' || user.role === 'president') { location.href = '/admin-panel/'; return; }
@@ -344,15 +424,9 @@
             } catch (e) {}
         }
 
-        function toggleAuth() {
-            isLogin = !isLogin;
-            setLang(currentLang);
-        }
-
         function backToAuth() {
             document.getElementById('appSection').classList.add('hidden');
             document.getElementById('authSection').classList.remove('hidden');
-            // Вместо полного clear() удаляем только токены, чтобы сохранить язык
             localStorage.removeItem('access');
             localStorage.removeItem('refresh');
         }
@@ -373,16 +447,18 @@
                 const data = await res.json();
                 if (res.ok) {
                     localStorage.setItem('access', data.access);
-                    if (data.refresh) localStorage.setItem('refresh', data.refresh); // Сохраняем REFRESH токен!
+                    if (data.refresh) localStorage.setItem('refresh', data.refresh);
                     showToast(translations[currentLang].authSuccess, "success");
                     setTimeout(() => navigateUser(data), 800);
                 } else { 
                     showToast(data.detail || data.error || translations[currentLang].errorAccess, "error");
                     setLoading('authBtn', false);
+                    checkTos(); // Возвращаем состояние кнопки
                 }
             } catch (err) {
                 showToast(translations[currentLang].errorNet, "error");
                 setLoading('authBtn', false);
+                checkTos();
             }
         }
 
@@ -441,6 +517,7 @@
         // INIT
         setLang(currentLang);
         checkSession();
+        fetchRegistrationStatus(); // Вызов функции при загрузке страницы
     </script>
 </body>
 </html>

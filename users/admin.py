@@ -3,9 +3,9 @@ from django.db.models import Q, Count
 from django.utils.html import format_html
 from django.urls import reverse
 from .models import (
-    Volunteer, VolunteerApplication, VolunteerArchive, 
+    ChatSession, ChatMessage, Volunteer, VolunteerApplication, VolunteerArchive, 
     ActivityTask, ActivitySubmission, BotAccessConfig,
-    Attendance, YellowCard
+    Attendance, YellowCard, AppSettings, MiniTeam, MiniTeamMembership, SponsorTask
 )
 
 # --- НАСТРОЙКИ ШАПКИ АДМИНКИ ---
@@ -13,8 +13,31 @@ admin.site.site_header = "Управление Волонтерами"
 admin.site.site_title = "Admin Panel"
 admin.site.index_title = "Добро пожаловать в CRM"
 
-# --- INLINES ---
+@admin.register(AppSettings)
+class AppSettingsAdmin(admin.ModelAdmin):
+    # Выводим все три рубильника в список
+    list_display = (
+        '__str__', 
+        'is_registration_open', 
+        'is_direction_selection_open', 
+        'is_points_submission_open' # <-- Добавлено
+    )
+    
+    # Делаем их редактируемыми без захода внутрь записи
+    list_editable = (
+        'is_registration_open', 
+        'is_direction_selection_open', 
+        'is_points_submission_open' # <-- Добавлено
+    )
 
+    def has_add_permission(self, request):
+        if self.model.objects.exists():
+            return False
+        return super().has_add_permission(request)
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+    
 class ActivitySubmissionInline(admin.TabularInline):
     model = ActivitySubmission
     extra = 0
@@ -195,21 +218,30 @@ class ActivitySubmissionAdmin(admin.ModelAdmin):
 @admin.register(ActivityTask)
 class ActivityTaskAdmin(admin.ModelAdmin):
     search_fields = ('title',)
-    list_display = ('title', 'points', 'visibility_icon', 'submissions_count')
+    
+    # Поля, отображаемые в списке
+    list_display = ('order', 'title', 'points', 'visibility_icon', 'submissions_count')
+    
+    # 🔥 Указываем, что ссылкой будет 'title', а не первое поле ('order')
+    list_display_links = ('title',)
+    
+    # Поля, которые можно редактировать прямо в списке
+    list_editable = ('order',) 
+    
     autocomplete_fields = ['command']
 
     def visibility_icon(self, obj):
         if obj.command:
             return format_html('🔒 <small>{}</small>', obj.command.title)
         return format_html('<span style="color: #10b981;">🌍 Общее</span>')
+    visibility_icon.short_description = "Видимость"
 
-    # 🔥 ВЕРНУЛ СТАТИСТИКУ ОТВЕТОВ
     def submissions_count(self, obj):
+        from django.urls import reverse
         count = ActivitySubmission.objects.filter(task=obj).count()
         url = reverse("admin:users_activitysubmission_changelist") + f"?task__id__exact={obj.id}"
         return format_html('<a href="{}" style="font-weight: bold; color: #3b82f6;">{} ответов</a>', url, count)
     submissions_count.short_description = "Ответы"
-
 
 @admin.register(Attendance)
 class AttendanceAdmin(admin.ModelAdmin):
@@ -231,3 +263,66 @@ class VolunteerApplicationAdmin(admin.ModelAdmin):
 
 admin.site.register(BotAccessConfig)
 admin.site.register(VolunteerArchive)
+
+class ChatMessageInline(admin.TabularInline):
+    model = ChatMessage
+    extra = 0
+    readonly_fields = ('sender', 'text', 'created_at')
+    can_delete = False
+
+@admin.register(ChatSession)
+class ChatSessionAdmin(admin.ModelAdmin):
+    list_display = ('session_id', 'created_at')
+    inlines = [ChatMessageInline]
+
+
+# Inline-класс для отображения участников прямо внутри страницы мини-команды
+class MiniTeamMembershipInline(admin.TabularInline):
+    model = MiniTeamMembership
+    extra = 1  # Количество пустых строк для добавления новых участников
+    raw_id_fields = ('volunteer', 'assigned_by') # Чтобы не грузить весь список волонтеров в dropdown
+
+
+@admin.register(MiniTeam)
+class MiniTeamAdmin(admin.ModelAdmin):
+    list_display = ('title', 'get_parent_group', 'created_at')
+    list_filter = ('direction', 'command')
+    search_fields = ('title',)
+    inlines = [MiniTeamMembershipInline] # Подключаем таблицу участников
+
+    def get_parent_group(self, obj):
+        """Показывает, к чему привязана мини-команда"""
+        if obj.direction:
+            return f"Направление: {obj.direction.name}"
+        if obj.command:
+            return f"Команда: {obj.command.title}"
+        return "—"
+    get_parent_group.short_description = "Привязка"
+
+
+@admin.register(MiniTeamMembership)
+class MiniTeamMembershipAdmin(admin.ModelAdmin):
+    list_display = ('miniteam', 'volunteer', 'role', 'assigned_by')
+    list_filter = ('role', 'miniteam')
+    search_fields = ('volunteer__name', 'volunteer__login', 'miniteam__title')
+    raw_id_fields = ('volunteer', 'miniteam', 'assigned_by')
+
+
+@admin.register(SponsorTask)
+class SponsorTaskAdmin(admin.ModelAdmin):
+    list_display = ('sponsor_name', 'miniteam', 'assigned_volunteer', 'status', 'created_at')
+    list_filter = ('status', 'miniteam')
+    search_fields = ('sponsor_name', 'assigned_volunteer__name', 'assigned_volunteer__login')
+    raw_id_fields = ('miniteam', 'assigned_volunteer')
+    
+    # Раскрашиваем статусы для красоты в админке
+    def get_status_html(self, obj):
+        colors = {
+            'pending': 'orange',
+            'review': 'blue',
+            'agreed': 'green',
+            'rejected': 'red'
+        }
+        color = colors.get(obj.status, 'black')
+        return format_html('<span style="color: {}; font-weight: bold;">{}</span>', color, obj.get_status_display())
+    get_status_html.short_description = 'Вердикт'
