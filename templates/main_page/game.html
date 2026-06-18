@@ -52,8 +52,8 @@
 
         #game-wrapper {
             position: relative; width: 100%; max-width: 900px;
-            display: flex; flex-direction: column; align-items: center;
-            padding: 0 10px; box-sizing: border-box;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 0 10px; box-sizing: border-box; height: 100vh;
         }
 
         #ui {
@@ -77,12 +77,13 @@
 
         canvas {
             border-radius: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.5);
-            border: 4px solid #fff; width: 100%; max-width: 900px;
+            border: 4px solid #fff; 
+            max-width: 100%; 
+            max-height: 65vh; /* ВАЖНО: не дает холсту вылезти за нижний край */
             background-color: #000;
             image-rendering: pixelated; 
             cursor: pointer;
-            aspect-ratio: 8 / 5; /* Важно: сохраняем пропорции игрового поля */
-            height: auto;
+            aspect-ratio: 8 / 5; /* Автоматически сжимает ширину, если высота не влезает */
         }
 
         /* Экраны сюжета */
@@ -95,12 +96,18 @@
         .modal-content {
             background: #fff; padding: 30px; border-radius: 16px; text-align: center;
             max-width: 450px; width: 90%; border: 4px solid #2563EB; box-sizing: border-box;
+            max-height: 85vh; /* Ограничиваем высоту окна */
+            overflow-y: auto; /* Включаем прокрутку внутри окна */
+            display: flex; flex-direction: column; align-items: center;
         }
-        .modal h1 { margin-top: 0; color: #2563EB; font-size: 24px; font-weight: 900; }
+        .modal-content::-webkit-scrollbar { width: 6px; }
+        .modal-content::-webkit-scrollbar-thumb { background: #2563EB; border-radius: 10px; }
+        
+        .modal h1 { margin-top: 0; color: #2563EB; font-size: 24px; font-weight: 900; flex-shrink: 0; }
         .modal p { color: #4B5563; font-size: 16px; margin-bottom: 20px; }
         .btn {
             background: #2563EB; color: white; border: none; padding: 12px 25px;
-            font-size: 16px; font-weight: bold; border-radius: 30px;
+            font-size: 16px; font-weight: bold; border-radius: 30px; flex-shrink: 0;
             cursor: pointer; transition: transform 0.2s, background 0.2s; font-family: 'Nunito', sans-serif;
         }
         .btn:hover { background: #1D4ED8; transform: translateY(-2px); }
@@ -112,17 +119,17 @@
         /* --- АДАПТИВНОСТЬ ПОД МОБИЛЬНЫЕ УСТРОЙСТВА --- */
         #rotate-device { display: none; }
 
-        @media (max-width: 768px) {
-            #ui { padding: 8px 15px; gap: 8px; border-width: 3px; }
-            .level-badge { padding: 6px 12px; font-size: 12px; }
-            .score-value { font-size: 18px; }
+        @media (max-width: 768px), (max-height: 500px) {
+            #ui { padding: 5px 15px; gap: 8px; border-width: 3px; margin-bottom: 5px; }
+            .level-badge { padding: 4px 10px; font-size: 11px; }
+            .score-value { font-size: 16px; }
             .score-title { font-size: 9px; }
-            canvas { border-width: 3px; }
-            .modal-content { padding: 20px; }
-            .modal h1 { font-size: 20px; }
-            .modal p { font-size: 14px; }
-            .btn { padding: 10px 20px; font-size: 14px; }
-            .controls-hint { font-size: 12px; }
+            canvas { border-width: 3px; max-height: 60vh; }
+            .modal-content { padding: 15px; border-width: 3px; }
+            .modal h1 { font-size: 18px; margin-bottom: 10px; }
+            .modal p { font-size: 13px; margin-bottom: 15px; }
+            .btn { padding: 8px 16px; font-size: 14px; }
+            .controls-hint { font-size: 11px; margin-top: 5px; }
         }
 
         /* Экран-заглушка: просит повернуть телефон горизонтально */
