@@ -221,7 +221,7 @@ WSGI_APPLICATION = 'interact.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-<<<<<<< HEAD
+
 
 # DATABASES = {
 #     'default': {
@@ -230,8 +230,6 @@ WSGI_APPLICATION = 'interact.wsgi.application'
 #     }
 # }
 
-=======
->>>>>>> 8774fc685b45bc6236d69ad727e5be6872892e1f
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -278,19 +276,7 @@ USE_TZ = True
 
 
 # ======== EMAIL SETTINGS ========
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "smtp.gmail.com"
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-<<<<<<< HEAD
-EMAIL_HOST_USER = 'info@interact-club.kg'  # твоя почта
-EMAIL_HOST_PASSWORD = 'jumxjpogwlwzjalx'       # пароль приложения Google
-=======
-# ⚠️ Рекомендуется вынести эти данные в .env файл (os.environ.get('EMAIL_HOST_USER') и т.д.)
-EMAIL_HOST_USER = 'interact.club.kg@gmail.com'  
-EMAIL_HOST_PASSWORD = 'jumxjpogwlwzjalx'       
->>>>>>> 8774fc685b45bc6236d69ad727e5be6872892e1f
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
 
 
 
