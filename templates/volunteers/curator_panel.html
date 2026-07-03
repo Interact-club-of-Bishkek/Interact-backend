@@ -1330,16 +1330,39 @@
         fetch(`${API.submissions}${id}/`, { method: 'PATCH', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(res => { if (res.ok) { showToast('Успешно обновлено'); loadAllData(); } else { showToast('Ошибка при обновлении', 'error'); } });
     }
 
+    // 🔥 ОБНОВЛЕНО: Функция для массового принятия заявок со стороны клиента
+    async function approveAllMy() {
+        if (!confirm("Принять все ожидающие баллы одним кликом?")) return;
+        try {
+            const res = await fetch(API.submissions + 'approve_all/', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+            });
+            if (res.ok) {
+                showToast('✅ Все заявки успешно приняты!');
+                loadAllData();
+            } else {
+                showToast('Ошибка при принятии', 'error');
+            }
+        } catch(e) { showToast('Ошибка сети', 'error'); }
+    }
+
     function renderSubmissions() {
         const container = document.getElementById('secReq'); if (!container) return;
         const pending = state.submissions.filter(s => s.status === 'pending');
         if (pending.length === 0) return container.innerHTML = `<div class="col-span-full py-20 text-center text-gray-600 font-black uppercase text-xs italic tracking-widest">Нет новых заявок</div>`;
+        
         container.innerHTML = pending.map(s => {
             const isFlex = s.task_details?.is_flexible, contextName = s.task_details?.command_name || s.task_details?.direction_name || 'Задача', qty = parseInt(s.quantity) || 1;
             const displayPoints = s.points_awarded !== null && s.points_awarded !== undefined ? parseFloat(parseFloat(s.points_awarded).toFixed(1)) : parseFloat(((parseFloat(s.task_details?.points) || 0) * qty).toFixed(1));
             const qtyBadge = qty > 1 ? `<span class="ml-2 px-1.5 py-0.5 bg-primary/20 text-primary text-[10px] rounded-md font-bold">x${qty} шт.</span>` : '';
             return `<div class="glass-card flex flex-col h-full border-white/5 hover:border-primary/20 transition group" id="sub-${s.id}"><div class="flex justify-between items-start mb-4"><span class="px-2 py-1 bg-primary/10 text-primary text-[8px] font-black uppercase rounded">${contextName}</span><span class="text-[10px] text-gray-600 font-mono tracking-tighter">${new Date(s.created_at).toLocaleDateString()}</span></div><div class="mb-6 flex-grow"><h4 class="font-black text-lg italic uppercase leading-tight text-white group-hover:text-primary transition">${s.volunteer_name || 'Волонтер'}</h4><p class="text-[10px] text-gray-400 font-bold uppercase mt-1 mb-3 flex items-center flex-wrap gap-1">${s.task_details?.title || 'Без названия'} ${qtyBadge}</p><div class="bg-black/40 p-3 rounded-xl text-sm italic text-gray-500 border border-white/5">"${s.description || 'Нет комментария'}"</div></div><div class="flex flex-col gap-3 mt-auto"><div class="flex items-center justify-between bg-white/5 p-3 rounded-2xl border border-white/10 transition-all hover:border-primary/30 group/input"><div class="flex flex-col"><span class="text-[9px] font-black text-gray-500 uppercase ml-1 tracking-tighter">${isFlex ? 'Оценка работы' : 'Итого баллов'}</span><span class="text-[8px] text-primary/40 font-bold uppercase ml-1">${isFlex ? 'изменяемое' : 'стандарт'}</span></div>${isFlex ? `<div class="relative flex items-center"><i class="fas fa-pen text-[10px] text-primary/30 absolute left-3 group-focus-within/input:text-primary transition-colors"></i><input type="number" id="pts-${s.id}" class="w-24 bg-[#0f172a] border-2 border-primary/20 rounded-xl pl-8 pr-3 py-2 text-primary font-black text-lg outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all hover:bg-[#1e293b] appearance-none" value="${displayPoints}" step="0.5"></div>` : `<div class="score-badge text-xl px-4 py-2 bg-primary/10 border border-primary/20 rounded-xl">${displayPoints > 0 ? '+' : ''}${formatPoints(displayPoints)}</div>`}</div><div class="grid grid-cols-2 gap-2"><button onclick="decideSub(${s.id}, 'approved')" class="py-3 bg-[#80e5ff] text-black rounded-xl font-black uppercase text-[10px] hover:bg-white transition shadow-lg shadow-sky-500/10">Принять</button><button onclick="decideSub(${s.id}, 'rejected')" class="py-3 bg-white/5 text-gray-500 rounded-xl font-black uppercase text-[10px] hover:text-red-500 transition">Отказ</button></div></div></div>`;
         }).join('');
+
+        // 🔥 ДОБАВЛЕНО: Кнопка «Принять все» в самом верху списка заявок, если они есть
+        if (pending.length > 0) {
+            container.insertAdjacentHTML('afterbegin', `<div class="col-span-full mb-2"><button onclick="approveAllMy()" class="w-full sm:w-auto py-3 px-6 bg-[#80e5ff] text-black font-black uppercase rounded-xl shadow-lg hover:bg-white transition flex items-center justify-center gap-2"><i class="fas fa-check-double"></i> Принять все мои заявки (${pending.length})</button></div>`);
+        }
     }
 
     function closeModal() { document.getElementById('modal').classList.add('hidden'); document.body.style.overflow = 'auto'; }
