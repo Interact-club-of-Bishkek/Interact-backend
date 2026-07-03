@@ -332,42 +332,16 @@ class CuratorSubmissionViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         serializer.save()
 
-    # 🔥 ДОБАВЛЕННЫЙ МЕТОД ДЛЯ МАССОВОГО ПРИНЯТИЯ ЗАЯВОК
-    @action(detail=False, methods=['post'], url_path='approve-all')
-    def approve_all_pending(self, request):
-        user = request.user
-        uid = user.id
-
-        # Базовая выборка: берем только заявки в ожидании
-        pending_qs = ActivitySubmission.objects.filter(status='pending')
-
-        # Ограничиваем права доступа в зависимости от роли
-        if not (user.is_superuser or user.role in ['admin', 'president']):
-            # Фильтруем ровно по тем заявкам, где пользователь является лидером или куратором
-            is_team_leader = Q(command__leader_id=uid)
-            is_direction_curator = Q(direction__responsible_id=uid, command__isnull=True)
-            
-            pending_qs = pending_qs.filter(is_team_leader | is_direction_curator)
-
-        # Дополнительно: если куратор хочет принять баллы только по конкретной команде/направлению
-        # (например, передав {"command_id": 5} в теле запроса)
-        command_id = request.data.get('command_id')
-        direction_id = request.data.get('direction_id')
-        
-        if command_id:
-            pending_qs = pending_qs.filter(command_id=command_id)
-        if direction_id:
-            pending_qs = pending_qs.filter(direction_id=direction_id)
-
-        # Выполняем массовое обновление одним SQL-запросом
-        with transaction.atomic():
-            updated_count = pending_qs.update(status='approved')
-
-        return Response({
-            "status": "success",
-            "message": f"Успешно принято заявок: {updated_count}",
-            "approved_count": updated_count
-        }, status=status.HTTP_200_OK)
+    # 🔥 ДОБАВЛЕНО: Метод для принятия всех своих ожидающих заявок
+    @action(detail=False, methods=['post'], url_path='approve_all')
+    def approve_all(self, request):
+        # Безопасно получаем ID только тех заявок, которые доступны текущему пользователю
+        pending_ids = list(self.get_queryset().filter(status='pending').values_list('id', flat=True))
+        count = len(pending_ids)
+        if count > 0:
+            # Массово обновляем статус без ошибок distinct() в БД
+            ActivitySubmission.objects.filter(id__in=pending_ids).update(status='approved')
+        return Response({"message": f"Успешно принято отчетов: {count}", "count": count})
     
 class VolunteerApplicationViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
