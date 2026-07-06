@@ -1,0 +1,335 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Админ-Панель | Interact Bishkek</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <style>
+        body { background: #020408; color: white; font-family: 'Inter', sans-serif; }
+        .glass { background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        .active-tab { color: #00c6ff; background: rgba(0, 198, 255, 0.1); border-left: 4px solid #00c6ff; }
+        .hidden { display: none !important; }
+        .toggle-checkbox:checked + div { background-color: #00c6ff; }
+        .toggle-checkbox:checked + div > div { transform: translateX(100%); }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+    <aside class="w-72 glass border-r border-white/10 flex flex-col">
+        <div class="p-8 text-2xl font-black italic">ADMIN<span class="text-blue-500">PANEL</span></div>
+        <nav class="flex-1 px-4 space-y-2" id="nav-buttons">
+            <button onclick="showTab('projects', this)" class="w-full text-left p-4 rounded-xl hover:bg-white/5 active-tab"><i class="fa-solid fa-folder w-6"></i> Проекты</button>
+            <button onclick="showTab('vols', this)" class="w-full text-left p-4 rounded-xl hover:bg-white/5"><i class="fa-solid fa-users w-6"></i> Волонтеры</button>
+            
+            <button onclick="showTab('submissions', this)" class="w-full text-left p-4 rounded-xl hover:bg-white/5 flex justify-between items-center">
+                <span><i class="fa-solid fa-list-check w-6"></i> Отчеты</span>
+                {% if pending_submissions.count > 0 %}
+                <span class="bg-amber-500 text-black text-xs font-black px-2 py-0.5 rounded-full">{{ pending_submissions.count }}</span>
+                {% endif %}
+            </button>
+            
+            <button onclick="showTab('apps', this)" class="w-full text-left p-4 rounded-xl hover:bg-white/5 flex justify-between items-center">
+                <span><i class="fa-solid fa-user-plus w-6"></i> Заявки</span>
+                {% if pending_apps.count > 0 %}
+                <span class="bg-blue-500 text-white text-xs font-black px-2 py-0.5 rounded-full">{{ pending_apps.count }}</span>
+                {% endif %}
+            </button>
+            <button onclick="showTab('settings', this)" class="w-full text-left p-4 rounded-xl hover:bg-white/5"><i class="fa-solid fa-gear w-6"></i> Настройки</button>
+        </nav>
+    </aside>
+
+    <main class="flex-1 overflow-y-auto p-10">
+        
+        <section id="tab-projects" class="section">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-3xl font-black">Проекты</h2>
+                <a href="/admin/projects/project/add/" target="_blank" class="bg-blue-600 hover:bg-blue-500 px-5 py-2.5 rounded-xl font-bold transition flex items-center gap-2">
+                    <i class="fa-solid fa-plus"></i> Создать проект
+                </a>
+            </div>
+            <div class="glass rounded-2xl p-6">
+                <table class="w-full text-left">
+                    <thead><tr class="text-gray-400 text-xs uppercase border-b border-white/10"><th class="pb-3">Название</th><th class="pb-3">Категория</th><th class="pb-3">Статус</th><th class="pb-3 text-right">Действие</th></tr></thead>
+                    <tbody>
+                        {% for p in projects %}
+                        <tr class="border-b border-white/5 hover:bg-white/5 transition">
+                            <td class="py-4 font-semibold flex items-center gap-3">
+                                {% if p.image %}
+                                <img src="{{ p.image.url }}" class="w-10 h-10 rounded-lg object-cover">
+                                {% endif %}
+                                <div>
+                                    <div>{{ p.name }}</div>
+                                    <div class="text-xs text-gray-500">{{ p.time_start|date:"d M Y" }}</div>
+                                </div>
+                            </td>
+                            <td class="py-4 text-gray-400 text-sm">{{ p.get_category_display }}</td>
+                            <td class="py-4">
+                                <span class="px-3 py-1 rounded-full text-xs font-bold {% if p.is_archived %}bg-red-500/20 text-red-400{% else %}bg-green-500/20 text-green-400{% endif %}">
+                                    {{ p.is_archived|yesno:"Архив,Активен" }}
+                                </span>
+                            </td>
+                            <td class="py-4 text-right">
+                                <a href="/admin/projects/project/{{ p.id }}/change/" target="_blank" class="text-blue-400 hover:underline"><i class="fa-solid fa-pen-to-square"></i> Изменить</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="tab-vols" class="section hidden">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-3xl font-black">Рейтинг и Волонтеры</h2>
+                <span class="text-gray-400 text-sm">Всего: {{ volunteers.count }}</span>
+            </div>
+            <div class="glass rounded-2xl p-6 overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="text-gray-400 text-xs uppercase border-b border-white/10">
+                            <th class="pb-3">Место</th>
+                            <th class="pb-3">Волонтер</th>
+                            <th class="pb-3">Пароль</th>
+                            <th class="pb-3">Роль</th>
+                            <th class="pb-3">ЖК</th>
+                            <th class="pb-3">Баллы</th>
+                            <th class="pb-3 text-right">Управление баллами</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for v in volunteers %}
+                        <tr class="border-b border-white/5 hover:bg-white/5 transition">
+                            <td class="py-4 font-black text-lg">
+                                {% if forloop.counter == 1 %}🥇 1
+                                {% elif forloop.counter == 2 %}🥈 2
+                                {% elif forloop.counter == 3 %}🥉 3
+                                {% else %}<span class="text-gray-500 pl-2">{{ forloop.counter }}</span>{% endif %}
+                            </td>
+                            
+                            <td class="py-4">
+                                <div class="flex items-center gap-3">
+                                    {% if v.image %}
+                                        <img src="{{ v.image.url }}" class="w-9 h-9 rounded-full object-cover border border-white/20">
+                                    {% else %}
+                                        <div class="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-gray-400">👤</div>
+                                    {% endif %}
+                                    <div>
+                                        <div class="font-bold text-sm">{{ v.name|default:"Без имени" }}</div>
+                                        <div class="text-xs text-gray-500">@{{ v.login }}</div>
+                                    </div>
+                                </div>
+                            </td>
+
+                            <td class="py-4">
+                                {% if v.visible_password %}
+                                    <code class="bg-pink-500/10 text-pink-400 border border-pink-500/20 px-2 py-1 rounded font-mono text-xs">{{ v.visible_password }}</code>
+                                {% else %}
+                                    <span class="text-gray-600">—</span>
+                                {% endif %}
+                            </td>
+
+                            <td class="py-4">
+                                {% if v.role == 'admin' %}
+                                    <span class="bg-[#7c3aed]/20 text-[#a855f7] border border-[#7c3aed]/30 px-2.5 py-1 rounded text-[10px] font-bold uppercase">Админ</span>
+                                {% elif v.role == 'curator' %}
+                                    <span class="bg-[#2563eb]/20 text-[#60a5fa] border border-[#2563eb]/30 px-2.5 py-1 rounded text-[10px] font-bold uppercase">Куратор</span>
+                                {% else %}
+                                    <span class="bg-[#059669]/20 text-[#34d399] border border-[#059669]/30 px-2.5 py-1 rounded text-[10px] font-bold uppercase">Волонтер</span>
+                                {% endif %}
+                            </td>
+
+                            <td class="py-4">
+                                <span class="font-black text-sm {% if v.yc_count > 0 %}text-red-500{% else %}text-emerald-500{% endif %}">
+                                    {{ v.yc_count }}
+                                </span>
+                            </td>
+
+                            <td class="py-4 text-lg font-black text-amber-500">
+                                ★ <span id="vol-points-{{ v.id }}">{{ v.point }}</span>
+                            </td>
+
+                            <td class="py-4 text-right space-x-1">
+                                <button onclick="changePoints({{ v.id }}, 5)" class="bg-white/5 hover:bg-white/10 border border-white/10 px-2.5 py-1 rounded-lg text-xs transition">+5</button>
+                                <button onclick="changePoints({{ v.id }}, 10)" class="bg-blue-600/20 text-blue-400 hover:bg-blue-600/40 border border-blue-500/30 px-2.5 py-1 rounded-lg text-xs font-bold transition">+10</button>
+                                <button onclick="changePoints({{ v.id }}, -5)" class="bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 px-2.5 py-1 rounded-lg text-xs transition">-5</button>
+                                <a href="/admin/users/volunteer/{{ v.id }}/change/" target="_blank" class="inline-block bg-white/10 hover:bg-white/20 p-1.5 rounded-lg text-gray-300 ml-1" title="Редактировать в админке"><i class="fa-solid fa-arrow-up-right-from-square text-xs"></i></a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="tab-submissions" class="section hidden">
+            <h2 class="text-3xl font-black mb-6">Проверка отчетов ({{ pending_submissions.count }})</h2>
+            <div class="glass rounded-2xl p-6">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="text-gray-400 text-xs uppercase border-b border-white/10">
+                            <th class="pb-3">Волонтер</th>
+                            <th class="pb-3">Задание / Команда</th>
+                            <th class="pb-3">Комментарий</th>
+                            <th class="pb-3">Дата</th>
+                            <th class="pb-3 text-right">Решение</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sub in pending_submissions %}
+                        <tr class="border-b border-white/5 hover:bg-white/5 transition" id="sub-row-{{ sub.id }}">
+                            <td class="py-4 font-bold text-blue-400">
+                                {{ sub.volunteer.name|default:sub.volunteer.login }}
+                            </td>
+                            <td class="py-4">
+                                <div class="font-semibold">{{ sub.task.title }}</div>
+                                <div class="text-xs text-gray-500">{% if sub.task.command %}🔒 {{ sub.task.command.title }}{% else %}🌍 Общее{% endif %}</div>
+                            </td>
+                            <td class="py-4 text-sm text-gray-300 max-w-xs truncate" title="{{ sub.description }}">
+                                {{ sub.description|default:"—" }}
+                            </td>
+                            <td class="py-4 text-xs text-gray-500">{{ sub.created_at|date:"d.m.Y H:i" }}</td>
+                            <td class="py-4 text-right space-x-2">
+                                <button onclick="handleSubmission({{ sub.id }}, 'approve')" class="bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-black font-bold px-3 py-1.5 rounded-xl text-xs transition"><i class="fa-solid fa-check"></i> Одобрить</button>
+                                <button onclick="handleSubmission({{ sub.id }}, 'reject')" class="bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white font-bold px-3 py-1.5 rounded-xl text-xs transition"><i class="fa-solid fa-xmark"></i> Отклонить</button>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" class="py-12 text-center text-gray-500">🎉 Нет новых отчетов на проверку!</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="tab-apps" class="section hidden">
+            <h2 class="text-3xl font-black mb-6">Новые заявки в волонтеры ({{ pending_apps.count }})</h2>
+            <div class="glass rounded-2xl p-6">
+                <table class="w-full text-left">
+                    <thead><tr class="text-gray-400 text-xs uppercase border-b border-white/10"><th class="pb-3">Кандидат</th><th class="pb-3">Контакты</th><th class="pb-3">Направление</th><th class="pb-3 text-right">Решение</th></tr></thead>
+                    <tbody>
+                        {% for app in pending_apps %}
+                        <tr class="border-b border-white/5 hover:bg-white/5 transition" id="app-row-{{ app.id }}">
+                            <td class="py-4 font-bold">{{ app.full_name }}</td>
+                            <td class="py-4 text-sm text-gray-400">
+                                <div><i class="fa-solid fa-phone text-xs"></i> {{ app.phone_number }}</div>
+                                {% if app.email %}<div><i class="fa-solid fa-envelope text-xs"></i> {{ app.email }}</div>{% endif %}
+                            </td>
+                            <td class="py-4"><span class="bg-white/10 px-3 py-1 rounded-full text-xs">{{ app.direction.name|default:"—" }}</span></td>
+                            <td class="py-4 text-right space-x-2">
+                                <button onclick="handleApp({{ app.id }}, 'accept')" class="bg-green-500/20 text-green-400 hover:bg-green-500 hover:text-black font-bold px-4 py-1.5 rounded-xl text-xs transition"><i class="fa-solid fa-check"></i> Принять</button>
+                                <button onclick="handleApp({{ app.id }}, 'reject')" class="bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white font-bold px-4 py-1.5 rounded-xl text-xs transition"><i class="fa-solid fa-xmark"></i> Отказ</button>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="py-12 text-center text-gray-500">Нет новых заявок на рассмотрение</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="tab-settings" class="section hidden">
+            <h2 class="text-3xl font-black mb-6">Глобальные настройки системы</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                
+                <div class="glass p-6 rounded-2xl flex justify-between items-center">
+                    <div>
+                        <div class="font-bold">Регистрация открыта</div>
+                        <div class="text-xs text-gray-400 mt-1">Разрешить создавать аккаунты</div>
+                    </div>
+                    <label class="cursor-pointer">
+                        <input type="checkbox" class="hidden toggle-checkbox" {% if app_settings.is_registration_open %}checked{% endif %} onchange="updateSetting('registration', this.checked)">
+                        <div class="w-14 h-8 bg-gray-600 rounded-full p-1 transition"><div class="w-6 h-6 bg-white rounded-full transition"></div></div>
+                    </label>
+                </div>
+
+                <div class="glass p-6 rounded-2xl flex justify-between items-center">
+                    <div>
+                        <div class="font-bold">Выбор направления</div>
+                        <div class="text-xs text-gray-400 mt-1">Открыто распределение</div>
+                    </div>
+                    <label class="cursor-pointer">
+                        <input type="checkbox" class="hidden toggle-checkbox" {% if app_settings.is_direction_selection_open %}checked{% endif %} onchange="updateSetting('direction', this.checked)">
+                        <div class="w-14 h-8 bg-gray-600 rounded-full p-1 transition"><div class="w-6 h-6 bg-white rounded-full transition"></div></div>
+                    </label>
+                </div>
+
+                <div class="glass p-6 rounded-2xl flex justify-between items-center">
+                    <div>
+                        <div class="font-bold">Отправка баллов</div>
+                        <div class="text-xs text-gray-400 mt-1">Прием отчетов по заданиям</div>
+                    </div>
+                    <label class="cursor-pointer">
+                        <input type="checkbox" class="hidden toggle-checkbox" {% if app_settings.is_points_submission_open %}checked{% endif %} onchange="updateSetting('points', this.checked)">
+                        <div class="w-14 h-8 bg-gray-600 rounded-full p-1 transition"><div class="w-6 h-6 bg-white rounded-full transition"></div></div>
+                    </label>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        const csrfToken = document.querySelector('[name=csrf-token]').content;
+
+        function showTab(tabId, btnElement) {
+            document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
+            document.getElementById('tab-' + tabId).classList.remove('hidden');
+            document.querySelectorAll('#nav-buttons button').forEach(b => b.classList.remove('active-tab'));
+            btnElement.classList.add('active-tab');
+        }
+
+        async function updateSetting(type, value) {
+            await fetch('/api/toggle-settings/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ type, value })
+            });
+        }
+
+        async function handleApp(id, action) {
+            const res = await fetch('/api/handle-application/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ id, action })
+            });
+            if(res.ok) {
+                const row = document.getElementById('app-row-' + id);
+                row.style.opacity = '0';
+                setTimeout(() => row.remove(), 300);
+            }
+        }
+
+        // 🔥 НОВОЕ: Обработка отчетов по заданиям
+        async function handleSubmission(id, action) {
+            const res = await fetch('/api/handle-submission/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ id, action })
+            });
+            if(res.ok) {
+                const row = document.getElementById('sub-row-' + id);
+                row.style.opacity = '0';
+                setTimeout(() => row.remove(), 300);
+            }
+        }
+
+        async function changePoints(id, points) {
+            const res = await fetch('/api/update-points/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ id, points })
+            });
+            if(res.ok) {
+                const data = await res.json();
+                document.getElementById('vol-points-' + id).innerText = data.new_points;
+            }
+        }
+    </script>
+</body>
+</html>

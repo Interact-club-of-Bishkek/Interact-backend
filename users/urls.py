@@ -20,7 +20,8 @@ from users.views import (
     ai_pdf_chat,
     # --- НОВОЕ ДЛЯ МИНИ-КОМАНД И СПОНСОРОВ ---
     MiniTeamViewSet,
-    SponsorTaskViewSet
+    SponsorTaskViewSet,
+    # --- ИМПОРТЫ ДЛЯ КАСТОМНОЙ АДМИН-ПАНЕЛИ ---
 )
 
 router = DefaultRouter()
@@ -32,6 +33,8 @@ router = DefaultRouter()
 # /api/curator/submissions/
 # /api/attendance/  
 # /api/equity/
+# /api/miniteams/
+# /api/sponsors/
 router.register(r'volunteers', VolunteerViewSet, basename='volunteer')
 router.register(r'applications', VolunteerApplicationViewSet, basename='application')
 router.register(r'activities', VolunteerActivityViewSet, basename='vol-activity')
@@ -56,6 +59,8 @@ urlpatterns = [
     # Канбан-доска
     path('api/board-columns/', VolunteerColumnsView.as_view(), name='columns-list'),
     path('api/columns/', VolunteerColumnsView.as_view(), name='columns'),
+
+\
     
     # --- PDF Генерация ---
     path('api/download/interviews/', DownloadInterviewScheduleView.as_view(), name='download-interviews'),
@@ -71,6 +76,7 @@ urlpatterns = [
     # --- Подключение Роутера ---
     path('api/', include(router.urls)),
     path('api/settings/', get_app_settings, name='api_settings'),
+    
     # --- HTML Страницы ---
     path('login/', LoginPageView.as_view(), name='login-page'),
     path('cabinet/', VolunteerCabinetView.as_view(), name='cabinet'),

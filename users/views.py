@@ -3,6 +3,10 @@ import os
 import random
 from decimal import Decimal, InvalidOperation
 
+from django.http import JsonResponse
+import json
+
+
 from django.db import transaction
 from django.conf import settings
 from django.http import FileResponse
@@ -48,13 +52,14 @@ from .models import (
     MiniTeam, MiniTeamMembership, SponsorTask
 )
 
+from commands.models import  Application
 from .serializers import (
     BulkAttendanceSerializer, VolunteerSerializer, VolunteerLoginSerializer, VolunteerRegisterSerializer,
     VolunteerApplicationSerializer, ActivityTaskSerializer, 
     ActivitySubmissionSerializer, VolunteerDirectionSerializer, CommandSerializer,
     VolunteerListSerializer, MiniTeamSerializer, SponsorTaskSerializer
 )
-
+from django.contrib.auth.mixins import UserPassesTestMixin
 
 # ---------------- АВТОРИЗАЦИЯ И ПРОФИЛЬ ----------------
 class VolunteerLoginView(APIView):
@@ -240,6 +245,13 @@ class VolunteerActivityViewSet(viewsets.ModelViewSet):
         
         instance.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+def is_admin_or_curator(user):
+    if not user.is_authenticated:
+        return False
+    return user.is_staff or getattr(user, 'role', '') in ['admin', 'curator']
+
+
 
 
 class DeductPointsView(APIView):

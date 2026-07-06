@@ -54,17 +54,17 @@ services:
       - backend
     restart: always
 
-  telegram_bot:
-    build:
-      context: .
-      dockerfile: ./telegram_bot/Dockerfile
-    container_name: interact_telegram_bot
-    restart: always
-    env_file: .env
-    depends_on:
-      - backend
-    networks:
-      - backend_network
+  # telegram_bot:
+  #   build:
+  #     context: .
+  #     dockerfile: ./telegram_bot/Dockerfile
+  #   container_name: interact_telegram_bot
+  #   restart: always
+  #   env_file: .env
+  #   depends_on:
+  #     - backend
+  #   networks:
+  #     - backend_network
 
 volumes:
   postgres_data:

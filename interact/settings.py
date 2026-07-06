@@ -73,7 +73,8 @@ INSTALLED_APPS = [
     'teatre',
     'finik',
     'logs',
-    'commands'
+    'commands',
+    'custom_admin'
 
 
 ]
