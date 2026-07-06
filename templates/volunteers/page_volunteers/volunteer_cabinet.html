@@ -34,8 +34,8 @@
         :root[data-theme="dark"] { 
             --primary: #00c6ff; 
             --primary-soft: rgba(0, 198, 255, 0.15);
-            --bg-base: #0b0f19; 
-            --bg-surface: #151b2b;
+            --bg-base: #080b11; 
+            --bg-surface: #121824;
             --bg-input: #0b0f19;
             --text-main: #ffffff;
             --text-muted: #8b9bb4;
@@ -68,7 +68,7 @@
             transition: background-color 0.4s ease, color 0.4s ease;
         }
 
-        /* Плавные панели */
+        /* Плавные панели с эффектом свечения при наведении */
         .smooth-panel { 
             background: var(--bg-surface); 
             border: 1px solid var(--border-color); 
@@ -76,7 +76,11 @@
             box-shadow: var(--shadow-card);
             transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
         }
-        .smooth-panel:hover { transform: translateY(-2px); box-shadow: 0 15px 45px -10px var(--primary-soft); border-color: var(--primary-soft); }
+        .smooth-panel:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 15px 45px -10px var(--primary-soft); 
+            border-color: rgba(0, 198, 255, 0.3); 
+        }
 
         /* Инпуты */
         .input-smooth { 
@@ -102,15 +106,15 @@
             position: absolute; top: calc(100% + 8px); left: 0; right: 0;
             background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 20px;
             box-shadow: var(--shadow-dropdown); opacity: 0; pointer-events: none; transform: translateY(-10px) scale(0.98);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); max-height: 250px; overflow-y: auto; padding: 8px; z-index: 100;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); max-height: 280px; overflow: hidden; display: flex; flex-direction: column; z-index: 100;
         }
-        :root[data-theme="light"] .custom-select-dropdown { background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(12px); }
-        :root[data-theme="dark"] .custom-select-dropdown { background: rgba(21, 27, 43, 0.95); backdrop-filter: blur(12px); }
+        :root[data-theme="light"] .custom-select-dropdown { background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(16px); }
+        :root[data-theme="dark"] .custom-select-dropdown { background: rgba(18, 24, 36, 0.96); backdrop-filter: blur(16px); }
         .custom-select-dropdown.open { opacity: 1; pointer-events: auto; transform: translateY(0) scale(1); }
         
         .custom-option {
             padding: 12px 16px; border-radius: 12px; cursor: pointer; font-weight: 800; font-size: 14px;
-            display: flex; justify-content: space-between; align-items: center; transition: 0.2s; color: var(--text-muted);
+            display: flex; justify-content: space-between; align-items: center; transition: 0.2s; color: var(--text-muted); margin: 2px 8px;
         }
         .custom-option:hover { background: var(--bg-input); color: var(--text-main); transform: translateX(4px); }
         .custom-option.selected { background: var(--primary-soft); color: var(--primary); }
@@ -128,8 +132,10 @@
         .scroll-item.active { color: var(--primary); font-weight: 900; font-size: 1.25rem; transform: scale(1.1); }
 
         /* Кнопки */
-        .btn-smooth { background: var(--primary); color: #fff; font-weight: 800; font-size: 16px; padding: 16px 24px; border-radius: 16px; text-transform: uppercase; letter-spacing: 1px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); border: none; cursor: pointer; box-shadow: 0 8px 20px var(--primary-soft); }
-        .btn-smooth:hover { transform: translateY(-2px); box-shadow: 0 12px 25px rgba(2, 132, 199, 0.3); }
+        .btn-smooth { 
+            background: linear-gradient(135deg, var(--primary), #0088ff); color: #fff; font-weight: 800; font-size: 16px; padding: 16px 24px; border-radius: 16px; text-transform: uppercase; letter-spacing: 1px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); border: none; cursor: pointer; box-shadow: 0 8px 25px var(--primary-soft); relative overflow: hidden;
+        }
+        .btn-smooth:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(0, 198, 255, 0.4); }
         .btn-smooth:active { transform: translateY(1px); box-shadow: 0 4px 10px var(--primary-soft); }
         .btn-danger-soft { background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 2px solid transparent; font-weight: 800; padding: 14px 24px; border-radius: 16px; transition: 0.3s; }
         .btn-danger-soft:hover { background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.3); }
@@ -137,7 +143,7 @@
         .lang-btn { font-size: 12px; font-weight: 800; color: var(--text-muted); cursor: pointer; transition: 0.3s; padding: 8px 14px; border-radius: 12px; }
         .lang-btn.active { background: var(--bg-surface); color: var(--primary); box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
         .theme-toggle { width: 44px; height: 44px; border-radius: 14px; display: flex; align-items: center; justify-content: center; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border-color); cursor: pointer; transition: 0.3s; }
-        .theme-toggle:hover { border-color: var(--primary); color: var(--primary); transform: rotate(15deg); }
+        .theme-toggle:hover { border-color: var(--primary); color: var(--primary); transform: rotate(15deg) scale(1.05); }
 
         /* Таймлайн */
         .timeline-item { position: relative; padding-left: 32px; padding-bottom: 24px; }
@@ -163,20 +169,21 @@
         .toast.success { border-left-color: #22c55e; }
 
         .nav-item { outline: none; border: 2px solid transparent; }
-        .nav-item.active { background: var(--primary-soft); color: var(--primary); border-color: var(--primary-soft); }
+        .nav-item.active { background: var(--primary-soft); color: var(--primary); border-color: rgba(0, 198, 255, 0.2); box-shadow: 0 4px 20px -5px var(--primary-soft); }
         .nav-item:not(.active):hover { background: var(--bg-input); border-color: var(--border-color); color: var(--text-main); }
         
-        .custom-select-dropdown::-webkit-scrollbar { width: 6px; }
-        .custom-select-dropdown::-webkit-scrollbar-track { background: transparent; }
-        .custom-select-dropdown::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 10px; }
-        .custom-select-dropdown::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+        .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
         .line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 
-        .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: var(--bg-input); border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in { animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
     </style>
 </head>
 <body class="flex flex-col min-h-screen bg-base">
@@ -266,7 +273,7 @@
                         </div>
                     </div>
                     <h1 id="vName" class="text-2xl lg:text-3xl font-black text-main mb-2 tracking-tight">...</h1>
-                    <p id="vRole" class="text-[10px] lg:text-xs font-bold text-primary uppercase tracking-[0.2em] bg-primary-soft px-3 py-1 rounded-full">Загрузка</p>
+                    <p id="vRole" class="text-[10px] lg:text-xs font-bold text-primary uppercase tracking-[0.2em] bg-primary-soft px-3 py-1 rounded-full border border-primary/20">Загрузка</p>
                 </div>
 
                 <div class="grid grid-cols-2 gap-3 w-full mb-8">
@@ -327,7 +334,7 @@
 
                 <div class="mb-8">
                     <h3 class="text-xl font-black text-main border-b border-soft pb-3 mb-6 flex items-center gap-3" id="t-tasksActive">
-                        <i class="fas fa-fire text-orange-500"></i> В процессе
+                        <i class="fas fa-fire text-orange-500 animate-pulse"></i> В процессе
                     </h3>
                     <div id="tasksGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"></div>
                 </div>
@@ -389,8 +396,7 @@
                             </button>
                         </div>
                         
-                        <div id="basistSponsorsList" class="mt-8">
-                            </div>
+                        <div id="basistSponsorsList" class="mt-8"></div>
                     </div>
                 </div>
             </div> 
@@ -411,13 +417,14 @@
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     
                     <div class="lg:col-span-5">
-                        <div id="reportFormContainer" class="smooth-panel p-6 md:p-8 lg:sticky lg:top-8">
-                            <div class="flex items-center gap-4 mb-8">
-                                <div class="w-12 h-12 rounded-2xl bg-primary-soft flex items-center justify-center text-primary"><i class="fas fa-paper-plane text-xl"></i></div>
+                        <div id="reportFormContainer" class="smooth-panel p-6 md:p-8 lg:sticky lg:top-8 border-t-2 border-t-primary/50 relative overflow-hidden">
+                            <div class="absolute -right-10 -top-10 w-32 h-32 bg-primary/10 rounded-full blur-2xl pointer-events-none"></div>
+                            <div class="flex items-center gap-4 mb-8 relative z-10">
+                                <div class="w-12 h-12 rounded-2xl bg-primary-soft flex items-center justify-center text-primary shadow-inner border border-primary/20"><i class="fas fa-paper-plane text-xl"></i></div>
                                 <h3 class="font-black uppercase text-main tracking-tight text-2xl" id="t-newreport">Новый отчет</h3>
                             </div>
                             
-                            <div class="space-y-6">
+                            <div class="space-y-6 relative z-10">
                                 <div>
                                     <label class="text-xs font-bold text-muted uppercase tracking-widest block mb-2 ml-2" id="t-step1">1. Куда отправляем?</label>
                                     <select id="contextSelect" class="hidden" onchange="updateTaskDropdown()"></select>
@@ -439,7 +446,7 @@
                                     </div>
                                     <div>
                                         <label class="text-xs font-bold text-muted uppercase tracking-widest block mb-2 ml-2 text-right" id="t-calcLabel">Итого баллов</label>
-                                        <div class="h-[52px] flex items-center justify-end px-4 bg-primary-soft border-2 border-primary/20 rounded-2xl">
+                                        <div class="h-[52px] flex items-center justify-end px-4 bg-primary-soft border-2 border-primary/20 rounded-2xl shadow-inner">
                                             <span class="text-primary font-black text-2xl" id="calcTotalPoints">0</span>
                                         </div>
                                     </div>
@@ -460,7 +467,7 @@
                                     <textarea id="taskComm" class="input-smooth h-28 resize-none font-semibold p-4"></textarea>
                                 </div>
 
-                                <button onclick="sendReport()" id="sendBtn" class="btn-smooth w-full mt-4 flex items-center justify-center gap-2">
+                                <button onclick="sendReport()" id="sendBtn" class="btn-smooth w-full mt-4 flex items-center justify-center gap-2 shadow-lg shadow-primary/30">
                                     <span id="t-send">Отправить</span> <i class="fas fa-arrow-right"></i>
                                 </button>
                             </div>
@@ -539,6 +546,9 @@
     </div>
 
     <script>
+        // Запоминаем текущую активную вкладку, чтобы не перебрасывало назад при обновлении
+        let activeTab = 'tasks';
+
         function initTheme() {
             const savedTheme = localStorage.getItem('theme') || 'dark';
             document.documentElement.setAttribute('data-theme', savedTheme);
@@ -566,6 +576,7 @@
         initTheme();
 
         function switchTab(tabId) {
+            activeTab = tabId; // Сохраняем выбор пользователя
             document.getElementById('tab-tasks').classList.add('hidden');
             document.getElementById('tab-cabinet').classList.add('hidden');
             document.getElementById('tab-stats').classList.add('hidden');
@@ -612,6 +623,7 @@
             }
         }
 
+        // Обновленный генератор кастомных выпадающих списков с поддержкой ПОИСКА
         function createCustomDropdown(selectId) {
             const select = document.getElementById(selectId);
             if (!select) return;
@@ -624,6 +636,7 @@
             }
             
             let selectedText = select.options[select.selectedIndex]?.text || '';
+            const hasManyOptions = select.options.length > 4;
             
             let html = `
                 <div class="custom-select-trigger shadow-sm">
@@ -633,31 +646,65 @@
                 <div class="custom-select-dropdown custom-scrollbar">
             `;
             
+            // Если вариантов больше 4, добавляем стильную строку поиска
+            if (hasManyOptions) {
+                html += `
+                    <div class="p-2 sticky top-0 bg-surface/90 backdrop-blur-md z-10 border-b border-soft">
+                        <div class="relative flex items-center">
+                            <i class="fas fa-search absolute left-3.5 text-xs text-muted"></i>
+                            <input type="text" class="custom-select-search w-full bg-input border border-soft rounded-xl py-2 pl-9 pr-3 text-xs font-bold text-main outline-none focus:border-primary transition-colors" placeholder="Поиск задания..." onclick="event.stopPropagation()">
+                        </div>
+                    </div>
+                    <div class="options-container custom-scrollbar overflow-y-auto max-h-[220px]">
+                `;
+            } else {
+                html += `<div class="options-container custom-scrollbar overflow-y-auto max-h-[220px]">`;
+            }
+            
             Array.from(select.options).forEach((opt, index) => {
                 const isSelected = index === select.selectedIndex;
                 html += `
                     <div class="custom-option ${isSelected ? 'selected' : ''}" data-index="${index}">
                         <span class="truncate">${opt.text}</span>
-                        ${isSelected ? '<i class="fas fa-check"></i>' : ''}
+                        ${isSelected ? '<i class="fas fa-check text-primary"></i>' : ''}
                     </div>
                 `;
             });
             
-            html += `</div>`;
+            html += `</div></div>`;
             wrapper.innerHTML = html;
             
             const trigger = wrapper.querySelector('.custom-select-trigger');
             const dropdown = wrapper.querySelector('.custom-select-dropdown');
             const iconWrap = wrapper.querySelector('.icon-wrapper');
+            const searchInput = wrapper.querySelector('.custom-select-search');
             
+            // Логика живого поиска по вариантам в меню
+            if (searchInput) {
+                searchInput.addEventListener('input', (e) => {
+                    const query = e.target.value.toLowerCase().trim();
+                    wrapper.querySelectorAll('.custom-option').forEach(optEl => {
+                        const text = optEl.textContent.toLowerCase();
+                        if (text.includes(query)) {
+                            optEl.style.display = 'flex';
+                        } else {
+                            optEl.style.display = 'none';
+                        }
+                    });
+                });
+            }
+
             trigger.addEventListener('click', (e) => {
                 e.stopPropagation();
                 document.querySelectorAll('.custom-select-dropdown').forEach(d => {
                     if (d !== dropdown) {
                         d.classList.remove('open');
                         const otherTrigger = d.previousElementSibling;
-                        otherTrigger.classList.remove('active');
-                        otherTrigger.querySelector('.icon-wrapper').style.transform = 'rotate(0deg)';
+                        if(otherTrigger) {
+                            otherTrigger.classList.remove('active');
+                            const otherIcon = otherTrigger.querySelector('.icon-wrapper');
+                            if(otherIcon) otherIcon.style.transform = 'rotate(0deg)';
+                        }
                         d.closest('.custom-select-wrapper').style.zIndex = 10;
                     }
                 });
@@ -666,13 +713,14 @@
                 if (isOpen) {
                     dropdown.classList.remove('open');
                     trigger.classList.remove('active');
-                    iconWrap.style.transform = 'rotate(0deg)'; // Исправлено: Возвращаем стрелку обратно
-                    wrapper.style.zIndex = 10; // Исправлено: Сбрасываем z-index чтобы не ломать слои
+                    iconWrap.style.transform = 'rotate(0deg)';
+                    wrapper.style.zIndex = 10;
                 } else {
                     dropdown.classList.add('open');
                     trigger.classList.add('active');
-                    iconWrap.style.transform = 'rotate(180deg)'; // Поворачиваем стрелку
-                    wrapper.style.zIndex = 50; // Поднимаем список над всеми остальными элементами
+                    iconWrap.style.transform = 'rotate(180deg)';
+                    wrapper.style.zIndex = 50;
+                    if (searchInput) setTimeout(() => searchInput.focus(), 50);
                 }
             });
             
@@ -685,7 +733,7 @@
                     dropdown.classList.remove('open');
                     trigger.classList.remove('active');
                     iconWrap.style.transform = 'rotate(0deg)';
-                    wrapper.style.zIndex = 10; // Опускаем z-index после выбора
+                    wrapper.style.zIndex = 10;
                     createCustomDropdown(selectId);
                 });
             });
@@ -842,8 +890,8 @@
             document.getElementById('t-prefDesc').innerText = t.prefDesc;
             document.getElementById('t-prefSave').innerText = t.prefSave;
             
-            if(document.getElementById('t-tasksActive')) document.getElementById('t-tasksActive').innerText = t.tasksActive;
-            if(document.getElementById('t-tasksCompleted')) document.getElementById('t-tasksCompleted').innerText = t.tasksCompleted;
+            if(document.getElementById('t-tasksActive')) document.getElementById('t-tasksActive').innerHTML = `<i class="fas fa-fire text-orange-500 animate-pulse"></i> ${t.tasksActive}`;
+            if(document.getElementById('t-tasksCompleted')) document.getElementById('t-tasksCompleted').innerHTML = `<i class="fas fa-check-circle text-green-500"></i> ${t.tasksCompleted}`;
             if(document.getElementById('t-goalTitle')) document.getElementById('t-goalTitle').innerHTML = `<i class="fas fa-bullseye text-purple-500"></i> ${t.goalTitle}`;
             if(document.getElementById('t-goalDesc')) document.getElementById('t-goalDesc').innerText = t.goalDesc;
             if(document.getElementById('t-goalSave')) document.getElementById('t-goalSave').innerText = t.goalSave;
@@ -917,8 +965,8 @@
                     const isCompleted = (sp.status === 'agreed' || sp.status === 'rejected');
 
                     const cardHtml = `
-                        <div class="smooth-panel p-6 flex flex-col h-full bg-surface border-2 border-primary-soft relative group">
-                            <div class="absolute top-0 right-0 p-6 opacity-[0.05] pointer-events-none text-[80px] leading-none text-primary">
+                        <div class="smooth-panel p-6 flex flex-col h-full bg-surface border-2 border-primary-soft relative group overflow-hidden">
+                            <div class="absolute top-0 right-0 p-6 opacity-[0.05] pointer-events-none text-[80px] leading-none text-primary group-hover:scale-110 transition-transform">
                                 <i class="fas fa-headset"></i>
                             </div>
                             <div class="relative z-10 flex flex-col h-full">
@@ -990,13 +1038,13 @@
                                 <div class="flex flex-col gap-1.5 max-w-[65%]">
                                     ${cmdBadge}
                                 </div>
-                                <span class="font-black text-xl text-primary shrink-0">${pts}</span>
+                                <span class="font-black text-xl text-primary shrink-0 drop-shadow-sm">${pts}</span>
                             </div>
                                 <h3 class="font-black text-lg text-main leading-tight mb-3 group-hover:text-primary transition-colors">${disp}</h3>
                                 <p class="text-sm font-semibold text-muted mb-6 line-clamp-3">${desc}</p>
                                 
                                 <div class="mt-auto pt-4 border-t border-soft">
-                                    <button onclick="selectTaskAndGo('${ctxValue}', '${tk.id}')" class="w-full bg-input hover:bg-primary-soft text-main hover:text-primary border border-soft hover:border-primary-soft font-black text-sm uppercase tracking-widest py-3 rounded-xl transition-all flex items-center justify-center gap-2">
+                                    <button onclick="selectTaskAndGo('${ctxValue}', '${tk.id}')" class="w-full bg-input hover:bg-primary-soft text-main hover:text-primary border border-soft hover:border-primary-soft font-black text-sm uppercase tracking-widest py-3 rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm">
                                         <i class="fas fa-play text-xs"></i> <span>${t.doTask}</span>
                                     </button>
                                 </div>
@@ -1092,7 +1140,7 @@
                             borderWidth: 3,
                             tension: 0.4, 
                             fill: true,
-                            pointBackgroundColor: '#151b2b',
+                            pointBackgroundColor: '#121824',
                             pointBorderColor: '#00c6ff',
                             pointRadius: 5,
                             pointHoverRadius: 7
@@ -1289,7 +1337,8 @@
                 if (prefData.is_open) { document.getElementById('preferencesCard').classList.remove('hidden'); userPreferredDirs = prefData.preferred || []; renderPreferences(); } 
                 else document.getElementById('preferencesCard').classList.add('hidden');
                 
-                switchTab('tasks');
+                // ВАЖНО: Переключаемся ровно на ту вкладку, где сейчас находится пользователь!
+                switchTab(activeTab);
                 setLang(currentLang);
 
             } catch(e) { showToast(translations[currentLang].toastErr, "error"); }
@@ -1698,8 +1747,8 @@
         }
         
         function getStatusBadge(st, text) {
-            const s = { 'approved': 'bg-green-500/10 text-green-600 border-green-500/20', 'rejected': 'bg-red-500/10 text-red-500 border-red-500/20', 'pending': 'bg-orange-500/10 text-orange-500 border-orange-500/20' };
-            const i = { 'approved': 'fa-check-circle', 'rejected': 'fa-times-circle', 'pending': 'fa-clock' };
+            const s = { 'approved': 'bg-green-500/10 text-green-500 border-green-500/20 shadow-[0_0_10px_rgba(34,197,94,0.1)]', 'rejected': 'bg-red-500/10 text-red-500 border-red-500/20 shadow-[0_0_10px_rgba(239,68,68,0.1)]', 'pending': 'bg-orange-500/10 text-orange-500 border-orange-500/20 shadow-[0_0_10px_rgba(249,115,22,0.1)]' };
+            const i = { 'approved': 'fa-check-circle', 'rejected': 'fa-times-circle', 'pending': 'fa-clock animate-pulse' };
             return `<span class="px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 ${s[st] || s['pending']}"><i class="fas ${i[st] || 'fa-question'}"></i> ${text || st}</span>`;
         }
 
@@ -1739,3 +1788,4 @@
     </script>
 </body>
 </html>
+

@@ -342,7 +342,18 @@ class CuratorSubmissionViewSet(viewsets.ModelViewSet):
         ).distinct().order_by('-created_at')
 
     def perform_update(self, serializer):
-            serializer.save()
+        serializer.save()
+
+    # 🔥 ДОБАВЛЕНО: Метод для принятия всех своих ожидающих заявок
+    @action(detail=False, methods=['post'], url_path='approve_all')
+    def approve_all(self, request):
+        # Безопасно получаем ID только тех заявок, которые доступны текущему пользователю
+        pending_ids = list(self.get_queryset().filter(status='pending').values_list('id', flat=True))
+        count = len(pending_ids)
+        if count > 0:
+            # Массово обновляем статус без ошибок distinct() в БД
+            ActivitySubmission.objects.filter(id__in=pending_ids).update(status='approved')
+        return Response({"message": f"Успешно принято отчетов: {count}", "count": count})
     
 class VolunteerApplicationViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
