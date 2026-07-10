@@ -455,29 +455,26 @@ class SponsorTask(models.Model):
 
 from django.db.models import Sum, F, DecimalField, ExpressionWrapper
 from django.db.models.functions import Coalesce
+from decimal import Decimal
 
 def recalc_volunteer_points(volunteer_id):
-    # Считаем баллы напрямую из заявок, чтобы избежать любых дублирований JOIN'ами
-    result = ActivitySubmission.objects.filter(
-        volunteer_id=volunteer_id,
+    # Достаем все принятые заявки волонтера вместе с привязанными заданиями
+    submissions = ActivitySubmission.objects.filter(
+        volunteer_id=volunteer_id, 
         status='approved'
-    ).annotate(
-        # Сначала вычисляем баллы для КАЖДОЙ заявки отдельно
-        actual_points=ExpressionWrapper(
-            Coalesce(
-                'points_awarded', 
-                F('task__points') * F('quantity'), 
-                output_field=DecimalField()
-            ),
-            output_field=DecimalField()
-        )
-    ).aggregate(
-        # Затем просто суммируем результаты
-        total=Sum('actual_points')
-    )
-
-    total_points = result['total'] or 0
-
-    # Обновляем поле point у волонтера (оно же выводится в админке и сайдбаре)
+    ).select_related('task')
+    
+    total_points = Decimal('0.0')
+    
+    # Считаем баллы надежным способом через Python
+    for sub in submissions:
+        if sub.points_awarded is not None:
+            # Если куратор или админ вписал свои баллы
+            total_points += Decimal(str(sub.points_awarded))
+        elif sub.task:
+            # Если берем базовые баллы из задания, умножаем на количество
+            qty = sub.quantity if sub.quantity else 1
+            total_points += Decimal(str(sub.task.points)) * Decimal(str(qty))
+            
+    # Принудительно обновляем счет волонтера
     Volunteer.objects.filter(id=volunteer_id).update(point=total_points)
-
