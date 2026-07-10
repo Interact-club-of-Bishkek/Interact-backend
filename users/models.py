@@ -453,31 +453,31 @@ class SponsorTask(models.Model):
         ordering = ['-created_at']
 
 
-from django.db.models import Sum, F, DecimalField, Value
+from django.db.models import Sum, F, DecimalField, ExpressionWrapper
 from django.db.models.functions import Coalesce
 
-
 def recalc_volunteer_points(volunteer_id):
-    total = (
-        Volunteer.objects.filter(id=volunteer_id)
-        .annotate(
-            total=Coalesce(
-                Sum(
-                    Coalesce(
-                        'submissions__points_awarded',
-                        F('submissions__task__points') * F('submissions__quantity'),
-                        output_field=DecimalField()
-                    ),
-                    filter=Q(submissions__status='approved')
-                ),
-                Value(0),
+    # Считаем баллы напрямую из заявок, чтобы избежать любых дублирований JOIN'ами
+    result = ActivitySubmission.objects.filter(
+        volunteer_id=volunteer_id,
+        status='approved'
+    ).annotate(
+        # Сначала вычисляем баллы для КАЖДОЙ заявки отдельно
+        actual_points=ExpressionWrapper(
+            Coalesce(
+                'points_awarded', 
+                F('task__points') * F('quantity'), 
                 output_field=DecimalField()
-            )
+            ),
+            output_field=DecimalField()
         )
-        .values_list('total', flat=True)
-        .first()
+    ).aggregate(
+        # Затем просто суммируем результаты
+        total=Sum('actual_points')
     )
 
-    Volunteer.objects.filter(id=volunteer_id).update(
-        point=total or 0
-    )
+    total_points = result['total'] or 0
+
+    # Обновляем поле point у волонтера (оно же выводится в админке и сайдбаре)
+    Volunteer.objects.filter(id=volunteer_id).update(point=total_points)
+
