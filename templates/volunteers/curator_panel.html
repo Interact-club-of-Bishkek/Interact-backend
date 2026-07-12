@@ -581,33 +581,27 @@
             const myDirIds = getIds(state.user.direction);
 
             if (state.user.role === 'admin') {
-                dbTeams = state.commands; leadTeams = state.commands;
-                const txt = "Все направления (Admin)";
-                label1.innerText = txt; label2.innerText = txt;
+                dbTeams = state.commands; 
+                leadTeams = state.commands;
             } else if (state.user.role === 'curator') {
                 dbTeams = state.commands.filter(c => myDirIds.includes(extractId(c, 'direction')));
-                leadTeams = state.commands.filter(c => String(c.leader?.id || c.leader) === String(state.user.id));
-                const dirs = Array.isArray(state.user.direction) ? state.user.direction : [state.user.direction];
-                const dirNames = dirs.map(d => d.name || d.title).filter(Boolean);
-                const txt = dirNames.length > 0 ? dirNames.join(' / ') : "Направление не привязано";
-                label1.innerText = txt; label2.innerText = txt;
+                // Куратор может управлять командами своего направления
+                leadTeams = dbTeams; 
             } else {
-                dbTeams = state.commands.filter(c => String(c.leader?.id || c.leader) === String(state.user.id));
-                leadTeams = dbTeams;
-                
-                let txt = dbTeams.map(t => t.title).join(' / ');
-                const mtTitles = state.miniteams.filter(mt => state.myMiniteamIds.includes(String(mt.id))).map(mt => mt.title);
-                
-                if (mtTitles.length > 0) {
-                    txt = txt ? `${txt} | Мини: ${mtTitles.join(', ')}` : `Мини-команды: ${mtTitles.join(', ')}`;
-                }
-                if (!txt) txt = "Команда не назначена";
-                
-                label1.innerText = txt; label2.innerText = txt;
+                // Для обычного лидера: ищем команды, где он лидер
+                // ВАЖНО: сравниваем ID как строки
+                leadTeams = state.commands.filter(c => {
+                    const leaderId = c.leader?.id || c.leader;
+                    return String(leaderId) === String(state.user.id);
+                });
+                dbTeams = leadTeams; // Если он лидер только своих команд
             }
 
             state.myManagedTeams = dbTeams;
             state.myLeadingTeams = leadTeams;
+
+            // После этого ОБЯЗАТЕЛЬНО вызываем перерисовку фильтра
+            renderCommandFilter();
 
             const addVolBtnContainer = document.getElementById('addVolBtnContainer');
             if (addVolBtnContainer) {
@@ -1239,11 +1233,34 @@
 
     function renderCommandFilter() {
         const container = document.getElementById('selectOptions');
-        let html = `<div class="option-item" onclick="applyCommandFilter('', 'Все команды')"><span class="text-[10px] font-black uppercase tracking-widest text-white">⚡ Все команды</span></div>`;
-        state.myLeadingTeams.forEach(cmd => {
-            const count = state.apps.filter(a => (a.command_slug === cmd.slug || a.command_title === cmd.title) && a.status === 'pending').length;
-            html += `<div class="option-item" onclick="applyCommandFilter('${cmd.slug}', '${cmd.title}')"><span class="text-[10px] font-bold text-gray-300">${cmd.title}</span><span class="badge text-gray-400">${count}</span></div>`;
-        });
+        if (!container) return;
+
+        // Сброс контента
+        let html = `<div class="option-item" onclick="applyCommandFilter('', 'Все команды')">
+                        <span class="text-[10px] font-black uppercase tracking-widest text-white">⚡ Все команды</span>
+                    </div>`;
+
+        if (state.myLeadingTeams && state.myLeadingTeams.length > 0) {
+            state.myLeadingTeams.forEach(cmd => {
+                // Подсчет заявок только для ЭТОЙ команды
+                const count = state.apps.filter(a => 
+                    (String(a.command_slug) === String(cmd.slug) || String(a.command_title) === String(cmd.title)) 
+                    && a.status === 'pending'
+                ).length;
+
+                html += `
+                <div class="option-item" onclick="applyCommandFilter('${cmd.slug}', '${cmd.title}')">
+                    <span class="text-[10px] font-bold text-gray-300">${cmd.title}</span>
+                    ${count > 0 ? `<span class="bg-primary/20 text-primary px-2 py-0.5 rounded-full text-[9px] font-black">${count}</span>` : ''}
+                </div>`;
+            });
+        } else {
+            // Если команд нет, но это не admin/curator, можно добавить подсказку
+            html += `<div class="option-item opacity-50 cursor-default">
+                        <span class="text-[9px] italic">Вы не лидер команд</span>
+                    </div>`;
+        }
+        
         container.innerHTML = html;
     }
 
