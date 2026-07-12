@@ -570,8 +570,7 @@
             state.commands.forEach(c => c.questions?.forEach(q => questionMap[`q_${q.id}`] = q.label));
 
             // Собираем права пользователя в мини-командах (Мини-куратор, базист, лидер)
-            const me = state.volunteers.find(v => String(v.id) === String(state.user.id));
-            const myMtRoles = me ? (me.miniteam_roles || []) : [];
+            const myMtRoles = state.user.miniteam_roles || [];
             const myMtIds = myMtRoles.map(r => String(r.miniteam_id || r.miniteam));
             state.miniteams.filter(mt => String(mt.leader?.id || mt.leader) === String(state.user.id)).forEach(mt => myMtIds.push(String(mt.id)));
             state.myMiniteamIds = [...new Set(myMtIds)];
@@ -632,8 +631,8 @@
         if(!container) return;
 
         let visibleMiniteams = state.miniteams;
-        if (state.user.role !== 'admin' && state.user.role !== 'curator') {
-            visibleMiniteams = state.miniteams.filter(mt => state.myMiniteamIds.includes(String(mt.id)));
+        if (!['admin', 'curator', 'president'].includes(state.user.role)) {
+            availableMts = state.miniteams.filter(mt => state.myMiniteamIds.includes(String(mt.id)));
         }
 
         if(visibleMiniteams.length === 0) {

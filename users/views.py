@@ -301,19 +301,16 @@ class DiscoveryListView(APIView):
         settings = AppSettings.get_settings()
         
         all_directions = VolunteerDirection.objects.all()
-        user_commands = user.volunteer_commands.all() 
+        # Важно: prefetch_related позволит нам получить участников (members) каждой команды
+        user_commands = user.volunteer_commands.all().prefetch_related('members')
         user_directions = user.direction.all()
-
-        tasks = ActivityTask.objects.filter(
-            Q(command__isnull=True) |   
-            Q(command__in=user_commands) 
-        ).select_related('command').distinct()
 
         return Response({
             "all_directions": VolunteerDirectionSerializer(all_directions, many=True).data,
             "my_direction": VolunteerDirectionSerializer(user_directions, many=True).data,
-            "my_commands": CommandSerializer(user_commands, many=True).data,
-            "available_tasks": ActivityTaskSerializer(tasks, many=True).data,
+            # В CommandSerializer убедись, что поле members добавлено!
+            "my_commands": CommandSerializer(user_commands, many=True).data, 
+            "available_tasks": ActivityTaskSerializer(ActivityTask.objects.all(), many=True).data,
             "is_points_submission_open": settings.is_points_submission_open 
         })
 
@@ -1230,6 +1227,28 @@ class MiniTeamViewSet(viewsets.ModelViewSet):
         action_text = "добавлен" if created else "обновлен"
         return Response({"message": f"Волонтер {volunteer.name} {action_text} с ролью {membership.get_role_display()}"})
     
+    @action(detail=True, methods=['get'])
+    def members(self, request, pk=None):
+        miniteam = self.get_object()
+        # Проверяем, что запрашивает участник команды или куратор
+        user = request.user
+        has_access = MiniTeamMembership.objects.filter(miniteam=miniteam, volunteer=user).exists() or \
+                     user.role in ['admin', 'president', 'curator']
+        
+        if not has_access:
+            raise PermissionDenied("Нет доступа к составу этой мини-команды")
+
+        memberships = MiniTeamMembership.objects.filter(miniteam=miniteam).select_related('volunteer')
+        data = []
+        for m in memberships:
+            data.append({
+                "id": m.volunteer.id,
+                "name": m.volunteer.name or m.volunteer.login,
+                "role": m.role,
+                "role_display": m.get_role_display()
+            })
+        return Response(data)
+        
     @action(detail=True, methods=['post'])
     def remove_member(self, request, pk=None):
         miniteam = self.get_object()
@@ -1283,14 +1302,50 @@ class SponsorTaskViewSet(viewsets.ModelViewSet):
         miniteam_id = self.request.data.get('miniteam')
         miniteam = get_object_or_404(MiniTeam, id=miniteam_id)
         
-        is_basist = MiniTeamMembership.objects.filter(miniteam=miniteam, volunteer=user, role='basist').exists()
+        # Изменяем проверку: теперь и базист, и мини-куратор (лидер мини-команды) могут добавлять спонсоров
+        is_basist_or_minileader = MiniTeamMembership.objects.filter(
+            miniteam=miniteam, 
+            volunteer=user, 
+            role__in=['basist', 'mini_curator']
+        ).exists()
+
         is_parent_curator = (miniteam.direction and miniteam.direction.responsible == user) or \
                             (miniteam.command and miniteam.command.leader == user)
                             
-        if not (is_basist or is_parent_curator or user.role in ['admin', 'president']):
-            raise PermissionDenied("Только Базист или куратор может добавлять спонсоров в базу.")
-            
+        if not (is_basist_or_minileader or is_parent_curator or user.role in ['admin', 'president']):
+            raise PermissionDenied("Только Базист, Мини-куратор или куратор направления могут добавлять спонсоров в базу.")
+                    
         serializer.save()
+
+    @action(detail=True, methods=['patch'])
+    def assign_volunteer(self, request, pk=None):
+        task = self.get_object()
+        user = request.user
+        
+        # Разрешаем назначать только Базистам, Мини-кураторам и старшему руководству
+        is_basist_or_leader = MiniTeamMembership.objects.filter(
+            miniteam=task.miniteam, volunteer=user, role__in=['basist', 'mini_curator']
+        ).exists()
+        is_parent_curator = (task.miniteam.direction and task.miniteam.direction.responsible == user) or \
+                            (task.miniteam.command and task.miniteam.command.leader == user)
+                            
+        if not (is_basist_or_leader or is_parent_curator or user.role in ['admin', 'president']):
+            raise PermissionDenied("У вас нет прав назначать волонтеров на обзвон")
+
+        vol_id = request.data.get('volunteer_id')
+        
+        # Если передали пустой ID, значит снимаем волонтера
+        if not vol_id:
+            task.assigned_volunteer = None
+        else:
+            volunteer = get_object_or_404(Volunteer, pk=vol_id)
+            task.assigned_volunteer = volunteer
+            
+        task.save()
+        return Response({
+            "message": "Волонтер успешно назначен", 
+            "assigned_name": task.assigned_volunteer.name if task.assigned_volunteer else "Не назначен"
+        })
 
     @action(detail=True, methods=['patch'])
     def update_status(self, request, pk=None):
