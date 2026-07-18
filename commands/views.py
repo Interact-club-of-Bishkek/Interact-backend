@@ -160,14 +160,12 @@ class RemoveVolunteerFromCommandView(APIView):
         command.volunteers.remove(volunteer)
         return Response({"status": "success", "message": "Участник успешно исключен из команды"})
 
-
-# ==========================================
-# API ДЛЯ НАБОРА В БОРД
-# ==========================================
-class BoardPositionListCreateView(generics.ListCreateAPIView):
+class BoardPositionListView(generics.ListAPIView):
     queryset = BoardPosition.objects.all()
     serializer_class = BoardPositionSerializer
-    permission_classes = [AllowAny] # Измени на IsAuthenticated если создавать могут только админы
+    permission_classes = [AllowAny]
+
+
 
 class BoardPositionDetailView(generics.RetrieveAPIView):
     queryset = BoardPosition.objects.all()
@@ -175,75 +173,384 @@ class BoardPositionDetailView(generics.RetrieveAPIView):
     lookup_field = 'slug'
     permission_classes = [AllowAny]
 
-# views.py
+
+
+
 class BoardApplicationListCreateView(generics.ListCreateAPIView):
+
     serializer_class = BoardApplicationSerializer
-    permission_classes = [AllowAny] # Теперь это публичный эндпоинт
+    permission_classes = [AllowAny]
+
+
+    def get_queryset(self):
+
+        return BoardApplication.objects.all().order_by("-created_at")
+
+
 
     def post(self, request, *args, **kwargs):
-        board_slug = request.data.get('board_slug')
-        board_position = get_object_or_404(BoardPosition, slug=board_slug)
-        
-        # Заявка теперь создается без привязки к request.user
-        app = BoardApplication.objects.create(
-            board_position=board_position,
-            answers=json.loads(request.data.get('answers', '{}'))
-        )
-        
-        # Обработка файлов (как в командах)
-        for key in request.FILES:
-            for f in request.FILES.getlist(key):
-                BoardAttachment.objects.create(application=app, file=f, label=key.replace('TEXT__',''))
-        
-        return Response({"status": "success", "id": app.id}, status=status.HTTP_201_CREATED)
 
-class BoardApplicationUpdateStatusView(generics.UpdateAPIView):
+        try:
+
+            board_slug = request.data.get(
+                "board_slug"
+            )
+
+
+            board_position = get_object_or_404(
+                BoardPosition,
+                slug=board_slug
+            )
+
+
+            now = timezone.now()
+
+
+            if board_position.start_date and now < board_position.start_date:
+
+                return Response(
+                    {
+                        "error":"Набор ещё не открыт"
+                    },
+                    status=400
+                )
+
+
+            if board_position.end_date and now > board_position.end_date:
+
+                return Response(
+                    {
+                        "error":"Набор завершён"
+                    },
+                    status=400
+                )
+
+
+
+            answers = json.loads(
+                request.data.get(
+                    "answers",
+                    "{}"
+                )
+            )
+
+
+
+            application = BoardApplication.objects.create(
+
+                board_position=board_position,
+
+                answers=answers
+
+            )
+
+
+
+            for key in request.FILES:
+
+                for file in request.FILES.getlist(key):
+
+                    BoardAttachment.objects.create(
+
+                        application=application,
+
+                        file=file,
+
+                        label=key
+
+                    )
+
+
+
+            return Response(
+
+                {
+                    "status":"success",
+                    "id":application.id
+                },
+
+                status=status.HTTP_201_CREATED
+            )
+
+
+
+        except Exception as e:
+
+
+            return Response(
+
+                {
+                    "error":str(e)
+                },
+
+                status=status.HTTP_400_BAD_REQUEST
+
+            )
+
+
+
+class BoardApplicationUpdateStatusView(
+    generics.UpdateAPIView
+):
+
+
     queryset = BoardApplication.objects.all()
+
     serializer_class = BoardApplicationSerializer
+
     permission_classes = [IsAuthenticated]
 
-    def patch(self, request, *args, **kwargs):
-        instance = self.get_object()
-        if not has_board_management_rights(request.user, instance.board_position):
-            return Response({"error": "Нет прав для принятия заявки"}, status=status.HTTP_403_FORBIDDEN)
 
-        instance.status = 'accepted'
+
+
+    def patch(
+        self,
+        request,
+        *args,
+        **kwargs
+    ):
+
+
+        instance = self.get_object()
+
+
+
+        if not has_board_management_rights(
+            request.user,
+            instance.board_position
+        ):
+
+
+            return Response(
+
+                {
+                    "error":
+                    "Нет прав для принятия заявки"
+                },
+
+                status=status.HTTP_403_FORBIDDEN
+
+            )
+
+
+
+        instance.status = "accepted"
+
         instance.save()
-        return Response(self.get_serializer(instance).data)
+
+
+
+        return Response(
+            self.get_serializer(instance).data
+        )
+
+
+
+
+
+
 
 class AddVolunteerToBoardView(APIView):
-    permission_classes = [IsAuthenticated]
-    def post(self, request, pk):
-        board_position = get_object_or_404(BoardPosition, pk=pk)
-        if not has_board_management_rights(request.user, board_position):
-            return Response({"error": "Нет прав"}, status=status.HTTP_403_FORBIDDEN)
-        
-        vol_ids = request.data.get('volunteer_ids', [])
-        if not vol_ids:
-            single_id = request.data.get('volunteer_id')
-            if single_id: vol_ids = [single_id]
-        if not vol_ids:
-            return Response({"error": "Не выбраны кандидаты"}, status=status.HTTP_400_BAD_REQUEST)
 
-        volunteers = Volunteer.objects.filter(id__in=vol_ids)
-        board_position.members.add(*volunteers)
-        return Response({"status": "success", "message": "Добавлено в борд"})
+
+    permission_classes = [IsAuthenticated]
+
+
+
+    def post(
+        self,
+        request,
+        pk
+    ):
+
+
+        board_position = get_object_or_404(
+            BoardPosition,
+            pk=pk
+        )
+
+
+
+        if not has_board_management_rights(
+            request.user,
+            board_position
+        ):
+
+
+            return Response(
+
+                {
+                    "error":
+                    "Нет прав"
+                },
+
+                status=status.HTTP_403_FORBIDDEN
+
+            )
+
+
+
+
+        volunteer_ids = request.data.get(
+            "volunteer_ids",
+            []
+        )
+
+
+
+        if not volunteer_ids:
+
+
+            volunteer_id = request.data.get(
+                "volunteer_id"
+            )
+
+
+            if volunteer_id:
+
+                volunteer_ids = [
+                    volunteer_id
+                ]
+
+
+
+
+        if not volunteer_ids:
+
+
+            return Response(
+
+                {
+                    "error":
+                    "Не выбраны волонтеры"
+                },
+
+                status=status.HTTP_400_BAD_REQUEST
+
+            )
+
+
+
+
+
+        volunteers = Volunteer.objects.filter(
+            id__in=volunteer_ids
+        )
+
+
+
+        board_position.members.add(
+            *volunteers
+        )
+
+
+
+        return Response(
+
+            {
+                "status":
+                "success",
+
+                "message":
+                f"Добавлено участников: {len(volunteers)}"
+            }
+
+        )
+
+
+
+
+
+
 
 class RemoveVolunteerFromBoardView(APIView):
+
+
     permission_classes = [IsAuthenticated]
-    def post(self, request, pk):
-        board_position = get_object_or_404(BoardPosition, pk=pk)
-        if not has_board_management_rights(request.user, board_position):
-            return Response({"error": "Нет прав"}, status=status.HTTP_403_FORBIDDEN)
 
-        volunteer_id = request.data.get('volunteer_id')
+
+
+    def post(
+        self,
+        request,
+        pk
+    ):
+
+
+        board_position = get_object_or_404(
+            BoardPosition,
+            pk=pk
+        )
+
+
+
+        if not has_board_management_rights(
+            request.user,
+            board_position
+        ):
+
+
+            return Response(
+
+                {
+                    "error":
+                    "Нет прав"
+                },
+
+                status=status.HTTP_403_FORBIDDEN
+
+            )
+
+
+
+
+        volunteer_id = request.data.get(
+            "volunteer_id"
+        )
+
+
+
         if not volunteer_id:
-            return Response({"error": "Не передан volunteer_id"}, status=status.HTTP_400_BAD_REQUEST)
 
-        volunteer = get_object_or_404(Volunteer, id=volunteer_id)
-        board_position.members.remove(volunteer)
-        return Response({"status": "success", "message": "Участник исключен из борда"})
 
+            return Response(
+
+                {
+                    "error":
+                    "Не передан volunteer_id"
+                },
+
+                status=status.HTTP_400_BAD_REQUEST
+
+            )
+
+
+
+
+        volunteer = get_object_or_404(
+            Volunteer,
+            id=volunteer_id
+        )
+
+
+
+        board_position.members.remove(
+            volunteer
+        )
+
+
+
+        return Response(
+
+            {
+                "status":
+                "success",
+
+                "message":
+                "Участник удален из борда"
+            }
+
+        )
 
 # ==========================================
 # ЗАГЛУШКИ HTML СТРАНИЦ

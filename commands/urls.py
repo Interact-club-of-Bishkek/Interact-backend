@@ -15,7 +15,7 @@ from .views import (
     RemoveVolunteerFromCommandView,
     
     # API Борда
-    BoardPositionListCreateView,
+    BoardPositionListView,
     BoardPositionDetailView,
     BoardApplicationListCreateView,
     BoardApplicationUpdateStatusView,
@@ -45,10 +45,14 @@ urlpatterns = [
     # ==========================================
     # API Борда
     # ==========================================
-    path('board-positions/', BoardPositionListCreateView.as_view(), name='board-list-create'),
-    path('board-positions/<str:slug>/', BoardPositionDetailView.as_view(), name='board-detail'),
+    path(
+        'board/',
+        BoardPositionListView.as_view(),
+        name='board-list'
+    ),    
+    path('board/<str:slug>/', BoardPositionDetailView.as_view(), name='board-detail'),
     path('board-applications/', BoardApplicationListCreateView.as_view(), name='board-app-list-create'),
     path('board-applications/<int:pk>/accept/', BoardApplicationUpdateStatusView.as_view(), name='board-app-accept'),
-    path('board-positions/<int:pk>/add-member/', AddVolunteerToBoardView.as_view(), name='board-add-member'),
-    path('board-positions/<int:pk>/remove-member/', RemoveVolunteerFromBoardView.as_view(), name='board-remove-member'),
+    path('board/<int:pk>/add-member/', AddVolunteerToBoardView.as_view(), name='board-add-member'),
+    path('board/<int:pk>/remove-member/', RemoveVolunteerFromBoardView.as_view(), name='board-remove-member'),
 ]

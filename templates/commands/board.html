@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Анкеты в Борд</title>
+<title>Анкеты в борд</title>
 <link rel="icon" type="image/png" href="https://i.ibb.co/qFYrFSnD/2105176-1-removebg-preview.png">
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
@@ -58,9 +58,9 @@ body { font-family: 'Inter', sans-serif; background:#020408; color:#fff; margin:
         Interact <span class="text-cyan-400">Board</span>
     </h1>
 
-    <div id="boardGrid" class="cmd-grid mb-10"></div>
+    <div id="commandGrid" class="cmd-grid mb-10"></div>
 
-    <div id="boardInfo" class="hidden mb-8 p-6 rounded-2xl bg-white/5 whitespace-pre-line"></div>
+    <div id="cmdInfo" class="hidden mb-8 p-6 rounded-2xl bg-white/5 whitespace-pre-line"></div>
 
     <form id="appForm" class="hidden space-y-6" enctype="multipart/form-data">
         <div id="questionsContainer" class="space-y-6"></div>
@@ -69,20 +69,23 @@ body { font-family: 'Inter', sans-serif; background:#020408; color:#fff; margin:
 </div>
 
 <script>
-const API_BOARD = '/board-positions/';
-const API_APPS = '/board-applications/';
-const token = localStorage.getItem('access'); // Заявки в Борд требуют авторизации
+const API_BOARD = '/board/';
+const API_BOARD_APPS = '/board-applications/';
+const API_DIRECTIONS = '/api/volunteer-directions/';
 
 let selectedSlug = '';
+let directions = [];
+let directionMap = {};
 
 const app = document.getElementById('appContainer');
 const message = document.getElementById('fullscreenMessage');
 const submitBtn = document.getElementById('submitBtn');
 const appForm = document.getElementById('appForm');
 
-// ЗАПРЕТ ОТПРАВКИ ПО ENTER
+// --- 1. ЗАПРЕТ ОТПРАВКИ ПО ENTER ---
 appForm.addEventListener('keydown', function(e) {
     if (e.key === 'Enter') {
+        // Если фокус НЕ на textarea, отменяем стандартное поведение
         if (e.target.tagName !== 'TEXTAREA') {
             e.preventDefault();
             return false;
@@ -103,36 +106,27 @@ function hideMessage(){
 }
 
 async function init(){
-    if (!token) {
-        window.location.href = '/login/'; // Если не авторизован - на страницу входа
-        return;
-    }
-
     try {
-        const res = await fetch(API_BOARD, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        if (!res.ok) throw new Error('Ошибка авторизации или сервера');
-        const boardPositions = await res.json();
+        const [resCmds, resDirs] = await Promise.all([fetch(API_CMDS), fetch(API_DIRECTIONS)]);
+        const resBoard = await fetch(API_BOARD);
+        const boards = await resBoard.json();
+        directions = await resDirs.json();
 
-        const grid = document.getElementById('boardGrid');
+        directions.forEach(d => directionMap[d.id] = d.name);
+
+        const grid = document.getElementById('commandGrid');
         grid.innerHTML = '';
-        
-        // В зависимости от пагинации DRF может вернуть объект с results
-        const dataArray = Array.isArray(boardPositions) ? boardPositions : (boardPositions.results || []);
-
-        dataArray.forEach(pos => {
+        boards.forEach(board => {
             const card = document.createElement('div');
             card.className = 'cmd-card';
-            card.textContent = pos.title;
-            card.onclick = () => loadBoardPosition(pos, card);
+            card.textContent = board.title;
+            card.onclick = () => loadBoard(board, card);
             grid.appendChild(card);
         });
 
         hideMessage();
     } catch(e){
-        showMessage('Ошибка', 'Не удалось загрузить позиции Борда');
+        showMessage('Ошибка', 'Не удалось загрузить данные');
     }
 }
 
@@ -141,47 +135,50 @@ function formatDate(dt){
     return new Date(dt).toLocaleString('ru-RU', {day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'});
 }
 
-function loadBoardPosition(pos, card){
+function loadBoard(board, card){
     document.querySelectorAll('.cmd-card').forEach(c => c.classList.remove('selected'));
     card.classList.add('selected');
 
     const now = new Date();
-    const start = pos.start_date ? new Date(pos.start_date) : null;
-    const end = pos.end_date ? new Date(pos.end_date) : null;
+    const start = board.start_date ? new Date(board.start_date) : null;
+    const end = board.end_date ? new Date(board.end_date) : null;
 
     if(start && now < start){
         showMessage('Набор еще не открыт','Ожидайте объявления старта 🤍');
         return;
     }
     if(end && now > end){
-        showMessage('Набор завершён','Прием заявок на эту позицию закрыт');
+        showMessage('Набор завершён','Прием заявок уже закрыт');
         return;
     }
 
     hideMessage();
-    selectedSlug = pos.slug;
+    selectedSlug = cmd.slug;
 
-    const info = document.getElementById('boardInfo');
+    const info = document.getElementById('cmdInfo');
     info.classList.remove('hidden');
     info.innerHTML = `
-        <h2 class="text-3xl font-black mb-2">${pos.title}</h2>
-        <p class="text-gray-400 mb-4">${pos.description || ''}</p>
+        <h2 class="text-3xl font-black mb-2">${board.title}</h2>
+
+        <p class="text-gray-400 mb-4">
+        ${board.description || ''}
+        </p>
         <div class="flex flex-wrap gap-4">
-            <div class="date-block">Начало: <span>${formatDate(pos.start_date)}</span></div>
-            <div class="date-block">Конец: <span>${formatDate(pos.end_date)}</span></div>
+            <div class="date-block">Начало: <span>${formatDate(cmd.start_date)}</span></div>
+            <div class="date-block">Конец: <span>${formatDate(cmd.end_date)}</span></div>
         </div>
     `;
 
     const qBox = document.getElementById('questionsContainer');
     qBox.innerHTML = '';
 
-    if(!pos.questions || pos.questions.length === 0){
+    if(!board.questions || board.questions.length === 0){
         submitBtn.classList.add('hidden');
         return;
     } 
     submitBtn.classList.remove('hidden');
 
-    pos.questions.forEach(q => {
+    cmd.questions.forEach(q => {
         const isReq = q.required;
         const requiredAttr = isReq ? 'required' : '';
         const fieldName = `q_${q.id}`;
@@ -201,19 +198,12 @@ function loadBoardPosition(pos, card){
                 <img class="file-preview">
             </div>`;
         } else if(q.field_type === 'select'){
-            // Генерируем опции для селекта из поля options
-            let optionsHtml = '';
-            if (q.options && Array.isArray(q.options)) {
-                q.options.forEach(opt => {
-                    optionsHtml += `<li>${opt}</li>`;
-                });
-            }
             html = `
             <div class="select-wrapper field-wrapper" data-fieldname="${fieldName}" data-required="${isReq}">
                 ${labelHtml}
                 <div class="neon-select">
                     <span class="selected-text">Выберите вариант...</span>
-                    <ul class="options">${optionsHtml}</ul>
+                    <ul class="options"></ul>
                 </div>
             </div>`;
         } else if(q.field_type === 'long_text') {
@@ -268,16 +258,19 @@ function setupCustomSelects(){
         const ul = selectBox.querySelector('.options');
         const selectedText = selectBox.querySelector('.selected-text');
 
-        // Обработка клика по сгенерированным li
-        ul.querySelectorAll('li').forEach(li => {
+        ul.innerHTML = '';
+        directions.forEach(d => {
+            const li = document.createElement('li');
+            li.textContent = d.name;
             li.onclick = (e) => {
                 e.stopPropagation();
-                wrapper.dataset.value = li.textContent;
-                selectedText.textContent = li.textContent;
+                wrapper.dataset.value = d.id;
+                selectedText.textContent = d.name;
                 selectedText.style.color = '#00c6ff';
                 ul.style.display = 'none';
                 selectBox.style.borderColor = ''; // Сброс ошибки
             };
+            ul.appendChild(li);
         });
 
         selectBox.onclick = e => {
@@ -293,10 +286,11 @@ function setupCustomSelects(){
     });
 }
 
-// ОТПРАВКА С ВАЛИДАЦИЕЙ
+// --- 2. ИСПРАВЛЕННАЯ ОТПРАВКА С ВАЛИДАЦИЕЙ ---
 appForm.onsubmit = async e => {
     e.preventDefault();
     
+    // Проверка встроенной валидации браузера (required для обычных input)
     if (!appForm.checkValidity()) {
         appForm.reportValidity();
         return;
@@ -305,12 +299,12 @@ appForm.onsubmit = async e => {
     if(!selectedSlug) return;
 
     const fd = new FormData();
-    // Обрати внимание: бэкенд ожидает board_slug, а не command_slug
     fd.append('board_slug', selectedSlug);
 
     let isSelectValid = true;
     const answers = {};
 
+    // Валидация кастомных селектов и сбор данных
     document.querySelectorAll('#questionsContainer > .field-wrapper').forEach(div => {
         const input = div.querySelector('input, textarea');
         
@@ -320,9 +314,9 @@ appForm.onsubmit = async e => {
             
             if (isReq && !val) {
                 isSelectValid = false;
-                div.querySelector('.neon-select').style.borderColor = '#ef4444';
+                div.querySelector('.neon-select').style.borderColor = '#ef4444'; // Подсветка красным
             } else {
-                answers[div.dataset.fieldname] = val || '';
+                answers[div.dataset.fieldname] = directionMap[val] || '';
             }
         } else if (input) {
             if (input.type === 'file') {
@@ -334,7 +328,7 @@ appForm.onsubmit = async e => {
     });
 
     if (!isSelectValid) {
-        alert('Пожалуйста, выберите вариант в выпадающем списке');
+        alert('Пожалуйста, выберите направление в выпадающем списке');
         return;
     }
 
@@ -344,19 +338,12 @@ appForm.onsubmit = async e => {
         submitBtn.disabled = true;
         submitBtn.textContent = 'Отправка...';
 
-        // Отправка с токеном авторизации
-        const res = await fetch(API_APPS, { 
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` },
-            body: fd 
-        });
-        
+        const res = await fetch(API_BOARDS_APPS, { method: 'POST', body: fd });
         if (res.ok) {
-            showMessage('Успешно!', 'Ваша заявка в Борд принята 🤍');
+            showMessage('Успешно!', 'Ваша заявка принята. Ожидайте обратной связи 🤍');
             appForm.reset();
         } else {
-            const errData = await res.json();
-            alert('Ошибка: ' + (errData.error || 'Сбой на сервере'));
+            alert('Ошибка сервера при сохранении');
         }
     } catch(e) {
         alert('Ошибка сети');

@@ -81,7 +81,7 @@ urlpatterns = [
     path('login/', LoginPageView.as_view(), name='login-page'),
     path('cabinet/', VolunteerCabinetView.as_view(), name='cabinet'),
     path('curator-panel/', CuratorPanelView.as_view(), name='curator-panel'),
-    path('board/', VolunteerBoardView.as_view(), name='board'),
+    path('board-appl/', VolunteerBoardView.as_view(), name='board'),
     path('commands/<int:pk>/remove-volunteer/', RemoveVolunteerFromCommandView.as_view(), name='remove-volunteer'),
     path('api/curator/penalty/', DeductPointsView.as_view(), name='deduct-points'),
     

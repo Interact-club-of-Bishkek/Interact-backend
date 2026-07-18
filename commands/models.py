@@ -180,58 +180,121 @@ class Attachment(models.Model):
 
 
 class BoardPosition(models.Model):
-    title = models.CharField(max_length=255, verbose_name="Название позиции в Борде (например, Вице-Президент)")
-    slug = models.SlugField(unique=True, blank=True)
-    description = models.TextField(blank=True)
-    start_date = models.DateTimeField(null=True, blank=True)
-    end_date = models.DateTimeField(null=True, blank=True)
-    leader = models.ForeignKey(Volunteer, on_delete=models.SET_NULL, null=True, blank=True, related_name='managed_board_positions')
-    members = models.ManyToManyField(Volunteer, related_name='board_roles', blank=True)
-    
-    # ПРИМЕЧАНИЕ: Поле questions удалено отсюда, чтобы не было конфликта с BoardQuestion
 
-    def save(self, *args, **kwargs):
+    title = models.CharField(
+        "Название позиции в Борде",
+        max_length=255
+    )
+
+    slug = models.SlugField(
+        "URL",
+        unique=True,
+        blank=True,
+        max_length=255,
+        allow_unicode=True,
+        help_text="Генерируется автоматически"
+    )
+
+    description = models.TextField(
+        "Описание",
+        blank=True
+    )
+
+    start_date = models.DateTimeField(
+        "Начало набора",
+        null=True,
+        blank=True
+    )
+
+    end_date = models.DateTimeField(
+        "Конец набора",
+        null=True,
+        blank=True
+    )
+
+
+    leader = models.ForeignKey(
+        'users.Volunteer',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Руководитель позиции",
+        related_name="led_board_positions"
+    )
+
+
+    members = models.ManyToManyField(
+        'users.Volunteer',
+        related_name="board_positions",
+        blank=True,
+        verbose_name="Члены Борда"
+    )
+
+
+
+    class Meta:
+
+        verbose_name = "Позиция Борда"
+        verbose_name_plural = "Позиции Борда"
+
+
+
+    def save(self,*args,**kwargs):
+
         if not self.slug:
-            self.slug = slugify(self.title)
-        super().save(*args, **kwargs)
+
+            base_slug = slugify(
+                self.title,
+                allow_unicode=True
+            )
+
+
+            if not base_slug:
+
+                base_slug = (
+                    "board-" +
+                    uuid.uuid4().hex[:6]
+                )
+
+
+
+            slug = base_slug
+            counter = 1
+
+
+
+            while BoardPosition.objects.filter(
+                slug=slug
+            ).exists():
+
+                slug = f"{base_slug}-{counter}"
+
+                counter += 1
+
+
+
+            self.slug = slug
+
+
+
+        super().save(
+            *args,
+            **kwargs
+        )
+
+
 
     def __str__(self):
+
         return self.title
 
 
-class BoardApplication(models.Model):
-    STATUS_CHOICES = (
-        ('pending', 'Ожидает'),
-        ('accepted', 'Принят'),
-        ('rejected', 'Отклонен'),
-    )
-    board_position = models.ForeignKey(BoardPosition, on_delete=models.CASCADE, related_name='applications')
-    applicant = models.ForeignKey(
-            Volunteer, 
-            on_delete=models.CASCADE, 
-            related_name='board_applications', 
-            verbose_name="Кандидат",
-            null=True, 
-            blank=True
-        )
-    answers = models.JSONField(default=dict)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"Заявка от {self.applicant.name} на {self.board_position.title}"
 
 
-class BoardAttachment(models.Model):
-    application = models.ForeignKey(BoardApplication, on_delete=models.CASCADE, related_name='files')
-    file = models.FileField(upload_to='board_attachments/')
-    label = models.CharField(max_length=255, blank=True)
-
-    def __str__(self):
-        return self.label
 
 
 class BoardQuestion(models.Model):
+
     FIELD_TYPES = [
         ('short_text', 'Короткий текст'),
         ('long_text', 'Длинный текст'),
@@ -241,35 +304,229 @@ class BoardQuestion(models.Model):
         ('select', 'Выбор варианта'),
     ]
 
+
+
     board_position = models.ForeignKey(
-        'BoardPosition',
-        related_name='questions', # Теперь это работает без ошибок
+        BoardPosition,
+        related_name="questions",
         on_delete=models.CASCADE,
-        verbose_name="Позиция в Борде"
+        verbose_name="Позиция Борда"
     )
-    label = models.CharField("Текст вопроса", max_length=500)
-    field_type = models.CharField("Тип поля", max_length=20, choices=FIELD_TYPES)
-    required = models.BooleanField("Обязательный", default=True)
-    order = models.PositiveIntegerField("Порядок", blank=True, null=True)
+
+
+    label = models.CharField(
+        "Текст вопроса",
+        max_length=500
+    )
+
+
+    field_type = models.CharField(
+        "Тип поля",
+        max_length=20,
+        choices=FIELD_TYPES
+    )
+
+
+    required = models.BooleanField(
+        "Обязательный",
+        default=True
+    )
+
+
+    order = models.PositiveIntegerField(
+        "Порядок",
+        null=True,
+        blank=True
+    )
+
 
     options = models.JSONField(
         blank=True,
         default=list,
-        help_text="Только для select: список вариантов"
+        help_text="Для select"
     )
 
+
+
     class Meta:
-        verbose_name = "Вопрос для Борда"
-        verbose_name_plural = "Вопросы для Борда"
+
+        verbose_name = "Вопрос Борда"
+        verbose_name_plural = "Вопросы Борда"
         ordering = ['order']
 
-    def save(self, *args, **kwargs):
+
+
+    def save(self,*args,**kwargs):
+
         if self.order is None:
-            last = BoardQuestion.objects.filter(board_position=self.board_position).aggregate(
+
+            last = BoardQuestion.objects.filter(
+                board_position=self.board_position
+            ).aggregate(
                 models.Max('order')
             )['order__max'] or 0
+
+
             self.order = last + 1
-        super().save(*args, **kwargs)
+
+
+
+        super().save(
+            *args,
+            **kwargs
+        )
+
+
 
     def __str__(self):
+
+        return self.label
+
+
+
+
+
+
+
+def board_attachment_upload_to(
+    instance,
+    filename
+):
+
+    ext = filename.split('.')[-1]
+
+    name = uuid.uuid4().hex
+
+    return (
+        f'board_applications/'
+        f'{instance.application.id}/'
+        f'{name}.{ext}'
+    )
+
+
+
+
+
+
+
+class BoardApplication(models.Model):
+
+    STATUS_CHOICES = [
+        ('pending','Ожидает'),
+        ('accepted','Принят'),
+        ('rejected','Отклонен'),
+    ]
+
+
+
+    board_position = models.ForeignKey(
+        BoardPosition,
+        on_delete=models.CASCADE,
+        related_name="applications",
+        verbose_name="Позиция"
+    )
+
+
+    volunteer = models.ForeignKey(
+        'users.Volunteer',
+        on_delete=models.CASCADE,
+        related_name="board_applications",
+        verbose_name="Кандидат",
+        null=True
+    )
+
+
+
+    answers = models.JSONField(
+        "Ответы"
+    )
+
+
+    status = models.CharField(
+        "Статус",
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="pending"
+    )
+
+
+    created_at = models.DateTimeField(
+        "Дата подачи",
+        auto_now_add=True
+    )
+
+
+
+
+    def save(self,*args,**kwargs):
+
+        if (
+            self.status == "accepted"
+            and self.volunteer
+        ):
+
+            self.board_position.members.add(
+                self.volunteer
+            )
+
+
+        super().save(
+            *args,
+            **kwargs
+        )
+
+
+
+    class Meta:
+
+        verbose_name = "Заявка в Борд"
+        verbose_name_plural = "Заявки в Борд"
+
+
+
+
+    def __str__(self):
+
+        return f"Заявка #{self.id}"
+
+
+
+
+
+
+
+
+
+class BoardAttachment(models.Model):
+
+    application = models.ForeignKey(
+        BoardApplication,
+        related_name="files",
+        on_delete=models.CASCADE,
+        verbose_name="Заявка"
+    )
+
+
+    file = models.FileField(
+        "Файл",
+        upload_to=board_attachment_upload_to
+    )
+
+
+    label = models.CharField(
+        "Вопрос",
+        max_length=255
+    )
+
+
+
+    class Meta:
+
+        verbose_name = "Файл Борда"
+        verbose_name_plural = "Файлы Борда"
+
+
+
+    def __str__(self):
+
         return self.label

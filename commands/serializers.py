@@ -40,37 +40,84 @@ class ApplicationSerializer(serializers.ModelSerializer):
         fields = ['id', 'command', 'command_slug', 'command_title', 'answers', 'status', 'created_at', 'files']
     
 class BoardQuestionSerializer(serializers.ModelSerializer):
+
     class Meta:
+
         model = BoardQuestion
-        fields = ['id', 'label', 'field_type', 'required', 'order', 'options']
 
-class BoardPositionSerializer(serializers.ModelSerializer):
-    # Теперь сериализатор будет видеть вопросы, связанные через модель BoardQuestion
-    questions = BoardQuestionSerializer(many=True, read_only=True)
+        fields = [
+            "id",
+            "label",
+            "field_type",
+            "required",
+            "order",
+            "options"
+        ]
 
-    class Meta:
-        model = BoardPosition
-        fields = ['id', 'title', 'slug', 'description', 'start_date', 'end_date', 'questions']
+
+
 
 class BoardAttachmentSerializer(serializers.ModelSerializer):
+
     class Meta:
+
         model = BoardAttachment
-        fields = ['file', 'label']
+
+        fields = [
+            "id",
+            "file",
+            "label"
+        ]
+
+
+
+
+class BoardPositionSerializer(serializers.ModelSerializer):
+
+    questions = BoardQuestionSerializer(
+        many=True,
+        read_only=True
+    )
+
+
+    class Meta:
+
+        model = BoardPosition
+
+        fields = [
+            "id",
+            "title",
+            "slug",
+            "description",
+            "start_date",
+            "end_date",
+            "questions"
+        ]
+
+
+
+
 
 class BoardApplicationSerializer(serializers.ModelSerializer):
-    files = BoardAttachmentSerializer(many=True, read_only=True)
-    board_title = serializers.CharField(source='board_position.title', read_only=True)
-    board_slug = serializers.CharField(source='board_position.slug', read_only=True)
-    
-    # 🔥 АВТОМАТИЧЕСКИЙ ИМПОРТ ФИО И ТЕЛЕФОНА ИЗ ПРОФИЛЯ
-    applicant_name = serializers.CharField(source='applicant.name', read_only=True)
-    applicant_phone = serializers.CharField(source='applicant.phone_number', read_only=True)
+
+    files = BoardAttachmentSerializer(
+        many=True,
+        read_only=True
+    )
+
 
     class Meta:
+
         model = BoardApplication
+
         fields = [
-            'id', 'board_position', 'board_title', 'board_slug', 
-            'applicant', 'applicant_name', 'applicant_phone', # <- Добавлены новые поля
-            'answers', 'status', 'created_at', 'files'
+            "id",
+            "board_position",
+            "applicant",
+            "answers",
+            "status",
+            "created_at",
+            "files"
         ]
+        
 
