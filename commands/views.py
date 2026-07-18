@@ -198,19 +198,27 @@ class BoardApplicationListCreateView(generics.ListCreateAPIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-class BoardApplicationUpdateStatusView(generics.UpdateAPIView):
-    queryset = BoardApplication.objects.all()
+# views.py
+class BoardApplicationListCreateView(generics.ListCreateAPIView):
     serializer_class = BoardApplicationSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny] # Теперь это публичный эндпоинт
 
-    def patch(self, request, *args, **kwargs):
-        instance = self.get_object()
-        if not has_board_management_rights(request.user, instance.board_position):
-            return Response({"error": "Нет прав для принятия заявки"}, status=status.HTTP_403_FORBIDDEN)
-
-        instance.status = 'accepted'
-        instance.save()
-        return Response(self.get_serializer(instance).data)
+    def post(self, request, *args, **kwargs):
+        board_slug = request.data.get('board_slug')
+        board_position = get_object_or_404(BoardPosition, slug=board_slug)
+        
+        # Заявка теперь создается без привязки к request.user
+        app = BoardApplication.objects.create(
+            board_position=board_position,
+            answers=json.loads(request.data.get('answers', '{}'))
+        )
+        
+        # Обработка файлов (как в командах)
+        for key in request.FILES:
+            for f in request.FILES.getlist(key):
+                BoardAttachment.objects.create(application=app, file=f, label=key.replace('TEXT__',''))
+        
+        return Response({"status": "success", "id": app.id}, status=status.HTTP_201_CREATED)
 
 class AddVolunteerToBoardView(APIView):
     permission_classes = [IsAuthenticated]
