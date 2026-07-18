@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Борд кабинет | Президент</title>
+    <link rel="icon" type="image/png" href="https://i.ibb.co/qFYrFSnD/2105176-1-removebg-preview.png">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@800;900&family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #00c6ff; --bg: #020408; --glass: rgba(15, 23, 42, 0.95); }
+        body { 
+            background: var(--bg); color: white; font-family: 'Inter', sans-serif; 
+            background-image: radial-gradient(circle at 50% 120%, #10192e 0%, #020408 100%); 
+            min-height: 100vh; padding: 20px; padding-bottom: 80px; 
+            overflow-x: hidden;
+        }
+        .glass-card { background: var(--glass); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 24px; }
+        .btn-glass { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: #94a3b8; transition: all 0.3s ease; border-radius: 14px; }
+        .btn-glass:hover { background: rgba(255, 255, 255, 0.1); color: white; border-color: rgba(255, 255, 255, 0.3); }
+        
+        .side-btn { 
+            width: 100%; text-align: left; padding: 16px 20px; font-weight: 800; text-transform: uppercase; 
+            font-size: 12px; letter-spacing: 0.05em; border-radius: 16px; transition: all 0.3s; 
+            color: #64748b; border: 1px solid transparent; display: flex; align-items: center; gap: 16px;
+        }
+        .side-btn:hover:not(.active) { color: white; background: rgba(255,255,255,0.05); }
+        .side-btn.active { background: rgba(0, 198, 255, 0.1); color: var(--primary); border-color: rgba(0, 198, 255, 0.3); box-shadow: 0 0 20px rgba(0, 198, 255, 0.15); }
+        
+        .app-card { 
+            background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.08); border-radius: 20px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer; position: relative; overflow: hidden;
+        }
+        .app-card:hover { 
+            border-color: var(--primary); transform: translateY(-4px); 
+            box-shadow: 0 10px 40px -10px rgba(0, 198, 255, 0.15); 
+        }
+        
+        .custom-select-wrapper { position: relative; user-select: none; z-index: 50; }
+        .select-trigger {
+            background: rgba(0, 198, 255, 0.05); border: 1px solid rgba(0, 198, 255, 0.2);
+            border-radius: 16px; padding: 12px 16px; cursor: pointer;
+            display: flex; align-items: center; justify-content: space-between;
+            transition: all 0.3s ease;
+        }
+        .select-trigger:hover { border-color: var(--primary); background: rgba(0, 198, 255, 0.1); }
+        .select-options {
+            position: absolute; top: calc(100% + 8px); left: 0; right: 0;
+            background: #0f172a; border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px; overflow: hidden; display: none;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5); z-index: 100;
+        }
+        .select-options.active { display: block; animation: slideDown 0.2s ease-out; }
+        .option-item { padding: 12px 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); transition: 0.2s; }
+        .option-item:hover { background: var(--primary); color: black; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .loader-spin { animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        
+        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 2000; display: flex; flex-direction: column; gap: 10px; }
+        .toast { padding: 16px 24px; border-radius: 16px; background: rgba(15, 23, 42, 0.95); border-left: 4px solid var(--primary); color: white; transform: translateX(110%); transition: 0.3s; display: flex; align-items: center; gap: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .toast.show { transform: translateX(0); }
+
+        .nav-btn {
+            position: absolute; top: 50%; transform: translateY(-50%);
+            width: 3.5rem; height: 3.5rem; background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.2); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: 0.3s; z-index: 60; color: white;
+        }
+        .nav-btn:hover { background: var(--primary); color: black; }
+        .nav-btn.prev { left: -5rem; }
+        .nav-btn.next { right: -5rem; }
+        @media (max-width: 1024px) {
+            .nav-btn { position: fixed; bottom: 20px; top: auto; transform: none; background: #000; border-color: var(--primary); }
+            .nav-btn.prev { left: 20px; }
+            .nav-btn.next { right: 20px; }
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+        /* Sidebar styles */
+        #sidebarOverlay { backdrop-filter: blur(5px); }
+        .sidebar-open { transform: translateX(0) !important; }
+    </style>
+</head>
+<body>
+    <div id="toast-container"></div>
+
+    <div id="sidebarOverlay" class="fixed inset-0 bg-black/60 z-[100] hidden transition-opacity opacity-0" onclick="toggleSidebar()"></div>
+    <div id="sidebarMenu" class="fixed top-0 left-0 h-full w-72 md:w-80 bg-[#0b1121] border-r border-white/10 z-[110] transform -translate-x-full transition-transform duration-300 flex flex-col shadow-2xl">
+        <div class="p-6 md:p-8 flex justify-between items-center border-b border-white/5">
+            <div>
+                <h2 class="text-2xl font-black italic uppercase text-white leading-none">President<span class="text-primary">Panel</span></h2>
+                <p id="sideRole" class="text-primary font-bold text-[9px] tracking-[0.2em] uppercase mt-2">Загрузка...</p>
+            </div>
+            <button onclick="toggleSidebar()" class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/10 transition"><i class="fas fa-times text-lg"></i></button>
+        </div>
+        <nav class="flex flex-col gap-3 p-6 flex-1 overflow-y-auto custom-scrollbar">
+            <!-- Сделал "Набор в команды" стартовой вкладкой -->
+            <button onclick="switchTab('apps')" id="side_apps" class="side-btn active"><i class="fas fa-rocket w-6 text-center"></i> Набор в команды</button>
+            <button onclick="switchTab('req')" id="side_req" class="side-btn"><i class="fas fa-inbox w-6 text-center"></i> Заявки на баллы</button>
+            <button onclick="switchTab('vols')" id="side_vols" class="side-btn"><i class="fas fa-users w-6 text-center"></i> Волонтеры</button>
+            <button onclick="switchTab('miniteams')" id="side_miniteams" class="side-btn"><i class="fas fa-user-shield w-6 text-center"></i> Мини борд</button>
+        </nav>
+        <div class="p-6 border-t border-white/5">
+            <div class="text-left mb-4">
+                <p class="text-[9px] text-gray-500 uppercase font-black">Управление</p>
+                <p id="managedTeamsLabelSide" class="text-primary font-bold text-xs italic uppercase truncate">ВСЕ КОМАНДЫ</p>
+            </div>
+            <button onclick="logout()" class="w-full btn-glass py-3 px-6 text-xs font-bold uppercase hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30"><i class="fas fa-power-off mr-2"></i>Выход</button>
+        </div>
+    </div>
+
+    <div id="app" class="max-w-7xl mx-auto hidden animate-fade-in transition-all duration-300">
+        <header class="flex justify-between items-center mb-10 gap-6 glass-card py-4 px-6 md:px-8 shadow-lg shadow-black/50">
+            <div class="flex items-center gap-4 md:gap-6">
+                <button onclick="toggleSidebar()" class="w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center hover:bg-primary/20 transition hover:scale-105">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+                <div>
+                    <h1 class="text-xl md:text-3xl font-black italic uppercase text-white leading-none">
+                        <span id="pageTitle">Набор в команды</span>
+                    </h1>
+                    <p id="cName" class="text-gray-400 text-[10px] md:text-xs font-bold uppercase tracking-widest mt-1">...</p>
+                </div>
+            </div>
+            <div class="hidden md:block text-right">
+                <p class="text-[9px] text-gray-500 uppercase font-black">Зона ответственности</p>
+                <p class="text-primary font-bold text-sm italic uppercase truncate max-w-[300px]">Глобальный доступ</p>
+            </div>
+        </header>
+
+        <!-- Заглушки для других секций (чтобы переключатель работал без ошибок) -->
+        <div id="secReq" class="hidden section-view"><div class="col-span-full text-center py-20 text-gray-600 font-black uppercase text-xs italic">Раздел в разработке или загружается...</div></div>
+        <div id="secVols" class="hidden section-view"><div class="col-span-full text-center py-20 text-gray-600 font-black uppercase text-xs italic">Раздел в разработке или загружается...</div></div>
+        <div id="secMiniteams" class="hidden section-view"><div class="col-span-full text-center py-20 text-gray-600 font-black uppercase text-xs italic">Раздел в разработке или загружается...</div></div>
+        
+        <!-- СЕКЦИЯ ЗАЯВОК (АКТИВНАЯ ПО УМОЛЧАНИЮ) -->
+        <div id="secApps" class="section-view block">
+            <div class="flex flex-col md:flex-row gap-4 mb-6 justify-between items-end">
+                <div class="flex bg-white/5 p-1 rounded-xl border border-white/5 w-full md:w-auto">
+                    <button id="subTabPending" onclick="switchAppSubTab('pending')" class="flex-1 md:flex-none px-6 py-2.5 rounded-lg text-[10px] font-black uppercase transition-all bg-sky-400/10 text-sky-400">Ожидают (<span id="cntPending">0</span>)</button>
+                    <button id="subTabAccepted" onclick="switchAppSubTab('accepted')" class="flex-1 md:flex-none px-6 py-2.5 rounded-lg text-[10px] font-black uppercase transition-all text-gray-500">Приняты (<span id="cntAccepted">0</span>)</button>
+                </div>
+                <div class="custom-select-wrapper w-full md:w-64">
+                    <div class="select-trigger" id="selectTrigger">
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-filter text-primary text-xs"></i>
+                            <span id="selectedLabel" class="text-[10px] font-black uppercase tracking-widest text-white">Все команды</span>
+                        </div>
+                        <i class="fas fa-chevron-down text-[10px] text-primary"></i>
+                    </div>
+                    <div class="select-options" id="selectOptions"></div>
+                </div>
+            </div>
+            <div id="appsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="col-span-full flex justify-center py-20"><i class="fas fa-circle-notch loader-spin text-4xl text-primary/50"></i></div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Модальное окно для заявки -->
+    <div id="modal" class="hidden fixed inset-0 bg-black/95 backdrop-blur-xl flex items-center justify-center p-2 md:p-6 z-[200]">
+        <div class="relative w-full max-w-4xl">
+            <button class="nav-btn prev" onclick="navigateApp(-1)"><i class="fas fa-chevron-left text-xl"></i></button>
+            <button class="nav-btn next" onclick="navigateApp(1)"><i class="fas fa-chevron-right text-xl"></i></button>
+            <div class="glass-card w-full rounded-[30px] p-6 md:p-10 max-h-[90vh] overflow-y-auto relative border-white/10 shadow-2xl bg-[#0b1121]">
+                <button onclick="closeModal()" class="absolute top-6 right-6 text-gray-500 hover:text-white transition z-50"><i class="fas fa-times text-2xl"></i></button>
+                <div id="modalContent"></div>
+                <div class="mt-8 pt-8 border-t border-white/10 flex gap-4">
+                    <button id="approveAppBtn" class="flex-1 py-4 bg-primary text-black font-black uppercase rounded-2xl hover:bg-white transition flex items-center justify-center gap-2 shadow-lg shadow-primary/20">
+                        <i class="fas fa-check-double"></i> Принять в команду
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const token = localStorage.getItem('access');
+    const API = {
+        profile: '/api/profile/',
+        commands: '/commands/',
+        apps: '/commands-applications/',
+    };
+
+    let state = {
+        user: null,
+        apps: [],
+        commands: [],
+        myLeadingTeams: [], // Для президента это будут ВСЕ команды
+        appsView: [],
+        appSubTab: 'pending',
+        currentAppIndex: 0,
+        currentCommandSlug: ''
+    };
+
+    let questionMap = {};
+
+    const getCleanAnswers = (rawAnswers) => {
+        let answers = rawAnswers;
+        if (typeof answers === 'string') { try { answers = JSON.parse(answers); } catch (e) { return {}; } }
+        if (!answers || typeof answers !== 'object') return {};
+        return answers;
+    };
+
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebarMenu');
+        const overlay = document.getElementById('sidebarOverlay');
+        const isOpen = sidebar.classList.contains('sidebar-open');
+
+        if (isOpen) {
+            sidebar.classList.remove('sidebar-open');
+            overlay.classList.add('opacity-0');
+            setTimeout(() => overlay.classList.add('hidden'), 300);
+            document.body.style.overflow = 'auto';
+        } else {
+            overlay.classList.remove('hidden');
+            void overlay.offsetWidth;
+            sidebar.classList.add('sidebar-open');
+            overlay.classList.remove('opacity-0');
+            document.body.style.overflow = 'hidden';
+        }
+    }
+
+    function switchTab(tab) {
+        const titles = { req: 'Заявки на баллы', vols: 'Волонтеры', miniteams: 'Мини борд', apps: 'Набор в команды' };
+        document.getElementById('pageTitle').innerText = titles[tab];
+
+        document.querySelectorAll('.section-view').forEach(s => s.classList.add('hidden'));
+        document.getElementById(`sec${tab.charAt(0).toUpperCase()+tab.slice(1)}`).classList.remove('hidden');
+        document.getElementById(`sec${tab.charAt(0).toUpperCase()+tab.slice(1)}`).classList.add('block');
+        
+        document.querySelectorAll('.side-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(`side_${tab}`).classList.add('active');
+
+        if(window.innerWidth < 1024) toggleSidebar();
+    }
+
+    async function init() {
+        if (!token) return location.href = '/login/';
+        try {
+            const res = await fetch(API.profile, { headers: { 'Authorization': `Bearer ${token}` } });
+            if (res.status === 401) return logout();
+            state.user = await res.json();
+            
+            document.getElementById('cName').innerText = state.user.name || state.user.login;
+            const roleStr = state.user.role_display || "Президент";
+            document.getElementById('sideRole').innerText = roleStr;
+            document.getElementById('app').classList.remove('hidden');
+
+            setupDropdown();
+            await loadAllData();
+        } catch (e) { console.error("Init Error:", e); }
+    }
+
+    function setupDropdown() {
+        const trigger = document.getElementById('selectTrigger');
+        const options = document.getElementById('selectOptions');
+        if(trigger) trigger.onclick = (e) => { e.stopPropagation(); options.classList.toggle('active'); };
+        window.onclick = () => { if(options) options.classList.remove('active'); };
+    }
+
+    async function loadAllData() {
+        try {
+            const h = { 'Authorization': `Bearer ${token}` };
+            const [cmd, app] = await Promise.all([
+                fetch(API.commands + '?limit=1000', { headers: h }).then(r => r.json()),
+                fetch(API.apps + '?limit=1000', { headers: h }).then(r => r.json())
+            ]);
+
+            state.commands = Array.isArray(cmd) ? cmd : (cmd.results || []);
+            state.apps = Array.isArray(app) ? app : (app.results || []);
+            
+            questionMap = {};
+            state.commands.forEach(c => c.questions?.forEach(q => questionMap[`q_${q.id}`] = q.label));
+
+            // Логика Президента: Он управляет абсолютно ВСЕМИ командами.
+            if (state.user.role === 'president' || state.user.role === 'admin') {
+                state.myLeadingTeams = state.commands;
+            } else {
+                // Фоллбэк, если сюда зайдет не президент (хотя view должна ограничивать)
+                state.myLeadingTeams = state.commands.filter(c => String(c.leader?.id || c.leader) === String(state.user.id));
+            }
+
+            renderCommandFilter();
+            filterAndRenderApps();
+        } catch (e) { console.error("Load Data Error:", e); }
+    }
+
+    function renderCommandFilter() {
+        const container = document.getElementById('selectOptions');
+        if (!container) return;
+
+        let html = `<div class="option-item" onclick="applyCommandFilter('', 'Все команды')">
+                        <span class="text-[10px] font-black uppercase tracking-widest text-white">⚡ Все команды</span>
+                    </div>`;
+
+        if (state.myLeadingTeams.length > 0) {
+            state.myLeadingTeams.forEach(cmd => {
+                const count = state.apps.filter(a => 
+                    (String(a.command_slug) === String(cmd.slug) || String(a.command_title) === String(cmd.title)) 
+                    && a.status === 'pending'
+                ).length;
+
+                html += `
+                <div class="option-item" onclick="applyCommandFilter('${cmd.slug}', '${cmd.title}')">
+                    <span class="text-[10px] font-bold text-gray-300">${cmd.title}</span>
+                    ${count > 0 ? `<span class="bg-primary/20 text-primary px-2 py-0.5 rounded-full text-[9px] font-black">${count}</span>` : ''}
+                </div>`;
+            });
+        }
+        container.innerHTML = html;
+    }
+
+    function applyCommandFilter(slug, title) { state.currentCommandSlug = slug; document.getElementById('selectedLabel').innerText = title; filterAndRenderApps(); }
+    
+    function switchAppSubTab(tab) {
+        state.appSubTab = tab;
+        const pBtn = document.getElementById('subTabPending'), aBtn = document.getElementById('subTabAccepted');
+        if (tab === 'pending') { pBtn.classList.add('bg-sky-400/10', 'text-sky-400'); aBtn.classList.remove('bg-sky-400/10', 'text-sky-400'); aBtn.classList.add('text-gray-500'); } 
+        else { aBtn.classList.add('bg-sky-400/10', 'text-sky-400'); pBtn.classList.remove('bg-sky-400/10', 'text-sky-400'); pBtn.classList.add('text-gray-500'); }
+        filterAndRenderApps();
+    }
+
+    function filterAndRenderApps() {
+        const subTab = state.appSubTab, appsGrid = document.getElementById('appsGrid'), slug = state.currentCommandSlug;
+        
+        state.appsView = state.apps.filter(app => {
+            const statusMatch = subTab === 'pending' ? app.status === 'pending' : app.status === 'accepted';
+            // ДОБАВЛЕНА ПРОВЕРКА РОЛИ ПРЕЗИДЕНТА
+            const hasRights = state.user.role === 'admin' || state.user.role === 'president' || state.myLeadingTeams.some(t => String(t.slug) === String(app.command_slug) || String(t.title) === String(app.command_title));
+            const commandMatch = slug ? (app.command_slug === slug) : true; 
+            return statusMatch && hasRights && commandMatch;
+        });
+
+        // Считаем счетчики тоже с учетом роли президента
+        document.getElementById('cntPending').innerText = state.apps.filter(a => a.status==='pending' && (state.user.role === 'admin' || state.user.role === 'president' || state.myLeadingTeams.some(t => t.slug === a.command_slug))).length;
+        document.getElementById('cntAccepted').innerText = state.apps.filter(a => a.status==='accepted' && (state.user.role === 'admin' || state.user.role === 'president' || state.myLeadingTeams.some(t => t.slug === a.command_slug))).length;
+
+        if (state.appsView.length === 0) return appsGrid.innerHTML = `<div class="col-span-full py-20 text-center text-gray-600 font-black uppercase text-xs italic tracking-widest border-2 border-dashed border-white/5 rounded-3xl">Нет заявок</div>`;
+
+        appsGrid.innerHTML = state.appsView.map((a, index) => {
+            const values = Object.values(getCleanAnswers(a.answers));
+            let derivedName = values[0] ? String(values[0]) : "Без имени";
+            let previewText = values[1] ? String(values[1]) : "Анкета заполнена";
+            const fileCount = (a.files && Array.isArray(a.files)) ? a.files.length : 0;
+            return `<div class="app-card p-6 flex flex-col group" onclick="openAppModal(${index})"><div class="flex justify-between items-start mb-3"><span class="px-2 py-1 bg-white/5 rounded text-[8px] font-black uppercase text-primary border border-white/5">${a.command_title}</span><span class="text-[9px] font-mono text-gray-600">ID-${a.id}</span></div><h4 class="font-black text-white uppercase italic text-xl group-hover:text-primary transition-colors line-clamp-1">${derivedName}</h4><p class="text-[10px] text-gray-400 mt-2 line-clamp-2 italic">"${previewText}"</p>${fileCount > 0 ? `<div class="mt-3 text-[9px] text-blue-400 font-bold flex items-center gap-1"><i class="fas fa-paperclip"></i> Вложений: ${fileCount}</div>` : ''}</div>`;
+        }).join('');
+    }
+
+    function openAppModal(index) { state.currentAppIndex = index; updateModalContent(); document.getElementById('modal').classList.remove('hidden'); document.body.style.overflow = 'hidden'; }
+    function navigateApp(dir) { const newIndex = state.currentAppIndex + dir; if (newIndex >= 0 && newIndex < state.appsView.length) { state.currentAppIndex = newIndex; updateModalContent(); } }
+
+    function updateModalContent() {
+        const app = state.appsView[state.currentAppIndex]; if (!app) return closeModal();
+        const prevBtn = document.querySelector('.nav-btn.prev'), nextBtn = document.querySelector('.nav-btn.next');
+        if(prevBtn) { prevBtn.style.opacity = state.currentAppIndex > 0 ? '1' : '0.3'; prevBtn.style.pointerEvents = state.currentAppIndex > 0 ? 'auto' : 'none'; }
+        if(nextBtn) { nextBtn.style.opacity = state.currentAppIndex < state.appsView.length - 1 ? '1' : '0.3'; nextBtn.style.pointerEvents = state.currentAppIndex < state.appsView.length - 1 ? 'auto' : 'none'; }
+
+        const answers = getCleanAnswers(app.answers);
+        const derivedName = Object.values(answers)[0] ? String(Object.values(answers)[0]) : "Без имени";
+        const firstLetter = derivedName !== "Без имени" ? derivedName.charAt(0).toUpperCase() : "?";
+
+        let answersHtml = Object.keys(answers).length > 0 ? Object.entries(answers).map(([q, ans]) => `<div class="mb-6"><p class="text-[10px] text-primary uppercase font-black mb-2 tracking-widest flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-primary/50"></span> ${questionMap[q] || q}</p><div class="bg-white/5 p-4 rounded-xl border border-white/5 text-sm italic text-gray-200 leading-relaxed shadow-inner">${(ans !== null && ans !== undefined) ? ans : "---"}</div></div>`).join('') : '<div class="text-gray-500 italic mb-4">Текстовых ответов нет</div>';
+
+        let mediaHtml = '';
+        if (app.files && Array.isArray(app.files) && app.files.length > 0) {
+             mediaHtml += `<div class="mt-8 pt-8 border-t border-white/10 space-y-8"><h4 class="text-xs font-black uppercase text-gray-500 tracking-widest mb-4">Вложения (${app.files.length})</h4>`;
+             app.files.forEach(f => {
+                 const isImg = f.file.match(/\.(jpg|jpeg|png|webp|gif|svg)$/i), isVid = f.file.match(/\.(mp4|mov|webm|avi)$/i);
+                 mediaHtml += `<div class="bg-black/40 p-4 rounded-2xl border border-white/10"><div class="flex items-center gap-3 mb-4"><div class="w-8 h-8 rounded bg-primary/20 flex items-center justify-center text-primary text-xs"><i class="fas fa-paperclip"></i></div><p class="text-xs font-bold text-gray-300 uppercase">${f.label || "Файл"}</p></div>${isImg ? `<div class="rounded-xl overflow-hidden border border-white/10 bg-black/50"><img src="${f.file}" class="w-full h-auto object-contain max-h-[600px]"></div>` : isVid ? `<div class="rounded-xl overflow-hidden border border-white/10 bg-black/50"><video controls class="w-full max-h-[500px]"><source src="${f.file}"></video></div>` : `<div class="p-8 text-center bg-white/5 rounded-xl border border-white/5 flex flex-col items-center gap-3"><i class="fas fa-file-alt text-4xl text-gray-500"></i><span class="text-xs text-gray-400">${f.file.split('/').pop()}</span></div>`}<div class="flex gap-2 mt-4"><a href="${f.file}" target="_blank" class="flex-1 py-3 bg-white/10 hover:bg-white/20 text-center text-[10px] font-bold uppercase rounded-xl text-white transition"><i class="fas fa-external-link-alt mr-2"></i> Открыть</a><a href="${f.file}" download class="flex-1 py-3 bg-primary/10 hover:bg-primary/20 text-center text-[10px] font-bold uppercase rounded-xl text-primary transition"><i class="fas fa-download mr-2"></i> Скачать</a></div></div>`;
+             }); mediaHtml += `</div>`;
+        }
+
+        document.getElementById('modalContent').innerHTML = `<div class="flex items-center gap-5 mb-8 pb-8 border-b border-white/10"><div class="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-black font-black text-3xl italic shadow-[0_0_20px_rgba(0,198,255,0.3)]">${firstLetter}</div><div><h3 class="text-2xl md:text-3xl font-black text-white uppercase italic leading-none mb-1">${derivedName}</h3><p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Команда: <span class="text-white">${app.command_title}</span></p></div></div><div class="custom-scrollbar pr-2 max-h-[60vh] overflow-y-auto">${answersHtml}${mediaHtml}</div>`;
+        
+        const btn = document.getElementById('approveAppBtn');
+        if (app.status === 'accepted') { btn.innerHTML = '<i class="fas fa-check"></i> Уже принят'; btn.disabled = true; btn.className = "flex-1 py-4 bg-green-500/10 text-green-500 border border-green-500/20 font-black uppercase rounded-2xl cursor-not-allowed flex items-center justify-center gap-2"; } 
+        else { btn.innerHTML = '<i class="fas fa-check-double"></i> Принять в команду'; btn.disabled = false; btn.className = "flex-1 py-4 bg-[#80e5ff] text-black font-black uppercase rounded-2xl hover:bg-white transition flex items-center justify-center gap-2 shadow-lg shadow-primary/20"; btn.onclick = () => acceptApp(app.id); }
+    }
+
+    async function acceptApp(id) {
+        try {
+            const btn = document.getElementById('approveAppBtn'); btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохранение...';
+            const res = await fetch(`${API.apps}${id}/accept/`, { method: 'PATCH', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'accepted' }) });
+            if (res.ok) { showToast('Заявка принята в команду'); const app = state.apps.find(a => a.id === id); if (app) app.status = 'accepted'; state.appsView.splice(state.currentAppIndex, 1); document.getElementById('cntPending').innerText = parseInt(document.getElementById('cntPending').innerText) - 1; document.getElementById('cntAccepted').innerText = parseInt(document.getElementById('cntAccepted').innerText) + 1; if (state.appsView.length === 0) { closeModal(); filterAndRenderApps(); } else { if (state.currentAppIndex >= state.appsView.length) state.currentAppIndex = state.appsView.length - 1; updateModalContent(); filterAndRenderApps(); } }
+        } catch(e){ console.error(e); }
+    }
+
+    function closeModal() { document.getElementById('modal').classList.add('hidden'); document.body.style.overflow = 'auto'; }
+    function logout() { localStorage.removeItem('access'); location.href='/login/'; }
+    function showToast(msg, type = 'success') { const toast = document.createElement('div'); toast.className = `toast show ${type === 'error' ? 'border-red-500' : ''}`; toast.innerHTML = `<i class="fas ${type === 'error' ? 'fa-exclamation-circle text-red-500' : 'fa-check-circle text-primary'} text-xl"></i> <span class="font-bold text-sm">${msg}</span>`; document.getElementById('toast-container').appendChild(toast); setTimeout(() => toast.remove(), 3000); }
+
+    init();
+    </script>
+</body>
+</html>

@@ -169,7 +169,15 @@
         </div>
         <nav class="flex flex-col gap-3 p-6 flex-1 overflow-y-auto custom-scrollbar">
             <button onclick="switchTab('req')" id="side_req" class="side-btn active"><i class="fas fa-inbox w-6 text-center"></i> Заявки на баллы</button>
-            <button onclick="switchTab('vols')" id="side_vols" class="side-btn"><i class="fas fa-user-tag w-6 text-center"></i> Волонтеры и Роли</button>
+            <button onclick="switchTab('vols')" id="side_vols" class="side-btn">
+                <i class="fas fa-users w-6 text-center"></i>
+                Волонтеры
+            </button>
+
+            <button onclick="switchTab('miniteams')" id="side_miniteams" class="side-btn">
+                <i class="fas fa-user-shield w-6 text-center"></i>
+                Мини борд
+            </button>
             <button onclick="switchTab('apps')" id="side_apps" class="side-btn"><i class="fas fa-rocket w-6 text-center"></i> Набор в команды</button>
             <button onclick="switchTab('sponsors')" id="side_sponsors" class="side-btn"><i class="fas fa-headset w-6 text-center"></i> База спонсоров</button>
         </nav>
@@ -225,14 +233,30 @@
             <div id="appsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
         </div>
 
+        <div id="secMiniteams" class="hidden section-view">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 gap-4">
+                <div>
+                    <h3 class="text-xl font-black text-white uppercase italic">Группы обзвона</h3>
+                    <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Управление мини-командами</p>
+                </div>
+                <button onclick="openCreateMiniteamModal()" class="w-full sm:w-auto py-3 px-6 text-xs font-black uppercase bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white border border-blue-500/20 rounded-xl flex items-center justify-center gap-2 transition-all transform hover:scale-105">
+                    <i class="fas fa-plus"></i> Создать мини-команду
+                </button>
+            </div>
+            <div id="miniteamsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="col-span-full text-center py-10 text-gray-500 font-bold uppercase text-xs">Загрузка...</div>
+            </div>
+        </div>  
+
         <div id="secVols" class="hidden section-view">
-            <div class="flex flex-col sm:flex-row justify-end gap-3 mb-6" id="addVolBtnContainer">
-                 <button onclick="openCreateMiniteamModal()" class="py-3 px-6 text-xs font-black uppercase bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white border border-blue-500/20 rounded-xl flex items-center justify-center gap-2 transition-all transform hover:scale-105">
-                     <i class="fas fa-users"></i> Создать мини-команду
-                 </button>
-                 <button onclick="openSearchModal()" class="py-3 px-6 text-xs font-black uppercase bg-white text-black hover:bg-gray-200 border border-white rounded-xl flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(255,255,255,0.2)] transition-all transform hover:scale-105">
-                     <i class="fas fa-user-plus text-primary"></i> Добавить участников
-                 </button>
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 gap-4" id="addVolBtnContainer">
+                <div>
+                    <h3 class="text-xl font-black text-white uppercase italic">Участники</h3>
+                    <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Управление волонтерами</p>
+                </div>
+                <button onclick="openSearchModal()" class="w-full sm:w-auto py-3 px-6 text-xs font-black uppercase bg-white text-black hover:bg-gray-200 border border-white rounded-xl flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(255,255,255,0.2)] transition-all transform hover:scale-105">
+                    <i class="fas fa-user-plus text-primary"></i> Добавить участников
+                </button>
             </div>
 
             <div class="glass-card overflow-hidden p-0 border-white/5">
@@ -240,7 +264,7 @@
                     <table class="custom-table w-full">
                         <thead>
                             <tr>
-                                <th>Волонтер / Роль</th>
+                                <th>Волонтер</th>
                                 <th>Команды</th>
                                 <th>Баллы (В команде / Общие)</th>
                                 <th class="text-right">Нарушения</th>
@@ -314,6 +338,22 @@
             <div class="flex gap-3">
                 <button onclick="closeAddSponsorModal()" class="flex-1 py-3 bg-white/5 hover:bg-white/10 text-gray-400 font-bold uppercase rounded-xl text-[10px] transition">Отмена</button>
                 <button onclick="submitSponsor()" id="btnSubmitSponsor" class="flex-1 py-3 bg-green-500 hover:bg-green-600 text-white font-black uppercase rounded-xl text-[10px] shadow-lg shadow-green-500/20 transition transform active:scale-95">Добавить</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="assignSponsorModal" class="hidden fixed inset-0 bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 z-[400]">
+        <div class="glass-card w-full max-w-sm p-8 bg-[#0f172a] border border-blue-500/20 shadow-[0_0_50px_rgba(59,130,246,0.15)] relative">
+            <h3 class="text-xl font-black uppercase italic text-white mb-6 text-center">Передать спонсора</h3>
+            <div class="text-left space-y-4 mb-8">
+                <div>
+                    <label class="text-[10px] font-bold text-gray-500 uppercase ml-1 block mb-1">Выберите волонтера</label>
+                    <select id="assignSpVol" class="w-full bg-[#1e293b] border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-blue-500 transition appearance-none"></select>
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="closeAssignSponsorModal()" class="flex-1 py-3 bg-white/5 hover:bg-white/10 text-gray-400 font-bold uppercase rounded-xl text-[10px] transition">Отмена</button>
+                <button onclick="submitAssignSponsor()" id="btnSubmitAssignSp" class="flex-1 py-3 bg-blue-500 hover:bg-blue-600 text-white font-black uppercase rounded-xl text-[10px] shadow-lg shadow-blue-500/20 transition transform active:scale-95">Назначить</button>
             </div>
         </div>
     </div>
@@ -431,6 +471,38 @@
         </div>
     </div>
 
+    <div id="mtRoleModal" class="hidden fixed inset-0 bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 z-[400]">
+        <div class="glass-card w-full max-w-sm p-8 bg-[#0f172a] border border-blue-500/20 shadow-[0_0_50px_rgba(59,130,246,0.15)] relative">
+            <div class="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center mx-auto mb-6 border border-blue-500/20"><i class="fas fa-users-cog text-2xl text-blue-400"></i></div>
+            <h3 class="text-xl font-black uppercase italic text-white mb-2 text-center">Состав команды</h3>
+            <p class="text-xs text-gray-400 mb-6 text-center">Мини-команда: <span id="mtRoleTeamName" class="text-white font-bold">...</span></p>
+            
+            <div class="text-left space-y-4 mb-8">
+                <div>
+                    <label class="text-[10px] font-bold text-gray-500 uppercase ml-1 block mb-1">Выберите волонтера</label>
+                    <select id="mtRoleVolSelect" class="w-full bg-[#1e293b] border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-blue-500 transition appearance-none"></select>
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-gray-500 uppercase ml-1 block mb-1">Кем он будет?</label>
+                    <select id="mtRoleSelect" class="w-full bg-[#1e293b] border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-blue-500 transition appearance-none">
+                        <option value="member">Обзвонщик (Волонтер)</option>
+                        <option value="basist">Базист</option>
+                        <option value="mini_curator">Мини-куратор</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex flex-col gap-3">
+                <div class="flex gap-3">
+                    <button onclick="closeMtRoleModal()" class="flex-1 py-3 bg-white/5 hover:bg-white/10 text-gray-400 font-bold uppercase rounded-xl text-[10px] transition">Отмена</button>
+                    <button onclick="submitMtRoleAssignment()" id="btnConfirmMtRole" class="flex-1 py-3 bg-blue-500 hover:bg-blue-600 text-white font-black uppercase rounded-xl text-[10px] shadow-lg shadow-blue-500/20 transition transform active:scale-95">Назначить</button>
+                </div>
+                <button onclick="removeMtRoleAssignment()" id="btnRemoveMtRole" class="w-full py-3 bg-red-500/5 hover:bg-red-500 text-red-500 hover:text-white font-bold uppercase rounded-xl text-[10px] border border-red-500/20 transition transform active:scale-95">
+                    <i class="fas fa-user-times mr-2"></i> Исключить из мини-команды
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
     function formatPoints(num) {
         const val = parseFloat(num || 0);
@@ -511,7 +583,13 @@
     }
 
     function switchTab(tab) {
-        const titles = { 'req': 'Заявки на баллы', 'vols': 'Волонтеры и Роли', 'apps': 'Набор в команды', 'sponsors': 'База спонсоров' };
+        const titles = {
+            req: 'Заявки на баллы',
+            vols: 'Волонтеры',
+            miniteams: 'Мини борд',
+            apps: 'Набор в команды',
+            sponsors: 'База спонсоров'
+        };;
         document.getElementById('pageTitle').innerText = titles[tab];
 
         document.querySelectorAll('.section-view').forEach(s => s.classList.add('hidden'));
@@ -617,8 +695,118 @@
             renderVolunteers();
             filterAndRenderApps();
             renderSponsorsTable();
+            renderMiniTeams();
         } catch (e) { console.error("Load Data Error:", e); }
     }
+
+    // --- ЛОГИКА МИНИ-КОМАНД ---
+
+    // 1. Отрисовка карточек мини-команд
+    function renderMiniTeams() {
+        const container = document.getElementById('miniteamsContainer');
+        if (!container) return;
+
+        if (state.miniteams.length === 0) {
+            container.innerHTML = '<div class="col-span-full text-center py-20 text-gray-600 font-black uppercase text-xs italic tracking-widest border-2 border-dashed border-white/5 rounded-3xl">Мини-команды не созданы</div>';
+            return;
+        }
+
+        container.innerHTML = state.miniteams.map(mt => {
+            const members = state.volunteers.filter(v => 
+                v.miniteam_roles && v.miniteam_roles.some(r => String(r.miniteam_id || r.miniteam) === String(mt.id))
+            );
+
+            const membersHtml = members.map(m => {
+                const roleObj = m.miniteam_roles.find(r => String(r.miniteam_id || r.miniteam) === String(mt.id));
+                const roleColor = roleObj.role === 'basist' ? 'text-green-400' : roleObj.role === 'mini_curator' ? 'text-purple-400' : 'text-blue-400';
+                
+                return `
+                <div class="flex justify-between items-center py-2 border-b border-white/5 last:border-0">
+                    <span class="text-xs font-bold text-gray-200">${m.name || m.login}</span>
+                    <span class="text-[9px] font-black uppercase ${roleColor} bg-white/5 px-2 py-1 rounded-md">${roleObj.role_display || roleObj.role}</span>
+                </div>`;
+            }).join('');
+
+            return `
+            <div class="glass-card flex flex-col h-full border-white/5 hover:border-blue-500/30 transition">
+                <div class="flex justify-between items-start mb-6">
+                    <div>
+                        <h4 class="font-black text-xl italic uppercase text-white leading-none">${mt.title}</h4>
+                        <p class="text-[10px] text-gray-500 uppercase font-bold mt-2">Лидер: ${mt.leader?.name || mt.leader_name || 'Не назначен'}</p>
+                    </div>
+                    <button onclick="openMtRoleModal(${mt.id}, '${mt.title}')" class="w-10 h-10 flex flex-shrink-0 items-center justify-center bg-blue-500/10 text-blue-400 rounded-xl hover:bg-blue-500 hover:text-white transition shadow-lg" title="Управление составом">
+                        <i class="fas fa-user-cog"></i>
+                    </button>
+                </div>
+                <div class="text-[9px] text-gray-500 mb-2 uppercase font-black tracking-widest">Участники (${members.length}):</div>
+                <div class="flex-1 bg-black/20 rounded-xl p-3 max-h-[200px] overflow-y-auto custom-scrollbar border border-white/5 shadow-inner">
+                    ${members.length > 0 ? membersHtml : '<div class="text-xs text-gray-600 italic text-center py-4">Команда пуста</div>'}
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    // 2. Логика модалок
+    let currentMtRoleTeamId = null;
+
+    function openMtRoleModal(mtId, mtTitle) {
+        currentMtRoleTeamId = mtId;
+        document.getElementById('mtRoleTeamName').innerText = mtTitle;
+        const volSelect = document.getElementById('mtRoleVolSelect');
+        volSelect.innerHTML = '<option value="" disabled selected>Выберите волонтера...</option>';
+
+        const isAdmin = state.user.role === 'admin' || state.user.role === 'president';
+        const myManagedTeamIds = state.myManagedTeams.map(t => String(t.id));
+        const myDirIds = getIds(state.user.direction);
+        
+        const availableVols = state.volunteers.filter(v => {
+            if (isAdmin) return true; 
+            const vCmdIds = getIds(v.volunteer_commands || v.commands);
+            return vCmdIds.some(id => myManagedTeamIds.includes(id)) || getIds(v.direction).some(id => myDirIds.includes(id));
+        });
+
+        availableVols.forEach(v => {
+            volSelect.innerHTML += `<option value="${v.id}">${v.name || v.login}</option>`;
+        });
+        document.getElementById('mtRoleModal').classList.remove('hidden');
+    }
+
+    function closeMtRoleModal() { document.getElementById('mtRoleModal').classList.add('hidden'); currentMtRoleTeamId = null; }
+
+    async function submitMtRoleAssignment() {
+        if(!currentMtRoleTeamId) return;
+        const volId = document.getElementById('mtRoleVolSelect').value;
+        const role = document.getElementById('mtRoleSelect').value;
+        if(!volId) return showToast("Выберите волонтера!", "error");
+        
+        const btn = document.getElementById('btnConfirmMtRole');
+        btn.innerText = "Загрузка..."; btn.disabled = true;
+
+        try {
+            const res = await fetch(`${API.miniteams}${currentMtRoleTeamId}/assign_member/`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ volunteer_id: volId, role: role })
+            });
+            if(res.ok) { showToast("✅ Роль назначена!"); closeMtRoleModal(); loadAllData(); } 
+            else { showToast("Ошибка", "error"); }
+        } finally { btn.innerText = "Назначить"; btn.disabled = false; }
+    }
+
+    async function removeMtRoleAssignment() {
+        if(!currentMtRoleTeamId) return;
+        const volId = document.getElementById('mtRoleVolSelect').value;
+        if(!volId) return showToast("Выберите волонтера!", "error");
+        if(!confirm("Исключить волонтера из мини-команды?")) return;
+
+        const res = await fetch(`${API.miniteams}${currentMtRoleTeamId}/remove_member/`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ volunteer_id: volId }) 
+        });
+        if(res.ok) { showToast("🗑️ Волонтер исключен!"); closeMtRoleModal(); loadAllData(); }
+    }
+    
 
     function renderSponsorsTable() {
         const container = document.getElementById('sponsorsContainer');
@@ -680,7 +868,10 @@
                                 <span class="font-black uppercase text-[10px] ${statusColor}">${sp.status_display || sp.status}</span>
                             </td>
                             <td class="text-right">
-                                <button onclick="deleteSponsor(${sp.id})" class="text-gray-600 hover:text-red-500 transition px-2">
+                                <button onclick="openAssignSponsorModal(${sp.id})" class="text-gray-600 hover:text-blue-500 transition px-2" title="Назначить волонтера">
+                                    <i class="fas fa-user-plus"></i>
+                                </button>
+                                <button onclick="deleteSponsor(${sp.id})" class="text-gray-600 hover:text-red-500 transition px-2" title="Удалить">
                                     <i class="fas fa-trash-alt"></i>
                                 </button>
                             </td>
@@ -800,6 +991,84 @@
         } catch(e) { showToast("Ошибка сети", "error"); }
     }
 
+    let currentAssignSponsorId = null;
+
+    function openAssignSponsorModal(sponsorId) {
+        currentAssignSponsorId = sponsorId;
+        const volSelect = document.getElementById('assignSpVol');
+        volSelect.innerHTML = '<option value="">Снять назначение (никто)</option>';
+
+        // Фильтруем волонтеров (по той же логике, что и при создании спонсора)
+        const isAdmin = state.user.role === 'admin';
+        const isCurator = state.user.role === 'curator';
+        const myDirIds = getIds(state.user.direction);
+        const myManagedTeamIds = state.myManagedTeams.map(t => String(t.id));
+        const myMiniteamIds = state.myMiniteamIds || [];
+
+        let myVolunteers = [];
+        if (isAdmin) {
+            myVolunteers = state.volunteers;
+        } else if (isCurator) {
+            myVolunteers = state.volunteers.filter(v => {
+                const vDirIds = getIds(v.direction);
+                const hasDirMatch = vDirIds.some(id => myDirIds.includes(id));
+                const vCmdIds = getIds(v.volunteer_commands || v.commands);
+                const hasCmdMatch = vCmdIds.some(id => myManagedTeamIds.includes(id));
+                const vMtRoles = v.miniteam_roles || [];
+                const hasMtMatch = vMtRoles.some(r => myMiniteamIds.includes(String(r.miniteam_id || r.miniteam)));
+                return hasDirMatch || hasCmdMatch || hasMtMatch;
+            });
+        } else {
+            myVolunteers = state.volunteers.filter(v => {
+                const vCmdIds = getIds(v.volunteer_commands || v.commands);
+                const hasCmdMatch = vCmdIds.some(id => myManagedTeamIds.includes(id));
+                const vMtRoles = v.miniteam_roles || [];
+                const hasMtMatch = vMtRoles.some(r => myMiniteamIds.includes(String(r.miniteam_id || r.miniteam)));
+                return hasCmdMatch || hasMtMatch;
+            });
+        }
+
+        myVolunteers.forEach(v => {
+            volSelect.innerHTML += `<option value="${v.id}">${v.name || v.login}</option>`;
+        });
+
+        document.getElementById('assignSponsorModal').classList.remove('hidden');
+    }
+
+    function closeAssignSponsorModal() {
+        document.getElementById('assignSponsorModal').classList.add('hidden');
+        currentAssignSponsorId = null;
+    }
+
+    async function submitAssignSponsor() {
+        if (!currentAssignSponsorId) return;
+        const volId = document.getElementById('assignSpVol').value;
+
+        const btn = document.getElementById('btnSubmitAssignSp');
+        btn.innerText = "Загрузка..."; btn.disabled = true;
+
+        try {
+            const res = await fetch(`${API.sponsors}${currentAssignSponsorId}/assign_volunteer/`, {
+                method: 'PATCH',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ volunteer_id: volId || null }) // Отправляем volunteer_id, как требует бэкенд
+            });
+
+            if(res.ok) {
+                showToast("Волонтер успешно назначен!");
+                closeAssignSponsorModal();
+                loadAllData();
+            } else {
+                const d = await res.json();
+                showToast(d.error || "Ошибка назначения", "error");
+            }
+        } catch(e) {
+            showToast("Ошибка сети", "error");
+        } finally {
+            btn.innerText = "Назначить"; btn.disabled = false;
+        }
+    }
+
     function openCreateMiniteamModal() {
         const leaderSelect = document.getElementById('miniteamLeader');
         leaderSelect.innerHTML = '<option value="" disabled selected>Выберите волонтера...</option>';
@@ -865,97 +1134,6 @@
         }
     }
 
-    function openRoleModal(volId, volName) {
-        roleTargetId = volId;
-        document.getElementById('roleVolName').innerText = volName;
-        
-        const mtSelect = document.getElementById('roleMiniteamSelect');
-        mtSelect.innerHTML = '';
-        
-        let availableMts = state.miniteams;
-        if (state.user.role !== 'admin' && state.user.role !== 'curator') {
-            availableMts = state.miniteams.filter(mt => state.myMiniteamIds.includes(String(mt.id)));
-        }
-
-        if(availableMts.length === 0) {
-            mtSelect.innerHTML = '<option value="" disabled selected>Нет доступных мини-команд</option>';
-        } else {
-            availableMts.forEach(mt => { mtSelect.innerHTML += `<option value="${mt.id}">${mt.title}</option>`; });
-        }
-        document.getElementById('roleModal').classList.remove('hidden');
-    }
-
-    function closeRoleModal() { document.getElementById('roleModal').classList.add('hidden'); roleTargetId = null; }
-
-    async function submitRoleAssignment() {
-        if(!roleTargetId) return;
-        const mtId = document.getElementById('roleMiniteamSelect').value;
-        const role = document.getElementById('roleSelect').value;
-        
-        if(!mtId) return showToast("Выберите мини-команду!", "error");
-
-        const btn = document.getElementById('btnConfirmRole');
-        btn.innerText = "Сохранение..."; btn.disabled = true;
-
-        try {
-            const res = await fetch(`${API.miniteams}${mtId}/assign_member/`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ volunteer_id: roleTargetId, role: role })
-            });
-            
-            if(res.ok) {
-                showToast("✅ Роль успешно назначена!");
-                closeRoleModal();
-                loadAllData();
-            } else {
-                const data = await res.json();
-                showToast(data.error || "Ошибка при назначении", "error");
-            }
-        } catch(e) {
-            showToast("Ошибка сети", "error");
-        } finally {
-            btn.innerText = "Сохранить"; btn.disabled = false;
-        }
-    }
-
-    async function removeRoleAssignment() {
-        if(!roleTargetId) return;
-        const mtId = document.getElementById('roleMiniteamSelect').value;
-        const role = document.getElementById('roleSelect').value; 
-        
-        if(!mtId) return showToast("Выберите мини-команду!", "error");
-        if(!role) return showToast("Выберите роль для удаления!", "error");
-
-        if(!confirm("Вы уверены, что хотите забрать эту должность у волонтера?")) return;
-
-        const btn = document.getElementById('btnRemoveRole');
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Удаление...'; 
-        btn.disabled = true;
-
-        try {
-            const res = await fetch(`${API.miniteams}${mtId}/remove_member/`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ volunteer_id: roleTargetId, role: role }) 
-            });
-            
-            if(res.ok) {
-                showToast("🗑️ Роль успешно забрана!");
-                closeRoleModal();
-                loadAllData();
-            } else {
-                const data = await res.json();
-                showToast(data.error || "Ошибка при удалении роли", "error");
-            }
-        } catch(e) {
-            showToast("Ошибка сети", "error");
-        } finally {
-            btn.innerHTML = originalText; 
-            btn.disabled = false;
-        }
-    }
 
     function renderVolunteers() {
         const table = document.getElementById('vTable');

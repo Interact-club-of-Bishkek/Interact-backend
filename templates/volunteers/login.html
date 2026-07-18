@@ -400,10 +400,16 @@
         });
 
         function navigateUser(user) {
+            // --- ПРОВЕРКА НА ПРЕЗИДЕНТА ---
+            if (user.role === 'president') { 
+                location.href = '/president-panel/'; // Укажи здесь правильный URL кабинета президента
+                return; 
+            }
+            
             if (user.role === 'bailiff_base') { location.href = '/bailiff-base-panel/'; return; }
             if (user.role === 'equity_officer') { location.href = '/equity-panel/'; return; }
             if (user.role === 'bailiff_activity') { location.href = '/bailiff-panel/'; return; }
-            if (user.role === 'admin' || user.role === 'president') { location.href = '/admin-panel/'; return; }
+            if (user.role === 'admin') { location.href = '/admin-panel/'; return; }
             if (['curator', 'teamlead'].includes(user.role)) { location.href = '/curator-panel/'; return; } 
             if (user.is_assigned || (user.direction && user.direction.length > 0)) {
                 location.href = '/cabinet/';
