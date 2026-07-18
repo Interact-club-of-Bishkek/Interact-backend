@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Command, Question, Application, Attachment
+from .models import Command, Question, Application, Attachment, BoardApplication, BoardAttachment, BoardPosition
 
 class QuestionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -38,3 +38,30 @@ class ApplicationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Application
         fields = ['id', 'command', 'command_slug', 'command_title', 'answers', 'status', 'created_at', 'files']
+    
+class BoardPositionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BoardPosition
+        fields = '__all__'
+
+class BoardAttachmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BoardAttachment
+        fields = ['file', 'label']
+
+class BoardApplicationSerializer(serializers.ModelSerializer):
+    files = BoardAttachmentSerializer(many=True, read_only=True)
+    board_title = serializers.CharField(source='board_position.title', read_only=True)
+    board_slug = serializers.CharField(source='board_position.slug', read_only=True)
+    
+    # 🔥 АВТОМАТИЧЕСКИЙ ИМПОРТ ФИО И ТЕЛЕФОНА ИЗ ПРОФИЛЯ
+    applicant_name = serializers.CharField(source='applicant.name', read_only=True)
+    applicant_phone = serializers.CharField(source='applicant.phone_number', read_only=True)
+
+    class Meta:
+        model = BoardApplication
+        fields = [
+            'id', 'board_position', 'board_title', 'board_slug', 
+            'applicant', 'applicant_name', 'applicant_phone', # <- Добавлены новые поля
+            'answers', 'status', 'created_at', 'files'
+        ]

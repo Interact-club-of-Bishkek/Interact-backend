@@ -1,33 +1,54 @@
 from django.urls import path
 from .views import (
+    # Страницы
+    volunteer_page,
+    curator_page,
+    president_page,
+    board_page,
+
+    # API Команд
     CommandListView, 
     CommandDetailView, 
-    ApplicationListCreateView, 
+    ApplicationListCreateView,  
     ApplicationUpdateStatusView, 
     AddVolunteerToCommandView,
     RemoveVolunteerFromCommandView,
-    curator_page, 
-    volunteer_page,
-    president_page  # 🔥 ИМПОРТИРУЕМ НОВУЮ ФУНКЦИЮ
+    
+    # API Борда
+    BoardPositionListCreateView,
+    BoardPositionDetailView,
+    BoardApplicationListCreateView,
+    BoardApplicationUpdateStatusView,
+    AddVolunteerToBoardView,
+    RemoveVolunteerFromBoardView
 )
 
 urlpatterns = [
-    # --- Страницы (Шаблоны) ---
-    path('join-commands', volunteer_page, name='volunteer-page'),
-    # path('dashboard-teamliders', curator_page, name='curator-page'),
-    
-    # 🔥 ИЗМЕНЕННЫЙ ПУТЬ ДЛЯ ПРЕЗИДЕНТА
+    # ==========================================
+    # Страницы (Шаблоны)
+    # ==========================================
+    path('join-commands/', volunteer_page, name='volunteer-page'),
+    path('join-board/', board_page, name='board-page'),
     path('president-panel/', president_page, name='president-panel'),
+    # path('dashboard-teamliders/', curator_page, name='curator-page'),
     
-    # --- API Команд ---
+    # ==========================================
+    # API Команд
+    # ==========================================
     path('commands/', CommandListView.as_view(), name='command-list'),
     path('commands/<str:slug>/', CommandDetailView.as_view(), name='command-detail'),
-    
-    # --- API Заявок ---
     path('commands-applications/', ApplicationListCreateView.as_view(), name='app-list-create'),
     path('commands-applications/<int:pk>/accept/', ApplicationUpdateStatusView.as_view(), name='app-accept'),
-    
-    # --- API Управления составом (строго с префиксом commands/ для фронтенда) ---
     path('commands/<int:pk>/add-volunteer/', AddVolunteerToCommandView.as_view(), name='add_volunteer'),
     path('commands/<int:pk>/remove-volunteer/', RemoveVolunteerFromCommandView.as_view(), name='remove_volunteer'),
+
+    # ==========================================
+    # API Борда
+    # ==========================================
+    path('board-positions/', BoardPositionListCreateView.as_view(), name='board-list-create'),
+    path('board-positions/<str:slug>/', BoardPositionDetailView.as_view(), name='board-detail'),
+    path('board-applications/', BoardApplicationListCreateView.as_view(), name='board-app-list-create'),
+    path('board-applications/<int:pk>/accept/', BoardApplicationUpdateStatusView.as_view(), name='board-app-accept'),
+    path('board-positions/<int:pk>/add-member/', AddVolunteerToBoardView.as_view(), name='board-add-member'),
+    path('board-positions/<int:pk>/remove-member/', RemoveVolunteerFromBoardView.as_view(), name='board-remove-member'),
 ]

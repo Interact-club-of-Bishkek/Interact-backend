@@ -2,7 +2,8 @@ from django.db import models
 from django.utils.text import slugify
 import uuid
 import os
-from directions.models import VolunteerDirection  # Импортируй модель направлений
+from directions.models import VolunteerDirection
+from users.models import Volunteer
 
 class Command(models.Model):
     title = models.CharField("Название команды", max_length=255)
@@ -36,13 +37,12 @@ class Command(models.Model):
         related_name="led_commands"
     )
 
-    # 🔥 ВОТ ЭТО ПОЛЕ
     volunteers = models.ManyToManyField(
             'users.Volunteer',
-            related_name='volunteer_commands', # Это имя будет использоваться у волонтера
+            related_name='volunteer_commands',
             blank=True,
             verbose_name="Участники команды",
-            db_table="users_volunteer_commands" # СТРОГО УКАЗЫВАЕМ ТАБЛИЦУ ИЗ SQL
+            db_table="users_volunteer_commands"
         )
 
     class Meta:
@@ -51,16 +51,12 @@ class Command(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            # Генерируем слаг из заголовка. allow_unicode=True сохранит кириллицу.
             base_slug = slugify(self.title, allow_unicode=True)
-            
-            # Если заголовок пустой или состоит из символов, которые slugify удалил
             if not base_slug:
                 base_slug = "command-" + uuid.uuid4().hex[:6]
 
             slug = base_slug
             counter = 1
-            # Проверка уникальности
             while Command.objects.filter(slug=slug).exists():
                 slug = f"{base_slug}-{counter}"
                 counter += 1
@@ -132,11 +128,10 @@ class Application(models.Model):
     volunteer = models.ForeignKey(
         'users.Volunteer', 
         on_delete=models.CASCADE, 
-        related_name='command_applications', # Заявки волонтера
+        related_name='command_applications',
         verbose_name="Волонтер",
         null=True 
     )
-
 
     answers = models.JSONField("Ответы")
     status = models.CharField(
@@ -148,10 +143,9 @@ class Application(models.Model):
     created_at = models.DateTimeField("Дата подачи", auto_now_add=True)
 
     def save(self, *args, **kwargs):
-            # Если статус меняется на 'accepted', добавляем волонтера в команду
-            if self.status == 'accepted' and self.volunteer:
-                self.command.volunteers.add(self.volunteer)
-            super().save(*args, **kwargs)
+        if self.status == 'accepted' and self.volunteer:
+            self.command.volunteers.add(self.volunteer)
+        super().save(*args, **kwargs)
             
     class Meta:
         verbose_name = "Заявка"
@@ -180,6 +174,95 @@ class Attachment(models.Model):
     class Meta:
         verbose_name = "Файл"
         verbose_name_plural = "Файлы"
+
+    def __str__(self):
+        return self.label
+
+
+class BoardPosition(models.Model):
+    title = models.CharField(max_length=255, verbose_name="Название позиции в Борде (например, Вице-Президент)")
+    slug = models.SlugField(unique=True, blank=True)
+    description = models.TextField(blank=True)
+    start_date = models.DateTimeField(null=True, blank=True)
+    end_date = models.DateTimeField(null=True, blank=True)
+    leader = models.ForeignKey(Volunteer, on_delete=models.SET_NULL, null=True, blank=True, related_name='managed_board_positions')
+    members = models.ManyToManyField(Volunteer, related_name='board_roles', blank=True)
+    
+    # ПРИМЕЧАНИЕ: Поле questions удалено отсюда, чтобы не было конфликта с BoardQuestion
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.title)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.title
+
+
+class BoardApplication(models.Model):
+    STATUS_CHOICES = (
+        ('pending', 'Ожидает'),
+        ('accepted', 'Принят'),
+        ('rejected', 'Отклонен'),
+    )
+    board_position = models.ForeignKey(BoardPosition, on_delete=models.CASCADE, related_name='applications')
+    applicant = models.ForeignKey(Volunteer, on_delete=models.CASCADE, related_name='board_applications', verbose_name="Кандидат")
+    answers = models.JSONField(default=dict)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Заявка от {self.applicant.name} на {self.board_position.title}"
+
+
+class BoardAttachment(models.Model):
+    application = models.ForeignKey(BoardApplication, on_delete=models.CASCADE, related_name='files')
+    file = models.FileField(upload_to='board_attachments/')
+    label = models.CharField(max_length=255, blank=True)
+
+    def __str__(self):
+        return self.label
+
+
+class BoardQuestion(models.Model):
+    FIELD_TYPES = [
+        ('short_text', 'Короткий текст'),
+        ('long_text', 'Длинный текст'),
+        ('number', 'Число'),
+        ('photo', 'Фото'),
+        ('video', 'Видео'),
+        ('select', 'Выбор варианта'),
+    ]
+
+    board_position = models.ForeignKey(
+        'BoardPosition',
+        related_name='questions', # Теперь это работает без ошибок
+        on_delete=models.CASCADE,
+        verbose_name="Позиция в Борде"
+    )
+    label = models.CharField("Текст вопроса", max_length=500)
+    field_type = models.CharField("Тип поля", max_length=20, choices=FIELD_TYPES)
+    required = models.BooleanField("Обязательный", default=True)
+    order = models.PositiveIntegerField("Порядок", blank=True, null=True)
+
+    options = models.JSONField(
+        blank=True,
+        default=list,
+        help_text="Только для select: список вариантов"
+    )
+
+    class Meta:
+        verbose_name = "Вопрос для Борда"
+        verbose_name_plural = "Вопросы для Борда"
+        ordering = ['order']
+
+    def save(self, *args, **kwargs):
+        if self.order is None:
+            last = BoardQuestion.objects.filter(board_position=self.board_position).aggregate(
+                models.Max('order')
+            )['order__max'] or 0
+            self.order = last + 1
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.label

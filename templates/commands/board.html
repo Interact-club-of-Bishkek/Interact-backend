@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Анкеты в Борд</title>
+<link rel="icon" type="image/png" href="https://i.ibb.co/qFYrFSnD/2105176-1-removebg-preview.png">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+body { font-family: 'Inter', sans-serif; background:#020408; color:#fff; margin:0; }
+.cmd-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:16px; }
+.cmd-card { background:rgba(255,255,255,.05); border:2px solid rgba(255,255,255,.08); border-radius:20px; padding:20px; text-align:center; cursor:pointer; transition:.3s; }
+.cmd-card:hover { border-color:#00c6ff; transform:translateY(-3px); }
+.cmd-card.selected { background:#00c6ff; color:#000; border-color:#00c6ff; }
+
+.neon-input { width:100%; padding:14px; border-radius:16px; background:rgba(255,255,255,.05); border:2px solid rgba(255,255,255,.08); outline:none; }
+.neon-input:focus { border-color:#00c6ff; }
+
+.file-upload-button { position: relative; display: flex; align-items: center; justify-content: center; padding:16px; border:2px dashed rgba(255,255,255,.3); border-radius:16px; cursor:pointer; gap:10px; margin-top:6px; }
+.file-upload-button input { position:absolute; inset:0; opacity:0; cursor:pointer; }
+.file-name { font-size:0.85rem; margin-top:4px; color:#aaa; }
+.file-preview { margin-top:6px; max-height:150px; border-radius:12px; display:none; }
+
+.btn-action { width:100%; padding:18px; border-radius:22px; background:#00c6ff; color:#000; font-weight:900; cursor:pointer; transition:.3s; }
+.btn-action:hover { background:#00f0ff; }
+
+.date-block { display:inline-block; padding:6px 12px; background:rgba(255,255,255,.05); border-radius:12px; margin-right:8px; font-size:0.9rem; }
+.date-block span { color:#00c6ff; font-weight:600; }
+
+.fullscreen-message { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; background:#020408; z-index:9999; }
+.hidden { display:none; }
+
+/* Кастомный select */
+.select-wrapper { position:relative; }
+.neon-select { padding:14px; border-radius:16px; border:2px solid rgba(255,255,255,.08); background:rgba(255,255,255,.05); cursor:pointer; display:flex; justify-content:space-between; align-items:center; }
+.neon-select:hover { border-color:#00c6ff; }
+.neon-select .selected-text { color:#ccc; }
+.neon-select .options { position:absolute; top:100%; left:0; right:0; background:#020408; border:2px solid #00c6ff; border-radius:16px; max-height:180px; overflow-y:auto; margin-top:4px; z-index:50; display:none; }
+.neon-select .options li { padding:10px 14px; cursor:pointer; transition:0.2s; }
+.neon-select .options li:hover { background:#00c6ff/20; }
+</style>
+</head>
+<body>
+
+<div id="fullscreenMessage" class="fullscreen-message hidden">
+    <div class="text-center">
+        <h1 class="text-4xl font-black mb-4 text-cyan-400"></h1>
+        <p class="text-gray-400 text-lg"></p>
+        <button onclick="hideMessage()" class="btn-action mt-4">Закрыть</button>
+    </div>
+</div>
+
+<div id="appContainer" class="max-w-4xl mx-auto p-6 hidden">
+
+    <h1 class="text-center text-5xl font-black mb-10">
+        Interact <span class="text-cyan-400">Board</span>
+    </h1>
+
+    <div id="boardGrid" class="cmd-grid mb-10"></div>
+
+    <div id="boardInfo" class="hidden mb-8 p-6 rounded-2xl bg-white/5 whitespace-pre-line"></div>
+
+    <form id="appForm" class="hidden space-y-6" enctype="multipart/form-data">
+        <div id="questionsContainer" class="space-y-6"></div>
+        <button type="submit" class="btn-action hidden" id="submitBtn">Подать заявку</button>
+    </form>
+</div>
+
+<script>
+const API_BOARD = '/board-positions/';
+const API_APPS = '/board-applications/';
+const token = localStorage.getItem('access'); // Заявки в Борд требуют авторизации
+
+let selectedSlug = '';
+
+const app = document.getElementById('appContainer');
+const message = document.getElementById('fullscreenMessage');
+const submitBtn = document.getElementById('submitBtn');
+const appForm = document.getElementById('appForm');
+
+// ЗАПРЕТ ОТПРАВКИ ПО ENTER
+appForm.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        if (e.target.tagName !== 'TEXTAREA') {
+            e.preventDefault();
+            return false;
+        }
+    }
+});
+
+function showMessage(title, text){
+    message.querySelector('h1').textContent = title;
+    message.querySelector('p').textContent = text;
+    message.classList.remove('hidden');
+    app.classList.add('hidden');
+}
+
+function hideMessage(){
+    message.classList.add('hidden');
+    app.classList.remove('hidden');
+}
+
+async function init(){
+    if (!token) {
+        window.location.href = '/login/'; // Если не авторизован - на страницу входа
+        return;
+    }
+
+    try {
+        const res = await fetch(API_BOARD, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!res.ok) throw new Error('Ошибка авторизации или сервера');
+        const boardPositions = await res.json();
+
+        const grid = document.getElementById('boardGrid');
+        grid.innerHTML = '';
+        
+        // В зависимости от пагинации DRF может вернуть объект с results
+        const dataArray = Array.isArray(boardPositions) ? boardPositions : (boardPositions.results || []);
+
+        dataArray.forEach(pos => {
+            const card = document.createElement('div');
+            card.className = 'cmd-card';
+            card.textContent = pos.title;
+            card.onclick = () => loadBoardPosition(pos, card);
+            grid.appendChild(card);
+        });
+
+        hideMessage();
+    } catch(e){
+        showMessage('Ошибка', 'Не удалось загрузить позиции Борда');
+    }
+}
+
+function formatDate(dt){
+    if(!dt) return '';
+    return new Date(dt).toLocaleString('ru-RU', {day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'});
+}
+
+function loadBoardPosition(pos, card){
+    document.querySelectorAll('.cmd-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+
+    const now = new Date();
+    const start = pos.start_date ? new Date(pos.start_date) : null;
+    const end = pos.end_date ? new Date(pos.end_date) : null;
+
+    if(start && now < start){
+        showMessage('Набор еще не открыт','Ожидайте объявления старта 🤍');
+        return;
+    }
+    if(end && now > end){
+        showMessage('Набор завершён','Прием заявок на эту позицию закрыт');
+        return;
+    }
+
+    hideMessage();
+    selectedSlug = pos.slug;
+
+    const info = document.getElementById('boardInfo');
+    info.classList.remove('hidden');
+    info.innerHTML = `
+        <h2 class="text-3xl font-black mb-2">${pos.title}</h2>
+        <p class="text-gray-400 mb-4">${pos.description || ''}</p>
+        <div class="flex flex-wrap gap-4">
+            <div class="date-block">Начало: <span>${formatDate(pos.start_date)}</span></div>
+            <div class="date-block">Конец: <span>${formatDate(pos.end_date)}</span></div>
+        </div>
+    `;
+
+    const qBox = document.getElementById('questionsContainer');
+    qBox.innerHTML = '';
+
+    if(!pos.questions || pos.questions.length === 0){
+        submitBtn.classList.add('hidden');
+        return;
+    } 
+    submitBtn.classList.remove('hidden');
+
+    pos.questions.forEach(q => {
+        const isReq = q.required;
+        const requiredAttr = isReq ? 'required' : '';
+        const fieldName = `q_${q.id}`;
+        let html = '';
+
+        const labelHtml = `<label class="text-xs text-gray-400 mb-2 block">${q.label} ${isReq ? '<span class="text-red-500">*</span>' : ''}</label>`;
+
+        if(q.field_type === 'photo' || q.field_type === 'video'){
+            html = `
+            <div class="field-wrapper">
+                ${labelHtml}
+                <label class="file-upload-button">
+                    <span>Выбрать файл</span>
+                    <input type="file" name="${fieldName}" accept="${q.field_type==='photo'?'image/*':'video/*'}" ${requiredAttr}>
+                </label>
+                <div class="file-name">Файл не выбран</div>
+                <img class="file-preview">
+            </div>`;
+        } else if(q.field_type === 'select'){
+            // Генерируем опции для селекта из поля options
+            let optionsHtml = '';
+            if (q.options && Array.isArray(q.options)) {
+                q.options.forEach(opt => {
+                    optionsHtml += `<li>${opt}</li>`;
+                });
+            }
+            html = `
+            <div class="select-wrapper field-wrapper" data-fieldname="${fieldName}" data-required="${isReq}">
+                ${labelHtml}
+                <div class="neon-select">
+                    <span class="selected-text">Выберите вариант...</span>
+                    <ul class="options">${optionsHtml}</ul>
+                </div>
+            </div>`;
+        } else if(q.field_type === 'long_text') {
+            html = `
+            <div class="field-wrapper">
+                ${labelHtml}
+                <textarea class="neon-input mt-2" name="${fieldName}" rows="4" ${requiredAttr} placeholder="Ваш ответ..."></textarea>
+            </div>`;
+        } else {
+            html = `
+            <div class="field-wrapper">
+                ${labelHtml}
+                <input class="neon-input mt-2" name="${fieldName}" type="${q.field_type==='number'?'number':'text'}" ${requiredAttr} placeholder="Ваш ответ...">
+            </div>`;
+        }
+
+        qBox.insertAdjacentHTML('beforeend', html);
+    });
+
+    setupFileInputs();
+    setupCustomSelects();
+    appForm.classList.remove('hidden');
+}
+
+function setupFileInputs(){
+    document.querySelectorAll('input[type=file]').forEach(input => {
+        const block = input.closest('.field-wrapper');
+        const fileName = block.querySelector('.file-name');
+        const preview = block.querySelector('.file-preview');
+
+        input.onchange = () => {
+            if(!input.files.length) {
+                fileName.textContent='Файл не выбран';
+                preview.style.display='none';
+                return;
+            }
+            const file = input.files[0];
+            fileName.textContent = file.name;
+
+            if(file.type.startsWith('image/')){
+                const reader = new FileReader();
+                reader.onload = e => { preview.src = e.target.result; preview.style.display='block'; };
+                reader.readAsDataURL(file);
+            } else { preview.style.display='none'; }
+        };
+    });
+}
+
+function setupCustomSelects(){
+    document.querySelectorAll('.select-wrapper').forEach(wrapper => {
+        const selectBox = wrapper.querySelector('.neon-select');
+        const ul = selectBox.querySelector('.options');
+        const selectedText = selectBox.querySelector('.selected-text');
+
+        // Обработка клика по сгенерированным li
+        ul.querySelectorAll('li').forEach(li => {
+            li.onclick = (e) => {
+                e.stopPropagation();
+                wrapper.dataset.value = li.textContent;
+                selectedText.textContent = li.textContent;
+                selectedText.style.color = '#00c6ff';
+                ul.style.display = 'none';
+                selectBox.style.borderColor = ''; // Сброс ошибки
+            };
+        });
+
+        selectBox.onclick = e => {
+            e.stopPropagation();
+            const isVisible = ul.style.display === 'block';
+            document.querySelectorAll('.options').forEach(o => o.style.display = 'none');
+            ul.style.display = isVisible ? 'none' : 'block';
+        };
+    });
+
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.options').forEach(u => u.style.display = 'none');
+    });
+}
+
+// ОТПРАВКА С ВАЛИДАЦИЕЙ
+appForm.onsubmit = async e => {
+    e.preventDefault();
+    
+    if (!appForm.checkValidity()) {
+        appForm.reportValidity();
+        return;
+    }
+
+    if(!selectedSlug) return;
+
+    const fd = new FormData();
+    // Обрати внимание: бэкенд ожидает board_slug, а не command_slug
+    fd.append('board_slug', selectedSlug);
+
+    let isSelectValid = true;
+    const answers = {};
+
+    document.querySelectorAll('#questionsContainer > .field-wrapper').forEach(div => {
+        const input = div.querySelector('input, textarea');
+        
+        if (div.classList.contains('select-wrapper')) {
+            const val = div.dataset.value;
+            const isReq = div.dataset.required === "true";
+            
+            if (isReq && !val) {
+                isSelectValid = false;
+                div.querySelector('.neon-select').style.borderColor = '#ef4444';
+            } else {
+                answers[div.dataset.fieldname] = val || '';
+            }
+        } else if (input) {
+            if (input.type === 'file') {
+                if (input.files.length) fd.append(input.name, input.files[0]);
+            } else {
+                answers[input.name] = input.value.trim();
+            }
+        }
+    });
+
+    if (!isSelectValid) {
+        alert('Пожалуйста, выберите вариант в выпадающем списке');
+        return;
+    }
+
+    fd.append('answers', JSON.stringify(answers));
+
+    try {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Отправка...';
+
+        // Отправка с токеном авторизации
+        const res = await fetch(API_APPS, { 
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: fd 
+        });
+        
+        if (res.ok) {
+            showMessage('Успешно!', 'Ваша заявка в Борд принята 🤍');
+            appForm.reset();
+        } else {
+            const errData = await res.json();
+            alert('Ошибка: ' + (errData.error || 'Сбой на сервере'));
+        }
+    } catch(e) {
+        alert('Ошибка сети');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Подать заявку';
+    }
+};
+
+init();
+</script>
+</body>
+</html>
