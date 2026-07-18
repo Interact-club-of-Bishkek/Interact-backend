@@ -177,56 +177,22 @@ class BoardPositionDetailView(generics.RetrieveAPIView):
 
 class BoardApplicationListCreateView(generics.ListCreateAPIView):
     serializer_class = BoardApplicationSerializer
-    # 🔥 ВАЖНО: Только авторизованные могут подавать заявки в Борд,
-    # чтобы мы могли привязать их ФИО и профиль.
-    permission_classes = [IsAuthenticated] 
-
-    def get_queryset(self):
-        user = self.request.user
-
-        queryset = BoardApplication.objects.all().order_by("-created_at")
-
-        # Президент и админ видят все заявки
-        if user.is_superuser or getattr(user, "role", "") in ["admin", "president"]:
-            pass
-        else:
-            # Остальные только на свои позиции
-            queryset = queryset.filter(board_position__leader=user)
-
-        slug = self.request.query_params.get("slug")
-        if slug:
-            queryset = queryset.filter(board_position__slug=slug)
-
-        return queryset
+    permission_classes = [AllowAny] # Разрешаем всем подавать заявки
 
     def post(self, request, *args, **kwargs):
         try:
             board_slug = request.data.get('board_slug')
             board_position = get_object_or_404(BoardPosition, slug=board_slug)
-            now = timezone.now()
-
-            if board_position.start_date and now < board_position.start_date:
-                return Response({"error": "Набор ещё не открыт."}, status=status.HTTP_400_BAD_REQUEST)
-            if board_position.end_date and now > board_position.end_date:
-                return Response({"error": "Набор завершён."}, status=status.HTTP_400_BAD_REQUEST)
-
-            answers_raw = request.data.get('answers', '{}')
-            answers = json.loads(answers_raw)
-
-            # 🔥 СОЗДАЕМ ЗАЯВКУ В БОРД И СРАЗУ ПРИВЯЗЫВАЕМ ПОЛЬЗОВАТЕЛЯ (applicant)
+            
+            # Убираем проверку request.user, создаем заявку без привязки к аккаунту
             app = BoardApplication.objects.create(
                 board_position=board_position,
-                applicant=request.user, # Берем ФИО и телефон из этого пользователя
-                answers=answers
+                answers=json.loads(request.data.get('answers', '{}'))
             )
 
             for key in request.FILES:
                 for f in request.FILES.getlist(key):
-                    BoardAttachment.objects.create(
-                        application=app,
-                        file=f,
-                        label=key.replace('TEXT__','')
-                    )
+                    BoardAttachment.objects.create(application=app, file=f, label=key.replace('TEXT__',''))
 
             return Response({"status": "success", "id": app.id}, status=status.HTTP_201_CREATED)
         except Exception as e:

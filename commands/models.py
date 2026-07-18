@@ -206,7 +206,14 @@ class BoardApplication(models.Model):
         ('rejected', 'Отклонен'),
     )
     board_position = models.ForeignKey(BoardPosition, on_delete=models.CASCADE, related_name='applications')
-    applicant = models.ForeignKey(Volunteer, on_delete=models.CASCADE, related_name='board_applications', verbose_name="Кандидат")
+    applicant = models.ForeignKey(
+            Volunteer, 
+            on_delete=models.CASCADE, 
+            related_name='board_applications', 
+            verbose_name="Кандидат",
+            null=True, 
+            blank=True
+        )
     answers = models.JSONField(default=dict)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     created_at = models.DateTimeField(auto_now_add=True)
