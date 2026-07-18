@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Command, Question, Application, Attachment, BoardApplication, BoardAttachment, BoardPosition
+from .models import Command, Question, Application, Attachment, BoardApplication, BoardAttachment, BoardPosition, BoardQuestion
 
 class QuestionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -39,10 +39,18 @@ class ApplicationSerializer(serializers.ModelSerializer):
         model = Application
         fields = ['id', 'command', 'command_slug', 'command_title', 'answers', 'status', 'created_at', 'files']
     
+class BoardQuestionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BoardQuestion
+        fields = ['id', 'label', 'field_type', 'required', 'order', 'options']
+
 class BoardPositionSerializer(serializers.ModelSerializer):
+    # Теперь сериализатор будет видеть вопросы, связанные через модель BoardQuestion
+    questions = BoardQuestionSerializer(many=True, read_only=True)
+
     class Meta:
         model = BoardPosition
-        fields = '__all__'
+        fields = ['id', 'title', 'slug', 'description', 'start_date', 'end_date', 'questions']
 
 class BoardAttachmentSerializer(serializers.ModelSerializer):
     class Meta:
@@ -65,3 +73,4 @@ class BoardApplicationSerializer(serializers.ModelSerializer):
             'applicant', 'applicant_name', 'applicant_phone', # <- Добавлены новые поля
             'answers', 'status', 'created_at', 'files'
         ]
+
