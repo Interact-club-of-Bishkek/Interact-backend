@@ -66,17 +66,26 @@ class CommandDetailView(generics.RetrieveAPIView):
 
 class ApplicationListCreateView(generics.ListCreateAPIView):
     serializer_class = ApplicationSerializer
-    permission_classes = [AllowAny]
+    
+    # 🔥 РАЗДЕЛЯЕМ ПРАВА: POST для всех (чтобы волонтеры могли подать заявку), GET для своих
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [AllowAny()]
+        return [IsAuthenticated()]
 
     def get_queryset(self):
         user = self.request.user
 
+        # 🔥 ЗАЩИТА: Если токен не передан/истек, отдаем пустой список, а не падаем с ошибкой 500
+        if not user.is_authenticated:
+            return Application.objects.none()
+
         queryset = Application.objects.all().order_by("-created_at")
 
-        if not (
-            user.is_superuser or
-            getattr(user, "role", "") in ["admin", "president"]
-        ):
+        # Проверяем роль (безопасно)
+        is_management = user.is_superuser or getattr(user, "role", "") in ["admin", "president"]
+        
+        if not is_management:
             queryset = queryset.filter(command__leader=user)
 
         slug = self.request.query_params.get("slug")
@@ -177,13 +186,21 @@ class BoardPositionDetailView(generics.RetrieveAPIView):
 
 
 class BoardApplicationListCreateView(generics.ListCreateAPIView):
-
     serializer_class = BoardApplicationSerializer
-    permission_classes = [AllowAny]
 
+    # 🔥 ТО ЖЕ САМОЕ ДЛЯ БОРДА
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [AllowAny()]
+        return [IsAuthenticated()]
 
     def get_queryset(self):
+        user = self.request.user
 
+        if not user.is_authenticated:
+            return BoardApplication.objects.none()
+
+        # При необходимости здесь тоже можно добавить фильтрацию по лидеру борда
         return BoardApplication.objects.all().order_by("-created_at")
 
 

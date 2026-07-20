@@ -31,14 +31,14 @@ class AttachmentSerializer(serializers.ModelSerializer):
         return obj.file.url
 
 class ApplicationSerializer(serializers.ModelSerializer):
-    files = AttachmentSerializer(many=True, read_only=True)
-    command_title = serializers.ReadOnlyField(source='command.title')
-    command_slug = serializers.ReadOnlyField(source='command.slug')
+    # 🔥 Добавляем название команды (проверь, что в модели Command поле называется именно title или name)
+    command_title = serializers.CharField(source='command.title', read_only=True) # или command.name
+    files = AttachmentSerializer(source='attachments', many=True, read_only=True) # Имя related_name из модели
 
     class Meta:
         model = Application
-        fields = ['id', 'command', 'command_slug', 'command_title', 'answers', 'status', 'created_at', 'files']
-    
+        fields = '__all__'
+        
 class BoardQuestionSerializer(serializers.ModelSerializer):
 
     class Meta:
@@ -99,25 +99,31 @@ class BoardPositionSerializer(serializers.ModelSerializer):
 
 
 class BoardApplicationSerializer(serializers.ModelSerializer):
-
-    files = BoardAttachmentSerializer(
-        many=True,
-        read_only=True
-    )
-
+    # 🔥 Добавляем название позиции
+    board_title = serializers.CharField(source='board_position.title', read_only=True) # или board_position.name
+    files = BoardAttachmentSerializer(source='attachments', many=True, read_only=True)
+    
+    # 🔥 Достаем имя и телефон. Так как заявки подаются в JSON-формате, ищем значения в answers
+    applicant_name = serializers.SerializerMethodField()
+    applicant_phone = serializers.SerializerMethodField()
 
     class Meta:
-
         model = BoardApplication
+        fields = '__all__'
 
-        fields = [
-            "id",
-            "board_position",
-            "applicant",
-            "answers",
-            "status",
-            "created_at",
-            "files"
-        ]
+    def get_applicant_name(self, obj):
+        if obj.answers and isinstance(obj.answers, dict):
+            # Берем первый ответ из JSON как имя (или укажи конкретный ключ, например obj.answers.get('q_name'))
+            values = list(obj.answers.values())
+            return str(values[0]) if values else 'Без имени'
+        return 'Без имени'
+
+    def get_applicant_phone(self, obj):
+        if obj.answers and isinstance(obj.answers, dict):
+            # Ищем ключ, в котором есть слово phone или телефон
+            for key, value in obj.answers.items():
+                if 'phone' in key.lower() or 'телефон' in key.lower() or 'номер' in key.lower():
+                    return str(value)
+        return 'Нет данных'
         
 

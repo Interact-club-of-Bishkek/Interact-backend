@@ -18,7 +18,6 @@
         }
         .glass-card { background: var(--glass); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; }
         
-        /* Стили бокового меню */
         .sidebar { width: 280px; background: rgba(11, 17, 33, 0.95); border-right: 1px solid rgba(255,255,255,0.05); }
         .side-btn { 
             width: 100%; text-align: left; padding: 16px 20px; font-weight: 800; text-transform: uppercase; 
@@ -28,14 +27,12 @@
         .side-btn:hover:not(.active) { color: white; background: rgba(255,255,255,0.05); }
         .side-btn.active { background: rgba(0, 198, 255, 0.1); color: var(--primary); border: 1px solid rgba(0, 198, 255, 0.3); }
         
-        /* Карточки заявок */
         .app-card { 
             background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); 
             border-radius: 20px; transition: all 0.3s ease; cursor: pointer; position: relative;
         }
         .app-card:hover { border-color: var(--primary); transform: translateY(-4px); box-shadow: 0 10px 30px -10px rgba(0, 198, 255, 0.15); }
         
-        /* Скроллбар */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
@@ -44,10 +41,8 @@
 </head>
 <body class="flex h-screen overflow-hidden">
 
-    <!-- Уведомления -->
     <div id="toast-container" class="fixed top-5 right-5 z-[3000] flex flex-col gap-3"></div>
 
-    <!-- Боковое меню -->
     <aside class="sidebar h-full flex flex-col hidden md:flex flex-shrink-0 relative z-50">
         <div class="p-8 border-b border-white/5">
             <h2 class="text-2xl font-black italic uppercase text-white leading-none">Pres<span class="text-primary">Panel</span></h2>
@@ -68,15 +63,12 @@
         </div>
     </aside>
 
-    <!-- Основной контент -->
     <main class="flex-1 h-full overflow-y-auto p-6 md:p-10 relative">
         <header class="mb-8 glass-card p-6">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                 <h1 id="pageTitle" class="text-2xl md:text-3xl font-black uppercase italic tracking-wide">Набор в команды</h1>
                 
-                <!-- Панель управления (Статус + Фильтр) -->
                 <div class="flex flex-col md:flex-row gap-4 w-full md:w-auto">
-                    <!-- Фильтр по направлениям/командам -->
                     <div class="relative w-full md:w-64">
                         <select id="itemFilter" onchange="applyFilter(this.value)" class="w-full bg-black/40 border border-white/10 rounded-lg pl-4 pr-10 py-2.5 text-xs font-bold uppercase tracking-wider text-white focus:outline-none focus:border-primary appearance-none cursor-pointer">
                             <option value="all">⚡ Все направления</option>
@@ -84,7 +76,6 @@
                         <i class="fas fa-chevron-down absolute right-4 top-1/2 transform -translate-y-1/2 text-primary text-xs pointer-events-none"></i>
                     </div>
 
-                    <!-- Переключатель статуса -->
                     <div class="flex bg-black/40 rounded-lg p-1 border border-white/10 shrink-0">
                         <button onclick="switchStatus('pending')" id="status-pending" class="px-4 py-2 rounded-md text-xs font-bold uppercase bg-primary text-black transition">Ожидают</button>
                         <button onclick="switchStatus('accepted')" id="status-accepted" class="px-4 py-2 rounded-md text-xs font-bold uppercase text-gray-400 hover:text-white transition">Принятые</button>
@@ -93,18 +84,15 @@
             </div>
         </header>
 
-        <!-- Сетка для КОМАНД -->
         <section id="sec-commands" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             <div class="col-span-full text-center py-20 text-gray-500"><i class="fas fa-circle-notch fa-spin text-3xl"></i></div>
         </section>
 
-        <!-- Сетка для БОРДА -->
         <section id="sec-board" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 hidden">
             <div class="col-span-full text-center py-20 text-gray-500"><i class="fas fa-circle-notch fa-spin text-3xl"></i></div>
         </section>
     </main>
 
-    <!-- Модальное окно просмотра заявки -->
     <div id="appModal" class="fixed inset-0 bg-black/90 backdrop-blur-sm z-[2000] hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
         <div class="glass-card w-full max-w-2xl max-h-[90vh] flex flex-col relative transform scale-95 transition-transform duration-300" id="appModalInner">
             
@@ -129,8 +117,10 @@
     </div>
 
     <script>
+        // ВНИМАНИЕ: Если в основном файле urls.py твоего проекта есть префикс '/api/' (например path('api/', include('your_app.urls'))), 
+        // то добавь '/api' перед путями ниже. Если нет, оставь как есть.
         const API = {
-            profile: '/api/profile/',
+            profile: '/profile/', // Убедись, что этот путь существует в твоем Django
             commandsApps: '/commands-applications/',
             boardApps: '/board-applications/'
         };
@@ -139,53 +129,65 @@
             token: localStorage.getItem('access'),
             activeTab: 'commands',
             activeStatus: 'pending',
-            filterValue: 'all', // Текущий фильтр
+            filterValue: 'all',
             commandsData: [],
             boardData: [],
             currentApp: null 
         };
 
         async function init() {
-            if (!state.token) { location.href = '/login/'; return; }
+            if (!state.token) { location.href = '/login/'; return; } // Редирект на логин, если нет токена
+            
+            // Получение профиля (если эндпоинт отсутствует, закомментируй этот блок и оставь только fetchData)
             try {
                 const res = await fetch(API.profile, { headers: { 'Authorization': `Bearer ${state.token}` } });
-                if (!res.ok) { logout(); return; }
-                const user = await res.json();
-                document.getElementById('userNameLabel').innerText = `${user.name || user.login} (${user.role_display})`;
-                await fetchData();
+                if (res.ok) {
+                    const user = await res.json();
+                    document.getElementById('userNameLabel').innerText = `${user.first_name || user.username || 'Админ'} (${user.role || 'Президент'})`;
+                }
             } catch (e) {
-                showToast("Ошибка подключения к серверу", "error");
+                console.warn("Не удалось загрузить профиль");
             }
+            
+            await fetchData();
         }
 
         async function fetchData() {
             const h = { 'Authorization': `Bearer ${state.token}` };
             try {
                 const [cmdRes, boardRes] = await Promise.all([
-                    fetch(API.commandsApps + '?limit=1000', { headers: h }).then(r => r.json()),
-                    fetch(API.boardApps + '?limit=1000', { headers: h }).then(r => r.json())
+                    fetch(API.commandsApps + '?limit=1000', { headers: h }),
+                    fetch(API.boardApps + '?limit=1000', { headers: h })
                 ]);
 
-                state.commandsData = Array.isArray(cmdRes) ? cmdRes : (cmdRes.results || []);
-                state.boardData = Array.isArray(boardRes) ? boardRes : (boardRes.results || []);
+                // Проверка на ошибки авторизации
+                if (cmdRes.status === 401 || boardRes.status === 401) {
+                    logout();
+                    return;
+                }
+
+                const cmdData = await cmdRes.json();
+                const boardData = await boardRes.json();
+
+                // Обработка данных из DRF (может быть массив или объект с .results при пагинации)
+                state.commandsData = Array.isArray(cmdData) ? cmdData : (cmdData.results || []);
+                state.boardData = Array.isArray(boardData) ? boardData : (boardData.results || []);
 
                 updateFilterDropdown();
                 renderViews();
             } catch (e) {
-                showToast("Ошибка загрузки заявок", "error");
+                showToast("Ошибка загрузки заявок. Проверьте соединение.", "error");
+                console.error(e);
             }
         }
 
-        // Обновление выпадающего списка фильтров
         function updateFilterDropdown() {
             const select = document.getElementById('itemFilter');
             let options = `<option value="all">⚡ Все направления</option>`;
             
-            // Выбираем откуда брать уникальные названия
             const apps = state.activeTab === 'commands' ? state.commandsData : state.boardData;
             const key = state.activeTab === 'commands' ? 'command_title' : 'board_title';
             
-            // Получаем уникальные названия из массива заявок
             const uniqueTitles = [...new Set(apps.map(a => a[key]).filter(Boolean))];
             
             uniqueTitles.forEach(title => {
@@ -194,7 +196,6 @@
             
             select.innerHTML = options;
             
-            // Пытаемся восстановить выбор (если он есть в новом списке), иначе сбрасываем на "all"
             if (uniqueTitles.includes(state.filterValue)) {
                 select.value = state.filterValue;
             } else {
@@ -225,7 +226,7 @@
         function renderCommands() {
             const container = document.getElementById('sec-commands');
             const filtered = state.commandsData.filter(a => {
-                const statusMatch = a.status === state.activeStatus;
+                const statusMatch = (a.status || 'pending').toLowerCase() === state.activeStatus;
                 const filterMatch = state.filterValue === 'all' || a.command_title === state.filterValue;
                 return statusMatch && filterMatch;
             });
@@ -242,7 +243,7 @@
                 return `
                 <div class="app-card p-6" onclick="openModal('commands', ${realIndex})">
                     <div class="flex justify-between items-start mb-4">
-                        <span class="text-[9px] font-black uppercase px-2 py-1 bg-white/10 text-white rounded">${app.command_title}</span>
+                        <span class="text-[9px] font-black uppercase px-2 py-1 bg-white/10 text-white rounded">${app.command_title || 'Команда'}</span>
                         <span class="text-[10px] text-gray-500">${new Date(app.created_at).toLocaleDateString()}</span>
                     </div>
                     <h4 class="text-xl font-bold text-white mb-2 line-clamp-1">${name}</h4>
@@ -255,7 +256,7 @@
         function renderBoard() {
             const container = document.getElementById('sec-board');
             const filtered = state.boardData.filter(a => {
-                const statusMatch = a.status === state.activeStatus;
+                const statusMatch = (a.status || 'pending').toLowerCase() === state.activeStatus;
                 const filterMatch = state.filterValue === 'all' || a.board_title === state.filterValue;
                 return statusMatch && filterMatch;
             });
@@ -270,10 +271,10 @@
                 return `
                 <div class="app-card p-6 border-l-4 border-l-primary" onclick="openModal('board', ${realIndex})">
                     <div class="flex justify-between items-start mb-4">
-                        <span class="text-[9px] font-black uppercase px-2 py-1 bg-primary/20 text-primary rounded">${app.board_title}</span>
+                        <span class="text-[9px] font-black uppercase px-2 py-1 bg-primary/20 text-primary rounded">${app.board_title || 'Позиция'}</span>
                         <span class="text-[10px] text-gray-500">${new Date(app.created_at).toLocaleDateString()}</span>
                     </div>
-                    <h4 class="text-xl font-bold text-white mb-1 line-clamp-1">${app.applicant_name}</h4>
+                    <h4 class="text-xl font-bold text-white mb-1 line-clamp-1">${app.applicant_name || 'Без имени'}</h4>
                     <p class="text-xs text-gray-400"><i class="fas fa-phone mr-1"></i> ${app.applicant_phone || 'Нет номера'}</p>
                 </div>
                 `;
@@ -289,7 +290,7 @@
             const name = extractName(app, isBoard);
             const contactInfo = isBoard ? `<i class="fas fa-phone mr-1"></i> ${app.applicant_phone || 'Нет данных'}` : 'Данные из анкеты';
 
-            document.getElementById('modalBadge').innerText = isBoard ? 'Позиция в Борде: ' + app.board_title : 'Проект / Команда: ' + app.command_title;
+            document.getElementById('modalBadge').innerText = isBoard ? 'Позиция в Борде: ' + (app.board_title || '') : 'Проект / Команда: ' + (app.command_title || '');
             document.getElementById('modalName').innerText = name;
             document.getElementById('modalContact').innerHTML = contactInfo;
 
@@ -323,7 +324,7 @@
             document.getElementById('modalAnswers').innerHTML = answersHtml;
 
             const btn = document.getElementById('btnAccept');
-            if (app.status === 'accepted') {
+            if ((app.status || '').toLowerCase() === 'accepted') {
                 btn.innerHTML = '<i class="fas fa-check"></i> Уже в составе';
                 btn.className = "flex-1 py-4 rounded-xl bg-green-500/20 text-green-400 font-black uppercase cursor-not-allowed";
                 btn.disabled = true;
@@ -362,7 +363,10 @@
 
             const app = state.currentApp;
             const endpoint = app.isBoard ? API.boardApps : API.commandsApps;
-            const url = `${endpoint}${app.id}/accept/`;
+            
+            // Если в API путях нет слеша в конце, добавляем его безопасно
+            const basePath = endpoint.endsWith('/') ? endpoint : endpoint + '/';
+            const url = `${basePath}${app.id}/accept/`;
 
             try {
                 const res = await fetch(url, {
@@ -380,7 +384,7 @@
                     await fetchData(); 
                 } else {
                     const data = await res.json();
-                    showToast(data.error || "Ошибка сервера", "error");
+                    showToast(data.error || "Ошибка сервера при обновлении статуса", "error");
                     closeModal();
                 }
             } catch (e) {
@@ -391,7 +395,7 @@
 
         function switchTab(tab) {
             state.activeTab = tab;
-            state.filterValue = 'all'; // Сброс фильтра при смене вкладки
+            state.filterValue = 'all';
             
             document.getElementById('tab-commands').classList.toggle('active', tab === 'commands');
             document.getElementById('tab-board').classList.toggle('active', tab === 'board');
@@ -445,6 +449,7 @@
             location.href = '/login/';
         }
 
+        // Запуск
         init();
     </script>
 </body>
