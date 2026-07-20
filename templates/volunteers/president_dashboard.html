@@ -18,7 +18,7 @@
         }
         .glass-card { background: var(--glass); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; }
         
-        .sidebar { width: 280px; background: rgba(11, 17, 33, 0.95); border-right: 1px solid rgba(255,255,255,0.05); }
+        .sidebar { width: 280px; background: rgba(11, 17, 33, 0.98); border-right: 1px solid rgba(255,255,255,0.05); }
         .side-btn { 
             width: 100%; text-align: left; padding: 16px 20px; font-weight: 800; text-transform: uppercase; 
             font-size: 12px; letter-spacing: 0.05em; border-radius: 16px; transition: all 0.3s; 
@@ -33,22 +33,33 @@
         }
         .app-card:hover { border-color: var(--primary); transform: translateY(-4px); box-shadow: 0 10px 30px -10px rgba(0, 198, 255, 0.15); }
         
-        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar { width: 4px; md:width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
     </style>
 </head>
-<body class="flex h-screen overflow-hidden">
+<body class="flex h-screen overflow-hidden relative">
 
-    <div id="toast-container" class="fixed top-5 right-5 z-[3000] flex flex-col gap-3"></div>
+    <!-- Уведомления -->
+    <div id="toast-container" class="fixed top-5 right-5 left-5 md:left-auto z-[3000] flex flex-col gap-3"></div>
 
-    <aside class="sidebar h-full flex flex-col hidden md:flex flex-shrink-0 relative z-50">
-        <div class="p-8 border-b border-white/5">
-            <h2 class="text-2xl font-black italic uppercase text-white leading-none">Pres<span class="text-primary">Panel</span></h2>
-            <p id="userNameLabel" class="text-xs text-gray-400 mt-2 font-semibold">Загрузка...</p>
+    <!-- Фон для мобильного меню -->
+    <div id="sidebarBackdrop" onclick="closeSidebar()" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-[1500] hidden opacity-0 transition-opacity duration-300 md:hidden"></div>
+
+    <!-- Боковое меню -->
+    <aside id="sidebar" class="sidebar fixed inset-y-0 left-0 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 ease-in-out z-[2000] flex flex-col flex-shrink-0 shadow-2xl md:shadow-none">
+        <div class="p-6 md:p-8 border-b border-white/5 flex justify-between items-center">
+            <div>
+                <h2 class="text-2xl font-black italic uppercase text-white leading-none">Pres<span class="text-primary">Panel</span></h2>
+                <p id="userNameLabel" class="text-xs text-gray-400 mt-2 font-semibold">Загрузка...</p>
+            </div>
+            <!-- Кнопка закрытия меню (только для мобильных) -->
+            <button onclick="closeSidebar()" class="md:hidden text-gray-400 hover:text-white text-xl">
+                <i class="fas fa-times"></i>
+            </button>
         </div>
-        <nav class="flex-1 p-6 overflow-y-auto">
+        <nav class="flex-1 p-4 md:p-6 overflow-y-auto">
             <button onclick="switchTab('commands')" id="tab-commands" class="side-btn active">
                 <i class="fas fa-users w-5"></i> Команды
             </button>
@@ -56,71 +67,83 @@
                 <i class="fas fa-user-tie w-5"></i> Борд
             </button>
         </nav>
-        <div class="p-6 border-t border-white/5">
+        <div class="p-4 md:p-6 border-t border-white/5">
             <button onclick="logout()" class="w-full py-3 rounded-xl bg-red-500/10 text-red-500 font-bold uppercase text-xs hover:bg-red-500 hover:text-white transition">
                 <i class="fas fa-power-off mr-2"></i>Выйти
             </button>
         </div>
     </aside>
 
-    <main class="flex-1 h-full overflow-y-auto p-6 md:p-10 relative">
-        <header class="mb-8 glass-card p-6">
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-                <h1 id="pageTitle" class="text-2xl md:text-3xl font-black uppercase italic tracking-wide">Набор в команды</h1>
+    <!-- Основной контент -->
+    <main class="flex-1 h-full overflow-y-auto p-4 md:p-10 relative">
+        <header class="mb-6 md:mb-8 glass-card p-4 md:p-6">
+            <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
                 
-                <div class="flex flex-col md:flex-row gap-4 w-full md:w-auto">
-                    <div class="relative w-full md:w-64">
-                        <select id="itemFilter" onchange="applyFilter(this.value)" class="w-full bg-black/40 border border-white/10 rounded-lg pl-4 pr-10 py-2.5 text-xs font-bold uppercase tracking-wider text-white focus:outline-none focus:border-primary appearance-none cursor-pointer">
+                <!-- Заголовок + Бургер -->
+                <div class="flex items-center gap-4 w-full xl:w-auto">
+                    <button onclick="openSidebar()" class="md:hidden w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white hover:bg-white/10 transition shrink-0">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h1 id="pageTitle" class="text-xl md:text-3xl font-black uppercase italic tracking-wide truncate">Набор в команды</h1>
+                </div>
+                
+                <!-- Панель управления (Статус + Фильтр) -->
+                <div class="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
+                    <!-- Фильтр -->
+                    <div class="relative w-full sm:w-56 md:w-64">
+                        <select id="itemFilter" onchange="applyFilter(this.value)" class="w-full bg-black/40 border border-white/10 rounded-lg pl-4 pr-10 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-wider text-white focus:outline-none focus:border-primary appearance-none cursor-pointer">
                             <option value="all">⚡ Все направления</option>
                         </select>
                         <i class="fas fa-chevron-down absolute right-4 top-1/2 transform -translate-y-1/2 text-primary text-xs pointer-events-none"></i>
                     </div>
 
-                    <div class="flex bg-black/40 rounded-lg p-1 border border-white/10 shrink-0">
-                        <button onclick="switchStatus('pending')" id="status-pending" class="px-4 py-2 rounded-md text-xs font-bold uppercase bg-primary text-black transition">Ожидают</button>
-                        <button onclick="switchStatus('accepted')" id="status-accepted" class="px-4 py-2 rounded-md text-xs font-bold uppercase text-gray-400 hover:text-white transition">Принятые</button>
+                    <!-- Переключатель статуса -->
+                    <div class="flex bg-black/40 rounded-lg p-1 border border-white/10 shrink-0 w-full sm:w-auto">
+                        <button onclick="switchStatus('pending')" id="status-pending" class="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 rounded-md text-[10px] sm:text-xs font-bold uppercase bg-primary text-black transition text-center">Ожидают</button>
+                        <button onclick="switchStatus('accepted')" id="status-accepted" class="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 rounded-md text-[10px] sm:text-xs font-bold uppercase text-gray-400 hover:text-white transition text-center">Принятые</button>
                     </div>
                 </div>
             </div>
         </header>
 
-        <section id="sec-commands" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        <!-- Сетка для КОМАНД -->
+        <section id="sec-commands" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6 pb-20">
             <div class="col-span-full text-center py-20 text-gray-500"><i class="fas fa-circle-notch fa-spin text-3xl"></i></div>
         </section>
 
-        <section id="sec-board" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 hidden">
+        <!-- Сетка для БОРДА -->
+        <section id="sec-board" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6 pb-20 hidden">
             <div class="col-span-full text-center py-20 text-gray-500"><i class="fas fa-circle-notch fa-spin text-3xl"></i></div>
         </section>
     </main>
 
-    <div id="appModal" class="fixed inset-0 bg-black/90 backdrop-blur-sm z-[2000] hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
-        <div class="glass-card w-full max-w-2xl max-h-[90vh] flex flex-col relative transform scale-95 transition-transform duration-300" id="appModalInner">
+    <!-- Модальное окно просмотра заявки -->
+    <div id="appModal" class="fixed inset-0 bg-black/90 backdrop-blur-sm z-[2000] hidden flex items-end md:items-center justify-center md:p-4 opacity-0 transition-opacity duration-300">
+        <div class="glass-card w-full max-w-2xl max-h-[90vh] md:max-h-[85vh] flex flex-col relative transform translate-y-full md:translate-y-0 md:scale-95 transition-transform duration-300 rounded-t-3xl md:rounded-3xl rounded-b-none md:rounded-b-3xl" id="appModalInner">
             
-            <button onclick="closeModal()" class="absolute top-6 right-6 text-gray-400 hover:text-white text-xl z-10"><i class="fas fa-times"></i></button>
+            <button onclick="closeModal()" class="absolute top-4 right-4 md:top-6 md:right-6 w-8 h-8 flex items-center justify-center rounded-full bg-white/10 md:bg-transparent text-white md:text-gray-400 hover:text-white text-lg z-10 transition"><i class="fas fa-times"></i></button>
             
-            <div class="p-8 border-b border-white/10 shrink-0">
-                <div class="text-[10px] font-black text-primary uppercase tracking-widest mb-1" id="modalBadge">Команда / Борд</div>
-                <h3 class="text-3xl font-black uppercase italic text-white leading-tight" id="modalName">Имя Кандидата</h3>
-                <p class="text-sm text-gray-400 mt-2" id="modalContact"></p>
+            <div class="p-6 md:p-8 border-b border-white/10 shrink-0">
+                <div class="text-[9px] md:text-[10px] font-black text-primary uppercase tracking-widest mb-1 mt-2 md:mt-0" id="modalBadge">Команда / Борд</div>
+                <h3 class="text-2xl md:text-3xl font-black uppercase italic text-white leading-tight pr-8" id="modalName">Имя Кандидата</h3>
+                <p class="text-xs md:text-sm text-gray-400 mt-2" id="modalContact"></p>
             </div>
             
-            <div class="p-8 overflow-y-auto flex-1 custom-scrollbar" id="modalAnswers">
+            <div class="p-6 md:p-8 overflow-y-auto flex-1 custom-scrollbar" id="modalAnswers">
                 <!-- Ответы будут сгенерированы через JS -->
             </div>
             
-            <div class="p-6 border-t border-white/10 shrink-0 bg-black/20 rounded-b-3xl flex gap-4">
-                <button id="btnAccept" onclick="acceptCurrentApplication()" class="flex-1 py-4 rounded-xl bg-primary text-black font-black uppercase tracking-wide hover:bg-white transition shadow-[0_0_20px_rgba(0,198,255,0.2)]">
-                    <i class="fas fa-check-double mr-2"></i> Принять кандидата
+            <div class="p-4 md:p-6 border-t border-white/10 shrink-0 bg-black/20 md:rounded-b-3xl flex gap-4">
+                <button id="btnAccept" onclick="acceptCurrentApplication()" class="flex-1 py-3.5 md:py-4 rounded-xl bg-primary text-black font-black uppercase text-xs md:text-sm tracking-wide hover:bg-white transition shadow-[0_0_20px_rgba(0,198,255,0.2)]">
+                    <i class="fas fa-check-double mr-2"></i> Принять
                 </button>
             </div>
         </div>
     </div>
 
     <script>
-        // ВНИМАНИЕ: Если в основном файле urls.py твоего проекта есть префикс '/api/' (например path('api/', include('your_app.urls'))), 
-        // то добавь '/api' перед путями ниже. Если нет, оставь как есть.
         const API = {
-            profile: '/profile/', // Убедись, что этот путь существует в твоем Django
+            profile: '/profile/', 
             commandsApps: '/commands-applications/',
             boardApps: '/board-applications/'
         };
@@ -135,10 +158,25 @@
             currentApp: null 
         };
 
+        // ====== ЛОГИКА МОБИЛЬНОГО МЕНЮ ======
+        function openSidebar() {
+            document.getElementById('sidebar').classList.remove('-translate-x-full');
+            const backdrop = document.getElementById('sidebarBackdrop');
+            backdrop.classList.remove('hidden');
+            setTimeout(() => backdrop.classList.remove('opacity-0'), 10);
+        }
+
+        function closeSidebar() {
+            document.getElementById('sidebar').classList.add('-translate-x-full');
+            const backdrop = document.getElementById('sidebarBackdrop');
+            backdrop.classList.add('opacity-0');
+            setTimeout(() => backdrop.classList.add('hidden'), 300);
+        }
+        // =====================================
+
         async function init() {
-            if (!state.token) { location.href = '/login/'; return; } // Редирект на логин, если нет токена
+            if (!state.token) { location.href = '/login/'; return; } 
             
-            // Получение профиля (если эндпоинт отсутствует, закомментируй этот блок и оставь только fetchData)
             try {
                 const res = await fetch(API.profile, { headers: { 'Authorization': `Bearer ${state.token}` } });
                 if (res.ok) {
@@ -160,24 +198,18 @@
                     fetch(API.boardApps + '?limit=1000', { headers: h })
                 ]);
 
-                // Проверка на ошибки авторизации
-                if (cmdRes.status === 401 || boardRes.status === 401) {
-                    logout();
-                    return;
-                }
+                if (cmdRes.status === 401 || boardRes.status === 401) { logout(); return; }
 
                 const cmdData = await cmdRes.json();
                 const boardData = await boardRes.json();
 
-                // Обработка данных из DRF (может быть массив или объект с .results при пагинации)
                 state.commandsData = Array.isArray(cmdData) ? cmdData : (cmdData.results || []);
                 state.boardData = Array.isArray(boardData) ? boardData : (boardData.results || []);
 
                 updateFilterDropdown();
                 renderViews();
             } catch (e) {
-                showToast("Ошибка загрузки заявок. Проверьте соединение.", "error");
-                console.error(e);
+                showToast("Ошибка загрузки заявок", "error");
             }
         }
 
@@ -189,19 +221,12 @@
             const key = state.activeTab === 'commands' ? 'command_title' : 'board_title';
             
             const uniqueTitles = [...new Set(apps.map(a => a[key]).filter(Boolean))];
-            
-            uniqueTitles.forEach(title => {
-                options += `<option value="${title}">${title}</option>`;
-            });
+            uniqueTitles.forEach(title => { options += `<option value="${title}">${title}</option>`; });
             
             select.innerHTML = options;
             
-            if (uniqueTitles.includes(state.filterValue)) {
-                select.value = state.filterValue;
-            } else {
-                state.filterValue = 'all';
-                select.value = 'all';
-            }
+            if (uniqueTitles.includes(state.filterValue)) select.value = state.filterValue;
+            else { state.filterValue = 'all'; select.value = 'all'; }
         }
 
         function applyFilter(value) {
@@ -232,7 +257,7 @@
             });
 
             if (filtered.length === 0) {
-                container.innerHTML = `<div class="col-span-full py-20 text-center text-gray-500 font-bold uppercase text-sm border-2 border-dashed border-white/10 rounded-2xl">Нет заявок по текущему фильтру</div>`;
+                container.innerHTML = `<div class="col-span-full py-16 text-center text-gray-500 font-bold uppercase text-xs md:text-sm border-2 border-dashed border-white/10 rounded-2xl mx-2">Нет заявок по текущему фильтру</div>`;
                 return;
             }
 
@@ -241,13 +266,13 @@
                 const realIndex = state.commandsData.findIndex(a => a.id === app.id);
                 
                 return `
-                <div class="app-card p-6" onclick="openModal('commands', ${realIndex})">
-                    <div class="flex justify-between items-start mb-4">
-                        <span class="text-[9px] font-black uppercase px-2 py-1 bg-white/10 text-white rounded">${app.command_title || 'Команда'}</span>
-                        <span class="text-[10px] text-gray-500">${new Date(app.created_at).toLocaleDateString()}</span>
+                <div class="app-card p-5 md:p-6" onclick="openModal('commands', ${realIndex})">
+                    <div class="flex justify-between items-start mb-3 md:mb-4 gap-2">
+                        <span class="text-[9px] font-black uppercase px-2 py-1 bg-white/10 text-white rounded truncate">${app.command_title || 'Команда'}</span>
+                        <span class="text-[10px] text-gray-500 shrink-0">${new Date(app.created_at).toLocaleDateString()}</span>
                     </div>
-                    <h4 class="text-xl font-bold text-white mb-2 line-clamp-1">${name}</h4>
-                    <p class="text-xs text-gray-400 italic line-clamp-2">Нажмите, чтобы просмотреть анкету...</p>
+                    <h4 class="text-lg md:text-xl font-bold text-white mb-2 line-clamp-1">${name}</h4>
+                    <p class="text-[11px] md:text-xs text-gray-400 italic line-clamp-1">Нажмите, чтобы просмотреть анкету...</p>
                 </div>
                 `;
             }).join('');
@@ -262,20 +287,20 @@
             });
 
             if (filtered.length === 0) {
-                container.innerHTML = `<div class="col-span-full py-20 text-center text-gray-500 font-bold uppercase text-sm border-2 border-dashed border-white/10 rounded-2xl">Нет заявок по текущему фильтру</div>`;
+                container.innerHTML = `<div class="col-span-full py-16 text-center text-gray-500 font-bold uppercase text-xs md:text-sm border-2 border-dashed border-white/10 rounded-2xl mx-2">Нет заявок по текущему фильтру</div>`;
                 return;
             }
 
             container.innerHTML = filtered.map((app) => {
                 const realIndex = state.boardData.findIndex(a => a.id === app.id);
                 return `
-                <div class="app-card p-6 border-l-4 border-l-primary" onclick="openModal('board', ${realIndex})">
-                    <div class="flex justify-between items-start mb-4">
-                        <span class="text-[9px] font-black uppercase px-2 py-1 bg-primary/20 text-primary rounded">${app.board_title || 'Позиция'}</span>
-                        <span class="text-[10px] text-gray-500">${new Date(app.created_at).toLocaleDateString()}</span>
+                <div class="app-card p-5 md:p-6 border-l-4 border-l-primary" onclick="openModal('board', ${realIndex})">
+                    <div class="flex justify-between items-start mb-3 md:mb-4 gap-2">
+                        <span class="text-[9px] font-black uppercase px-2 py-1 bg-primary/20 text-primary rounded truncate">${app.board_title || 'Позиция'}</span>
+                        <span class="text-[10px] text-gray-500 shrink-0">${new Date(app.created_at).toLocaleDateString()}</span>
                     </div>
-                    <h4 class="text-xl font-bold text-white mb-1 line-clamp-1">${app.applicant_name || 'Без имени'}</h4>
-                    <p class="text-xs text-gray-400"><i class="fas fa-phone mr-1"></i> ${app.applicant_phone || 'Нет номера'}</p>
+                    <h4 class="text-lg md:text-xl font-bold text-white mb-1 line-clamp-1">${app.applicant_name || 'Без имени'}</h4>
+                    <p class="text-[11px] md:text-xs text-gray-400"><i class="fas fa-phone mr-1"></i> ${app.applicant_phone || 'Нет номера'}</p>
                 </div>
                 `;
             }).join('');
@@ -298,9 +323,9 @@
             if (app.answers && Object.keys(app.answers).length > 0) {
                 for (const [question, answer] of Object.entries(app.answers)) {
                     answersHtml += `
-                    <div class="mb-5">
-                        <p class="text-xs text-primary font-bold uppercase mb-1">${question.replace('q_', 'Вопрос ')}</p>
-                        <div class="bg-white/5 p-4 rounded-xl text-sm text-gray-200 border border-white/5">${answer || '—'}</div>
+                    <div class="mb-4 md:mb-5">
+                        <p class="text-[10px] md:text-xs text-primary font-bold uppercase mb-1">${question.replace('q_', 'Вопрос ')}</p>
+                        <div class="bg-white/5 p-3 md:p-4 rounded-xl text-xs md:text-sm text-gray-200 border border-white/5">${answer || '—'}</div>
                     </div>`;
                 }
             } else {
@@ -308,14 +333,14 @@
             }
 
             if (app.files && app.files.length > 0) {
-                answersHtml += `<h4 class="text-xs font-black text-gray-500 uppercase mt-8 mb-4 border-t border-white/10 pt-4">Прикрепленные файлы</h4>`;
+                answersHtml += `<h4 class="text-[10px] md:text-xs font-black text-gray-500 uppercase mt-6 md:mt-8 mb-3 md:mb-4 border-t border-white/10 pt-4">Прикрепленные файлы</h4>`;
                 app.files.forEach(f => {
                     answersHtml += `
                     <a href="${f.file}" target="_blank" class="flex items-center gap-3 p-3 bg-white/5 rounded-xl hover:bg-white/10 transition mb-2 border border-white/5">
-                        <div class="w-10 h-10 rounded bg-primary/20 text-primary flex items-center justify-center"><i class="fas fa-file"></i></div>
-                        <div>
-                            <p class="text-sm font-bold text-white">${f.label || 'Документ'}</p>
-                            <p class="text-[10px] text-gray-400 uppercase">Нажмите для просмотра</p>
+                        <div class="w-8 h-8 md:w-10 md:h-10 rounded bg-primary/20 text-primary flex items-center justify-center text-sm md:text-base"><i class="fas fa-file"></i></div>
+                        <div class="overflow-hidden">
+                            <p class="text-xs md:text-sm font-bold text-white truncate">${f.label || 'Документ'}</p>
+                            <p class="text-[9px] md:text-[10px] text-gray-400 uppercase">Просмотр</p>
                         </div>
                     </a>`;
                 });
@@ -326,28 +351,39 @@
             const btn = document.getElementById('btnAccept');
             if ((app.status || '').toLowerCase() === 'accepted') {
                 btn.innerHTML = '<i class="fas fa-check"></i> Уже в составе';
-                btn.className = "flex-1 py-4 rounded-xl bg-green-500/20 text-green-400 font-black uppercase cursor-not-allowed";
+                btn.className = "flex-1 py-3.5 md:py-4 rounded-xl bg-green-500/20 text-green-400 font-black uppercase text-xs md:text-sm cursor-not-allowed";
                 btn.disabled = true;
             } else {
-                btn.innerHTML = '<i class="fas fa-check-double mr-2"></i> Принять кандидата';
-                btn.className = "flex-1 py-4 rounded-xl bg-primary text-black font-black uppercase tracking-wide hover:bg-white transition shadow-[0_0_20px_rgba(0,198,255,0.2)]";
+                btn.innerHTML = '<i class="fas fa-check-double mr-2"></i> Принять';
+                btn.className = "flex-1 py-3.5 md:py-4 rounded-xl bg-primary text-black font-black uppercase text-xs md:text-sm tracking-wide hover:bg-white transition shadow-[0_0_20px_rgba(0,198,255,0.2)]";
                 btn.disabled = false;
             }
 
             const modal = document.getElementById('appModal');
             const inner = document.getElementById('appModalInner');
             modal.classList.remove('hidden');
+            
             setTimeout(() => {
                 modal.classList.remove('opacity-0');
-                inner.classList.remove('scale-95');
+                if (window.innerWidth < 768) {
+                    inner.classList.remove('translate-y-full'); // Мобильная анимация снизу-вверх
+                } else {
+                    inner.classList.remove('scale-95'); // Десктопная анимация увеличения
+                }
             }, 10);
         }
 
         function closeModal() {
             const modal = document.getElementById('appModal');
             const inner = document.getElementById('appModalInner');
+            
             modal.classList.add('opacity-0');
-            inner.classList.add('scale-95');
+            if (window.innerWidth < 768) {
+                inner.classList.add('translate-y-full');
+            } else {
+                inner.classList.add('scale-95');
+            }
+
             setTimeout(() => {
                 modal.classList.add('hidden');
                 state.currentApp = null;
@@ -356,25 +392,18 @@
 
         async function acceptCurrentApplication() {
             if (!state.currentApp) return;
-            
             const btn = document.getElementById('btnAccept');
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Обработка...';
             btn.disabled = true;
 
             const app = state.currentApp;
             const endpoint = app.isBoard ? API.boardApps : API.commandsApps;
-            
-            // Если в API путях нет слеша в конце, добавляем его безопасно
             const basePath = endpoint.endsWith('/') ? endpoint : endpoint + '/';
-            const url = `${basePath}${app.id}/accept/`;
-
+            
             try {
-                const res = await fetch(url, {
+                const res = await fetch(`${basePath}${app.id}/accept/`, {
                     method: 'PATCH',
-                    headers: { 
-                        'Authorization': `Bearer ${state.token}`, 
-                        'Content-Type': 'application/json' 
-                    },
+                    headers: { 'Authorization': `Bearer ${state.token}`, 'Content-Type': 'application/json' },
                     body: JSON.stringify({ status: 'accepted' })
                 });
 
@@ -384,7 +413,7 @@
                     await fetchData(); 
                 } else {
                     const data = await res.json();
-                    showToast(data.error || "Ошибка сервера при обновлении статуса", "error");
+                    showToast(data.error || "Ошибка сервера", "error");
                     closeModal();
                 }
             } catch (e) {
@@ -407,22 +436,23 @@
             
             updateFilterDropdown();
             renderViews();
+            
+            if(window.innerWidth < 768) closeSidebar(); // Автоматически закрываем меню на мобилках при смене вкладки
         }
 
         function switchStatus(status) {
             state.activeStatus = status;
-            
             const btnP = document.getElementById('status-pending');
             const btnA = document.getElementById('status-accepted');
+            const baseClass = "flex-1 sm:flex-none px-4 py-2.5 sm:py-2 rounded-md text-[10px] sm:text-xs font-bold uppercase transition text-center";
 
             if (status === 'pending') {
-                btnP.className = "px-4 py-2 rounded-md text-xs font-bold uppercase bg-primary text-black transition";
-                btnA.className = "px-4 py-2 rounded-md text-xs font-bold uppercase text-gray-400 hover:text-white transition";
+                btnP.className = `${baseClass} bg-primary text-black`;
+                btnA.className = `${baseClass} text-gray-400 hover:text-white`;
             } else {
-                btnA.className = "px-4 py-2 rounded-md text-xs font-bold uppercase bg-primary text-black transition";
-                btnP.className = "px-4 py-2 rounded-md text-xs font-bold uppercase text-gray-400 hover:text-white transition";
+                btnA.className = `${baseClass} bg-primary text-black`;
+                btnP.className = `${baseClass} text-gray-400 hover:text-white`;
             }
-            
             renderViews();
         }
 
@@ -432,8 +462,8 @@
             const color = type === 'error' ? 'bg-red-500' : 'bg-green-500';
             const icon = type === 'error' ? 'fa-exclamation-circle' : 'fa-check-circle';
             
-            el.className = `flex items-center gap-3 px-6 py-4 rounded-xl shadow-2xl text-white font-bold text-sm transform transition-all duration-300 translate-x-full ${color}`;
-            el.innerHTML = `<i class="fas ${icon} text-xl"></i> ${msg}`;
+            el.className = `flex items-center gap-3 px-5 py-4 rounded-xl shadow-2xl text-white font-bold text-xs md:text-sm transform transition-all duration-300 translate-x-full ${color}`;
+            el.innerHTML = `<i class="fas ${icon} text-lg md:text-xl"></i> ${msg}`;
             
             container.appendChild(el);
             setTimeout(() => el.classList.remove('translate-x-full'), 10);
@@ -449,7 +479,6 @@
             location.href = '/login/';
         }
 
-        // Запуск
         init();
     </script>
 </body>
