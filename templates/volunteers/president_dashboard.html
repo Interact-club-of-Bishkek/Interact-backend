@@ -33,7 +33,10 @@
         }
         .app-card:hover { border-color: var(--primary); transform: translateY(-4px); box-shadow: 0 10px 30px -10px rgba(0, 198, 255, 0.15); }
         
-        ::-webkit-scrollbar { width: 4px; md:width: 6px; }
+        ::-webkit-scrollbar { width: 4px; }
+        @media (min-width: 768px) {
+            ::-webkit-scrollbar { width: 6px; }
+        }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
@@ -54,7 +57,6 @@
                 <h2 class="text-2xl font-black italic uppercase text-white leading-none">Pres<span class="text-primary">Panel</span></h2>
                 <p id="userNameLabel" class="text-xs text-gray-400 mt-2 font-semibold">Загрузка...</p>
             </div>
-            <!-- Кнопка закрытия меню (только для мобильных) -->
             <button onclick="closeSidebar()" class="md:hidden text-gray-400 hover:text-white text-xl">
                 <i class="fas fa-times"></i>
             </button>
@@ -79,7 +81,6 @@
         <header class="mb-6 md:mb-8 glass-card p-4 md:p-6">
             <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
                 
-                <!-- Заголовок + Бургер -->
                 <div class="flex items-center gap-4 w-full xl:w-auto">
                     <button onclick="openSidebar()" class="md:hidden w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white hover:bg-white/10 transition shrink-0">
                         <i class="fas fa-bars"></i>
@@ -87,9 +88,7 @@
                     <h1 id="pageTitle" class="text-xl md:text-3xl font-black uppercase italic tracking-wide truncate">Набор в команды</h1>
                 </div>
                 
-                <!-- Панель управления (Статус + Фильтр) -->
                 <div class="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
-                    <!-- Фильтр -->
                     <div class="relative w-full sm:w-56 md:w-64">
                         <select id="itemFilter" onchange="applyFilter(this.value)" class="w-full bg-black/40 border border-white/10 rounded-lg pl-4 pr-10 py-3 sm:py-2.5 text-xs font-bold uppercase tracking-wider text-white focus:outline-none focus:border-primary appearance-none cursor-pointer">
                             <option value="all">⚡ Все направления</option>
@@ -97,7 +96,6 @@
                         <i class="fas fa-chevron-down absolute right-4 top-1/2 transform -translate-y-1/2 text-primary text-xs pointer-events-none"></i>
                     </div>
 
-                    <!-- Переключатель статуса -->
                     <div class="flex bg-black/40 rounded-lg p-1 border border-white/10 shrink-0 w-full sm:w-auto">
                         <button onclick="switchStatus('pending')" id="status-pending" class="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 rounded-md text-[10px] sm:text-xs font-bold uppercase bg-primary text-black transition text-center">Ожидают</button>
                         <button onclick="switchStatus('accepted')" id="status-accepted" class="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 rounded-md text-[10px] sm:text-xs font-bold uppercase text-gray-400 hover:text-white transition text-center">Принятые</button>
@@ -106,34 +104,32 @@
             </div>
         </header>
 
-        <!-- Сетка для КОМАНД -->
         <section id="sec-commands" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6 pb-20">
             <div class="col-span-full text-center py-20 text-gray-500"><i class="fas fa-circle-notch fa-spin text-3xl"></i></div>
         </section>
 
-        <!-- Сетка для БОРДА -->
         <section id="sec-board" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6 pb-20 hidden">
             <div class="col-span-full text-center py-20 text-gray-500"><i class="fas fa-circle-notch fa-spin text-3xl"></i></div>
         </section>
     </main>
 
-    <!-- Модальное окно просмотра заявки -->
+    <!-- Модальное окно просмотра заявки (Скроллится целиком) -->
     <div id="appModal" class="fixed inset-0 bg-black/90 backdrop-blur-sm z-[2000] hidden flex items-end md:items-center justify-center md:p-4 opacity-0 transition-opacity duration-300">
-        <div class="glass-card w-full max-w-2xl max-h-[90vh] md:max-h-[85vh] flex flex-col relative transform translate-y-full md:translate-y-0 md:scale-95 transition-transform duration-300 rounded-t-3xl md:rounded-3xl rounded-b-none md:rounded-b-3xl" id="appModalInner">
+        <div class="glass-card w-full max-w-2xl max-h-[90vh] md:max-h-[85vh] flex flex-col relative transform translate-y-full md:translate-y-0 md:scale-95 transition-transform duration-300 rounded-t-3xl md:rounded-3xl rounded-b-none md:rounded-b-3xl overflow-y-auto custom-scrollbar" id="appModalInner">
             
             <button onclick="closeModal()" class="absolute top-4 right-4 md:top-6 md:right-6 w-8 h-8 flex items-center justify-center rounded-full bg-white/10 md:bg-transparent text-white md:text-gray-400 hover:text-white text-lg z-10 transition"><i class="fas fa-times"></i></button>
             
-            <div class="p-6 md:p-8 border-b border-white/10 shrink-0">
+            <div class="p-6 md:p-8 border-b border-white/10">
                 <div class="text-[9px] md:text-[10px] font-black text-primary uppercase tracking-widest mb-1 mt-2 md:mt-0" id="modalBadge">Команда / Борд</div>
                 <h3 class="text-2xl md:text-3xl font-black uppercase italic text-white leading-tight pr-8" id="modalName">Имя Кандидата</h3>
                 <p class="text-xs md:text-sm text-gray-400 mt-2" id="modalContact"></p>
             </div>
             
-            <div class="p-6 md:p-8 overflow-y-auto flex-1 custom-scrollbar" id="modalAnswers">
+            <div class="p-6 md:p-8" id="modalAnswers">
                 <!-- Ответы будут сгенерированы через JS -->
             </div>
             
-            <div class="p-4 md:p-6 border-t border-white/10 shrink-0 bg-black/20 md:rounded-b-3xl flex gap-4">
+            <div class="p-4 md:p-6 border-t border-white/10 bg-black/20 md:rounded-b-3xl flex gap-4 mt-auto">
                 <button id="btnAccept" onclick="acceptCurrentApplication()" class="flex-1 py-3.5 md:py-4 rounded-xl bg-primary text-black font-black uppercase text-xs md:text-sm tracking-wide hover:bg-white transition shadow-[0_0_20px_rgba(0,198,255,0.2)]">
                     <i class="fas fa-check-double mr-2"></i> Принять
                 </button>
@@ -158,7 +154,6 @@
             currentApp: null 
         };
 
-        // ====== ЛОГИКА МОБИЛЬНОГО МЕНЮ ======
         function openSidebar() {
             document.getElementById('sidebar').classList.remove('-translate-x-full');
             const backdrop = document.getElementById('sidebarBackdrop');
@@ -172,7 +167,6 @@
             backdrop.classList.add('opacity-0');
             setTimeout(() => backdrop.classList.add('hidden'), 300);
         }
-        // =====================================
 
         async function init() {
             if (!state.token) { location.href = '/login/'; return; } 
@@ -366,9 +360,9 @@
             setTimeout(() => {
                 modal.classList.remove('opacity-0');
                 if (window.innerWidth < 768) {
-                    inner.classList.remove('translate-y-full'); // Мобильная анимация снизу-вверх
+                    inner.classList.remove('translate-y-full'); 
                 } else {
-                    inner.classList.remove('scale-95'); // Десктопная анимация увеличения
+                    inner.classList.remove('scale-95'); 
                 }
             }, 10);
         }
@@ -437,7 +431,7 @@
             updateFilterDropdown();
             renderViews();
             
-            if(window.innerWidth < 768) closeSidebar(); // Автоматически закрываем меню на мобилках при смене вкладки
+            if(window.innerWidth < 768) closeSidebar();
         }
 
         function switchStatus(status) {
