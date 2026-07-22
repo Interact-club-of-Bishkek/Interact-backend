@@ -32,32 +32,44 @@ class AttachmentSerializer(serializers.ModelSerializer):
 
 class ApplicationSerializer(serializers.ModelSerializer):
     command_title = serializers.CharField(source='command.title', read_only=True)
-    files = AttachmentSerializer(source='attachments', many=True, read_only=True)
+    # Используем 'files', так как в твоей модели Attachment прописано related_name='files'
+    files = AttachmentSerializer(many=True, read_only=True) 
     
-    # 🔥 НОВОЕ: Поле для красивых ответов
+    # Поле для красивых ответов
     formatted_answers = serializers.SerializerMethodField()
 
     class Meta:
         model = Application
-        fields = '__all__'
+        # ЯВНО указываем все поля! Теперь DRF точно отдаст formatted_answers
+        fields = [
+            'id', 
+            'command', 
+            'command_title', 
+            'volunteer', 
+            'answers', 
+            'formatted_answers', 
+            'status', 
+            'created_at',
+            'files'
+        ]
         
-    # 🔥 НОВЫЙ МЕТОД: Расшифровка q_XXX для команд
     def get_formatted_answers(self, obj):
         if not obj.answers or not isinstance(obj.answers, dict):
             return {}
         
         q_ids = []
         for key in obj.answers.keys():
+            # Ищем ключи формата q_123
             if key.startswith('q_') and key[2:].isdigit():
                 q_ids.append(int(key[2:]))
         
-        # Берем вопросы из БД. Текст у тебя хранится в поле 'label'
+        # Вытаскиваем тексты вопросов из твоей модели Question (поле label)
         questions = Question.objects.filter(id__in=q_ids)
         q_map = {f"q_{q.id}": q.label for q in questions}
         
         readable_answers = {}
         for key, value in obj.answers.items():
-            # Если вопрос найден, берем его label, иначе оставляем старый ключ (например, системный)
+            # Заменяем ключ на текст вопроса (если вопрос есть в базе)
             question_text = q_map.get(key, key)
             readable_answers[question_text] = value
             
