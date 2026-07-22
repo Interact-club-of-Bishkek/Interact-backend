@@ -31,14 +31,38 @@ class AttachmentSerializer(serializers.ModelSerializer):
         return obj.file.url
 
 class ApplicationSerializer(serializers.ModelSerializer):
-    # 🔥 Добавляем название команды (проверь, что в модели Command поле называется именно title или name)
-    command_title = serializers.CharField(source='command.title', read_only=True) # или command.name
-    files = AttachmentSerializer(source='attachments', many=True, read_only=True) # Имя related_name из модели
+    command_title = serializers.CharField(source='command.title', read_only=True)
+    files = AttachmentSerializer(source='attachments', many=True, read_only=True)
+    
+    # 🔥 НОВОЕ: Поле для красивых ответов
+    formatted_answers = serializers.SerializerMethodField()
 
     class Meta:
         model = Application
         fields = '__all__'
         
+    # 🔥 НОВЫЙ МЕТОД: Расшифровка q_XXX для команд
+    def get_formatted_answers(self, obj):
+        if not obj.answers or not isinstance(obj.answers, dict):
+            return {}
+        
+        q_ids = []
+        for key in obj.answers.keys():
+            if key.startswith('q_') and key[2:].isdigit():
+                q_ids.append(int(key[2:]))
+        
+        # Берем вопросы из БД. Текст у тебя хранится в поле 'label'
+        questions = Question.objects.filter(id__in=q_ids)
+        q_map = {f"q_{q.id}": q.label for q in questions}
+        
+        readable_answers = {}
+        for key, value in obj.answers.items():
+            # Если вопрос найден, берем его label, иначе оставляем старый ключ (например, системный)
+            question_text = q_map.get(key, key)
+            readable_answers[question_text] = value
+            
+        return readable_answers
+
 class BoardQuestionSerializer(serializers.ModelSerializer):
 
     class Meta:
@@ -99,13 +123,14 @@ class BoardPositionSerializer(serializers.ModelSerializer):
 
 
 class BoardApplicationSerializer(serializers.ModelSerializer):
-    # 🔥 Добавляем название позиции
-    board_title = serializers.CharField(source='board_position.title', read_only=True) # или board_position.name
+    board_title = serializers.CharField(source='board_position.title', read_only=True)
     files = BoardAttachmentSerializer(source='attachments', many=True, read_only=True)
     
-    # 🔥 Достаем имя и телефон. Так как заявки подаются в JSON-формате, ищем значения в answers
     applicant_name = serializers.SerializerMethodField()
     applicant_phone = serializers.SerializerMethodField()
+    
+    # 🔥 НОВОЕ: Поле для красивых ответов в Борде
+    formatted_answers = serializers.SerializerMethodField()
 
     class Meta:
         model = BoardApplication
@@ -113,17 +138,36 @@ class BoardApplicationSerializer(serializers.ModelSerializer):
 
     def get_applicant_name(self, obj):
         if obj.answers and isinstance(obj.answers, dict):
-            # Берем первый ответ из JSON как имя (или укажи конкретный ключ, например obj.answers.get('q_name'))
             values = list(obj.answers.values())
             return str(values[0]) if values else 'Без имени'
         return 'Без имени'
 
     def get_applicant_phone(self, obj):
         if obj.answers and isinstance(obj.answers, dict):
-            # Ищем ключ, в котором есть слово phone или телефон
             for key, value in obj.answers.items():
                 if 'phone' in key.lower() or 'телефон' in key.lower() or 'номер' in key.lower():
                     return str(value)
         return 'Нет данных'
+        
+    # 🔥 НОВЫЙ МЕТОД: Расшифровка q_XXX для Борда
+    def get_formatted_answers(self, obj):
+        if not obj.answers or not isinstance(obj.answers, dict):
+            return {}
+        
+        q_ids = []
+        for key in obj.answers.keys():
+            if key.startswith('q_') and key[2:].isdigit():
+                q_ids.append(int(key[2:]))
+        
+        # Для борда берем вопросы из BoardQuestion
+        questions = BoardQuestion.objects.filter(id__in=q_ids)
+        q_map = {f"q_{q.id}": q.label for q in questions}
+        
+        readable_answers = {}
+        for key, value in obj.answers.items():
+            question_text = q_map.get(key, key)
+            readable_answers[question_text] = value
+            
+        return readable_answers
         
 
