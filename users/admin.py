@@ -1,3 +1,4 @@
+
 from django.contrib import admin
 from django.db.models import Q, Count
 from django.utils.html import format_html
@@ -8,6 +9,8 @@ from .models import (
     Attendance, YellowCard, AppSettings, MiniTeam, MiniTeamMembership, SponsorTask,
     Recruitment, RecruitmentApplication, RecruitmentAttachment
 )
+
+from django.utils.safestring import mark_safe
 
 # --- НАСТРОЙКИ ШАПКИ АДМИНКИ ---
 admin.site.site_header = "Управление Волонтерами"
@@ -372,21 +375,11 @@ class RecruitmentApplicationAdmin(admin.ModelAdmin):
         # =========================================================
         # 🔍 ДИАГНОСТИЧЕСКАЯ ПАНЕЛЬ (Покажет правду прямо в админке)
         # =========================================================
-        debug_html = f'''
-        <div style="background: rgba(59, 130, 246, 0.12); border-left: 4px solid #3b82f6; padding: 12px; margin-bottom: 15px; border-radius: 6px; font-size: 13px; color: inherit;">
-            <b style="color: #3b82f6;">🔍 Диагностика заявки #{obj.id}:</b><br>
-            • <b>Файлов в таблице вложений (attachments):</b> {len(all_attachment_urls)} шт. <i>({', '.join(all_attachment_urls) if all_attachment_urls else 'пусто'})</i><br>
-            • <b>Сырой JSON из answers:</b> <code>{obj.answers}</code>
-        </div>
-        '''
-        # =========================================================
-
-        if not obj.answers and not attachments_list: 
-            return format_html(debug_html + "Нет ответов")
-            
-        html = debug_html + '<table style="width:100%; border-collapse: collapse;">'
         rendered_urls = set()
-
+        if not obj.answers and not attachments_list:
+            return mark_safe("Нет ответов")
+        html = '<table style="width:100%; border-collapse: collapse;">'
+        
         # 2. Выводим ответы из JSON анкеты
         if obj.answers:
             for k, v in obj.answers.items():
@@ -429,7 +422,7 @@ class RecruitmentApplicationAdmin(admin.ModelAdmin):
                     v_formatted = f'''
                         <div style="margin: 10px 0;">
                             <a href="{matched_url}" target="_blank" title="Нажмите, чтобы открыть оригинал">
-                                <img src="{matched_url}" style="max-height: 450px; max-width: 550px; width: 100%; border-radius: 10px; object-fit: contain; border: 2px solid rgba(128,128,128,0.3); background: rgba(0,0,0,0.05); padding: 6px; box-shadow: 0 4px 14px rgba(0,0,0,0.18);" />
+                                <img src="{matched_url}" style="max-height: 800px; max-width: 950px; width: 100%; border-radius: 10px; object-fit: contain; border: 2px solid rgba(128,128,128,0.3); background: rgba(0,0,0,0.05); padding: 6px; box-shadow: 0 4px 14px rgba(0,0,0,0.18);" />
                             </a>
                         </div>
                     '''
@@ -452,11 +445,23 @@ class RecruitmentApplicationAdmin(admin.ModelAdmin):
             is_img = any(ext in url.lower() for ext in ['.jpg', '.jpeg', '.png', '.webp', '.gif'])
             if is_img:
                 v_formatted = f'''
-                    <div style="margin: 10px 0;">
-                        <a href="{url}" target="_blank" title="Нажмите, чтобы открыть оригинал">
-                            <img src="{url}" style="max-height: 450px; max-width: 550px; width: 100%; border-radius: 10px; object-fit: contain; border: 2px solid rgba(128,128,128,0.3); background: rgba(0,0,0,0.05); padding: 6px; box-shadow: 0 4px 14px rgba(0,0,0,0.18);" />
-                        </a>
-                    </div>
+                <div style="margin: 10px 0; max-width: 520px; overflow: hidden;">
+                    <a href="{url}" target="_blank" title="Нажмите, чтобы открыть оригинал">
+                        <img src="{url}" style="
+                            display: block;
+                            max-height: 500px;
+                            max-width: 500px;
+                            width: auto;
+                            height: auto;
+                            border-radius: 10px;
+                            object-fit: contain;
+                            border: 2px solid rgba(128,128,128,0.3);
+                            background: rgba(0,0,0,0.05);
+                            padding: 6px;
+                            box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+                        ">
+                    </a>
+                </div>
                 '''
                 label_text = "📷 Загруженное фото"
             else:
@@ -465,13 +470,20 @@ class RecruitmentApplicationAdmin(admin.ModelAdmin):
                 
             html += f'''
                 <tr style="border-bottom: 1px solid rgba(128,128,128,0.2);">
-                    <td style="padding: 14px 10px; width: 35%; opacity: 0.9; font-weight: 600; font-size: 14px; vertical-align: top; color: inherit;">{label_text}</td>
+                    <td style="
+                        padding: 14px 10px;
+                        vertical-align: top;
+                        color: inherit;
+                        max-width: 550px;
+                        overflow: hidden;
+                    ">
                     <td style="padding: 14px 10px; vertical-align: top; color: inherit;">{v_formatted}</td>
                 </tr>
             '''
 
         html += '</table>'
-        return format_html(html)
+        return mark_safe(html)
+        
     answers_table.short_description = "Ответы пользователя"
 
     @admin.action(description="✅ Принять выбранные заявки")
