@@ -324,15 +324,11 @@ class RecruitmentAdmin(admin.ModelAdmin):
 
 @admin.register(RecruitmentApplication)
 class RecruitmentApplicationAdmin(admin.ModelAdmin):
-    # Добавили is_archived в отображение
     list_display = ('id', 'recruitment', 'volunteer_display', 'status_badge', 'is_archived_badge', 'created_at')
-    
-    # Добавили фильтр по is_archived, чтобы можно было скрыть архивные
     list_filter = ('is_archived', 'status', 'recruitment', 'created_at')
-    
     readonly_fields = ('created_at', 'answers_table')
     
-    # 👈 ДОБАВИЛИ ЭКШЕНЫ АРХИВАЦИИ
+    # ❗️ УБРАЛИ inlines = [...], чтобы снизу не было дублирующей таблицы вложений
     actions = ['mark_accepted', 'mark_rejected', 'mark_archived', 'unmark_archived']
 
     fieldsets = (
@@ -359,74 +355,98 @@ class RecruitmentApplicationAdmin(admin.ModelAdmin):
     def status_badge(self, obj):
         colors = {'pending': '#f59e0b', 'accepted': '#10b981', 'rejected': '#ef4444'}
         labels = {'pending': '⏳ Ожидает', 'accepted': '✅ Принят', 'rejected': '❌ Отказ'}
-        return format_html('<span style="background:{}; color:white; padding:4px 8px; border-radius:12px; font-weight:bold;">{}</span>', colors.get(obj.status, '#666'), labels.get(obj.status, obj.status))
+        return format_html(
+            '<span style="background:{}; color:white; padding:4px 8px; border-radius:12px; font-weight:bold;">{}</span>',
+            colors.get(obj.status, '#666'),
+            labels.get(obj.status, obj.status)
+        )
     status_badge.short_description = "Статус"
 
     def answers_table(self, obj):
-        # 1. Надежно получаем менеджер вложений (ищем и по attachments, и по стандартному recruitmentattachment_set)
+        # 1. Получаем все вложения заявки и группируем их по label (например, {'q_5': [att1, ...]})
         attachments_manager = getattr(obj, 'attachments', None) or getattr(obj, 'recruitmentattachment_set', None)
-        has_attachments = attachments_manager and attachments_manager.exists()
+        attachments_list = list(attachments_manager.all()) if attachments_manager else []
+        
+        attachments_map = {}
+        for att in attachments_list:
+            if att.file:
+                # Группируем по очищенному label (q_1, q_2 и т.д.)
+                lbl = str(att.label).strip() if hasattr(att, 'label') and att.label else ''
+                if lbl not in attachments_map:
+                    attachments_map[lbl] = []
+                attachments_map[lbl].append(att.file.url)
 
-        if not obj.answers and not has_attachments: 
+        if not obj.answers and not attachments_list: 
             return "Нет ответов"
             
         html = '<table style="width:100%; border-collapse: collapse;">'
         
-        # Собираем список всех URL файлов из базы
-        attachments_files = []
-        if has_attachments:
-            for att in attachments_manager.all():
-                if att.file:
-                    attachments_files.append(att.file.url)
+        # Список URL-ов, которые мы уже отобразили (чтобы не дублировать их ниже)
+        rendered_urls = set()
 
-        # 2. Выводим ответы из JSON анкеты
+        # 2. Выводим вопросы и ответы из JSON
         if obj.answers:
             for k, v in obj.answers.items():
                 label = k
+                q_id = None
+                question = None
+
                 if k.startswith('q_') and k[2:].isdigit():
-                    q = RecruitmentQuestion.objects.filter(id=k[2:]).first()
-                    if q: 
-                        label = q.label
+                    q_id = k[2:]
+                    question = RecruitmentQuestion.objects.filter(id=q_id).first()
+                    if question: 
+                        label = question.label
                 
                 if isinstance(v, list):
                     v = ", ".join(map(str, v))
                 
                 val_str = str(v).strip()
                 
-                # Проверяем, является ли значение ссылкой/путем на картинку
-                is_img_link = any(val_str.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp', '.gif']) or ('/media/' in val_str and any(ext in val_str.lower() for ext in ['.jpg', '.jpeg', '.png', '.webp']))
+                # Ищем URL файла: сначала по ключу вопроса (k), затем по id (q_id)
+                file_urls = attachments_map.get(k) or (attachments_map.get(q_id) if q_id else None)
                 
-                if is_img_link:
+                # Если файл нашелся по label — берем его!
+                if file_urls:
+                    matched_url = file_urls[0]
+                # Либо проверяем: вдруг сама строка ответа — это ссылка на фото
+                elif any(val_str.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp', '.gif']) or ('/media/' in val_str and any(ext in val_str.lower() for ext in ['.jpg', '.jpeg', '.png', '.webp'])):
+                    matched_url = val_str
+                else:
+                    matched_url = None
+
+                if matched_url:
+                    rendered_urls.add(matched_url)
                     v_formatted = f'''
-                        <div style="margin: 8px 0;">
-                            <a href="{val_str}" target="_blank">
-                                <img src="{val_str}" style="max-height: 380px; max-width: 480px; width: 100%; border-radius: 10px; object-fit: contain; border: 2px solid rgba(128,128,128,0.3); background: rgba(0,0,0,0.05); padding: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);" />
+                        <div style="margin: 10px 0;">
+                            <a href="{matched_url}" target="_blank" title="Нажмите, чтобы открыть оригинал">
+                                <img src="{matched_url}" style="max-height: 420px; max-width: 520px; width: 100%; border-radius: 10px; object-fit: contain; border: 2px solid rgba(128,128,128,0.3); background: rgba(0,0,0,0.05); padding: 6px; box-shadow: 0 4px 14px rgba(0,0,0,0.18);" />
                             </a>
                         </div>
                     '''
                 else:
                     v_formatted = val_str
                 
-                # Убрали жесткий черный цвет — теперь текст использует цвет темы админки
+                # Использовано opacity: 0.85 и color: inherit — текст отлично виден и на белом, и на черном фоне!
                 html += f'''
                     <tr style="border-bottom: 1px solid rgba(128,128,128,0.2);">
-                        <td style="padding: 14px 10px; width: 35%; opacity: 0.8; font-weight: 600; font-size: 14px; vertical-align: top;">{label}</td>
-                        <td style="padding: 14px 10px; vertical-align: top; font-size: 14px; font-weight: 500;">{v_formatted}</td>
+                        <td style="padding: 14px 10px; width: 35%; opacity: 0.85; font-weight: 600; font-size: 14px; vertical-align: top; color: inherit;">{label}</td>
+                        <td style="padding: 14px 10px; vertical-align: top; font-size: 14px; font-weight: 500; color: inherit;">{v_formatted}</td>
                     </tr>
                 '''
 
-        # 3. Выводим все загруженные фото из таблицы вложений прямо в эту же таблицу
-        for file_url in attachments_files:
-            # Пропускаем, если этот URL уже вывелся на предыдущем шаге
-            if obj.answers and any(file_url in str(val) for val in obj.answers.values()):
+        # 3. Если остались какие-то файлы, которые не совпали по ключам из obj.answers — выводим их в конце таблицы
+        for att in attachments_list:
+            if not att.file or att.file.url in rendered_urls:
                 continue
                 
+            file_url = att.file.url
             is_img = any(file_url.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp', '.gif'])
+            
             if is_img:
                 v_formatted = f'''
-                    <div style="margin: 8px 0;">
-                        <a href="{file_url}" target="_blank">
-                            <img src="{file_url}" style="max-height: 380px; max-width: 480px; width: 100%; border-radius: 10px; object-fit: contain; border: 2px solid rgba(128,128,128,0.3); background: rgba(0,0,0,0.05); padding: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);" />
+                    <div style="margin: 10px 0;">
+                        <a href="{file_url}" target="_blank" title="Нажмите, чтобы открыть оригинал">
+                            <img src="{file_url}" style="max-height: 420px; max-width: 520px; width: 100%; border-radius: 10px; object-fit: contain; border: 2px solid rgba(128,128,128,0.3); background: rgba(0,0,0,0.05); padding: 6px; box-shadow: 0 4px 14px rgba(0,0,0,0.18);" />
                         </a>
                     </div>
                 '''
@@ -437,18 +457,15 @@ class RecruitmentApplicationAdmin(admin.ModelAdmin):
                 
             html += f'''
                 <tr style="border-bottom: 1px solid rgba(128,128,128,0.2);">
-                    <td style="padding: 14px 10px; width: 35%; opacity: 0.8; font-weight: 600; font-size: 14px; vertical-align: top;">{label_text}</td>
-                    <td style="padding: 14px 10px; vertical-align: top;">{v_formatted}</td>
+                    <td style="padding: 14px 10px; width: 35%; opacity: 0.85; font-weight: 600; font-size: 14px; vertical-align: top; color: inherit;">{label_text}</td>
+                    <td style="padding: 14px 10px; vertical-align: top; color: inherit;">{v_formatted}</td>
                 </tr>
             '''
 
         html += '</table>'
         return format_html(html)
     answers_table.short_description = "Ответы пользователя"
-
-    # ==========================
-    # 🛠 MASS ACTIONS (МАССОВЫЕ ДЕЙСТВИЯ)
-    # ==========================
+    
     @admin.action(description="✅ Принять выбранные заявки")
     def mark_accepted(self, request, queryset):
         queryset.update(status='accepted')

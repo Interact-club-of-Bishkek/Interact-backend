@@ -411,11 +411,13 @@ class RecruitmentApplicationListCreateView(generics.ListCreateAPIView):
 
             # Сохранение файлов
             for key in request.FILES:
+                # Очищаем возможные префиксы фронтенда, чтобы осталось чистое "q_ID" или название поля
+                clean_label = key.replace('TEXT__', '').replace('FILE__', '').replace('file_', '')
                 for f in request.FILES.getlist(key):
                     RecruitmentAttachment.objects.create(
                         application=app,
                         file=f,
-                        label=key.replace('TEXT__','')
+                        label=clean_label
                     )
 
             return Response({"status": "success", "id": app.id}, status=status.HTTP_201_CREATED)
