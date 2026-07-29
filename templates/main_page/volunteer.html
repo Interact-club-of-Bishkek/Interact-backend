@@ -179,20 +179,22 @@
                                         class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 cursor-zoom-in" 
                                         onclick="openPhotoModal(this.src)">
                                 </div>
-                                                                <div class="snap-item w-full max-w-[280px] sm:w-[280px] aspect-[4/5] bg-card-dark rounded-2xl overflow-hidden flex-shrink-0 border border-white/10 group">
+                                <div class="snap-item w-full max-w-[280px] sm:w-[280px] aspect-[4/5] bg-card-dark rounded-2xl overflow-hidden flex-shrink-0 border border-white/10 group">
                                     <img src="{% static 'img/img_2.webp' %}" 
                                         class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 cursor-zoom-in" 
                                         onclick="openPhotoModal(this.src)">
-                                </div>                                <div class="snap-item w-full max-w-[280px] sm:w-[280px] aspect-[4/5] bg-card-dark rounded-2xl overflow-hidden flex-shrink-0 border border-white/10 group">
+                                </div>                                
+                                <div class="snap-item w-full max-w-[280px] sm:w-[280px] aspect-[4/5] bg-card-dark rounded-2xl overflow-hidden flex-shrink-0 border border-white/10 group">
                                     <img src="{% static 'img/img_3.webp' %}" 
                                         class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 cursor-zoom-in" 
                                         onclick="openPhotoModal(this.src)">
-                                </div>                                <div class="snap-item w-full max-w-[280px] sm:w-[280px] aspect-[4/5] bg-card-dark rounded-2xl overflow-hidden flex-shrink-0 border border-white/10 group">
+                                </div>                                
+                                <div class="snap-item w-full max-w-[280px] sm:w-[280px] aspect-[4/5] bg-card-dark rounded-2xl overflow-hidden flex-shrink-0 border border-white/10 group">
                                     <img src="{% static 'img/img_4.webp' %}" 
                                         class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 cursor-zoom-in" 
                                         onclick="openPhotoModal(this.src)">
                                 </div>
-                                </div>
+                            </div>
 
                             <div class="hidden sm:flex justify-center gap-3 mt-4">
                                 <button onclick="document.getElementById('volunteer-slider').scrollBy({left: -300, behavior: 'smooth'})" class="w-10 h-10 border border-white/10 rounded-full hover:bg-royal-blue transition"><i class="fas fa-chevron-left"></i></button>
@@ -204,32 +206,49 @@
             </div>
         </section>
 
+        <!-- ДИНАМИЧЕСКАЯ ФОРМА (Сюда загружаются вопросы из базы) -->
         <section id="volunteer-form" class="py-12 md:py-20 bg-black scroll-mt-24">
             <div class="container mx-auto px-4 md:px-6 reveal">
-                <div class="bg-white text-black rounded-[2rem] md:rounded-[3rem] p-6 sm:p-8 md:p-14 mx-3 sm:mx-auto shadow-2xl relative overflow-hidden text-center">
-                    <h2 class="text-4xl md:text-5xl font-header font-bold mb-8 uppercase text-black">Анкета волонтёра</h2>
+                <div class="bg-white text-black rounded-[2rem] md:rounded-[3rem] p-6 sm:p-8 md:p-14 mx-3 sm:mx-auto shadow-2xl relative overflow-hidden">
                     
-                    <div class="py-8 md:py-12 bg-black/5 rounded-2xl border border-black/5">
-                        <div class="w-20 h-20 bg-royal-blue/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <i class="fas fa-lock text-3xl text-royal-blue"></i>
+                    <h2 class="text-4xl md:text-5xl font-header font-bold mb-8 uppercase text-center text-black" id="form-title">Анкета волонтёра</h2>
+                    
+                    <div id="recruitment-container" class="min-h-[300px]">
+                        <!-- Скелетон загрузки -->
+                        <div id="form-loader" class="flex flex-col items-center justify-center py-10 text-gray-400">
+                            <i class="fas fa-circle-notch fa-spin text-4xl text-royal-blue mb-4"></i>
+                            <p>Загрузка анкеты...</p>
                         </div>
-                        
-                        <h3 class="text-2xl font-bold mb-4 font-header">Набор временно закрыт</h3>
-                        <p class="text-gray-600 text-sm md:text-base max-w-lg mx-auto mb-8 leading-relaxed">
-                            В данный момент мы не проводим набор новых волонтёров. Пожалуйста, следите за нашими анонсами в социальных сетях, чтобы первыми узнать об открытии новых вакансий!
-                        </p>
-                        
-                        <div class="flex justify-center gap-4">
-                            <a href="https://www.instagram.com/interactbishkek/" target="_blank" class="w-12 h-12 rounded-full bg-royal-blue text-white flex items-center justify-center text-xl hover:bg-blue-700 hover:scale-110 transition shadow-lg" title="Instagram">
-                                <i class="fab fa-instagram"></i>
-                            </a>
-                            <a href="https://t.me/interact_club_kg_bot" target="_blank" class="w-12 h-12 rounded-full bg-royal-blue text-white flex items-center justify-center text-xl hover:bg-blue-700 hover:scale-110 transition shadow-lg" title="Telegram">
-                                <i class="fab fa-telegram-plane"></i>
-                            </a>
-                            <a href="https://tiktok.com/@interactbishkek" target="_blank" class="w-12 h-12 rounded-full bg-royal-blue text-white flex items-center justify-center text-xl hover:bg-blue-700 hover:scale-110 transition shadow-lg" title="TikTok">
-                                <i class="fab fa-tiktok"></i>
-                            </a>
+
+                        <!-- Сообщение: Набор закрыт -->
+                        <div id="form-closed" class="hidden py-8 md:py-12 bg-black/5 rounded-2xl border border-black/5 text-center">
+                            <div class="w-20 h-20 bg-royal-blue/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <i class="fas fa-lock text-3xl text-royal-blue"></i>
+                            </div>
+                            <h3 class="text-2xl font-bold mb-4 font-header">Набор временно закрыт</h3>
+                            <p class="text-gray-600 text-sm md:text-base max-w-lg mx-auto mb-8 leading-relaxed">
+                                В данный момент мы не проводим набор новых волонтёров. Пожалуйста, следите за нашими анонсами в социальных сетях!
+                            </p>
+                            <div class="flex justify-center gap-4">
+                                <a href="https://www.instagram.com/interactbishkek/" target="_blank" class="w-12 h-12 rounded-full bg-royal-blue text-white flex items-center justify-center text-xl hover:scale-110 transition shadow-lg"><i class="fab fa-instagram"></i></a>
+                                <a href="https://t.me/interact_club_kg_bot" target="_blank" class="w-12 h-12 rounded-full bg-royal-blue text-white flex items-center justify-center text-xl hover:scale-110 transition shadow-lg"><i class="fab fa-telegram-plane"></i></a>
+                                <a href="https://tiktok.com/@interactbishkek" target="_blank" class="w-12 h-12 rounded-full bg-royal-blue text-white flex items-center justify-center text-xl hover:scale-110 transition shadow-lg"><i class="fab fa-tiktok"></i></a>
+                            </div>
                         </div>
+
+                        <!-- Сама форма -->
+                        <form id="dynamic-volunteer-form" class="hidden space-y-6 max-w-3xl mx-auto" enctype="multipart/form-data">
+                            <p id="recruitment-desc" class="text-gray-600 text-center mb-8"></p>
+                            
+                            <div id="questions-container" class="space-y-6"></div>
+                            
+                            <div id="form-error" class="hidden bg-red-100 text-red-600 p-4 rounded-xl text-sm font-medium"></div>
+                            <div id="form-success" class="hidden bg-green-100 text-green-700 p-6 rounded-xl text-center font-bold text-lg">Заявка успешно отправлена! Мы скоро свяжемся с вами.</div>
+
+                            <button type="submit" id="submit-btn" class="w-full mt-8 px-8 py-4 rounded-xl font-bold text-lg text-white btn-glow shadow-lg transition">
+                                Отправить заявку
+                            </button>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -316,12 +335,31 @@
         </div>
     </footer>
 
+    <!-- МОДАЛЬНОЕ ОКНО ДЛЯ ФОТО -->
+    <div id="photo-modal" class="fixed inset-0 z-[100] hidden bg-black/95 backdrop-blur-xl flex items-center justify-center" onclick="closePhotoModal()">
+        <button class="absolute top-5 right-5 w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-white z-[120]">
+            <i class="fas fa-times text-xl"></i>
+        </button>
+        <button onclick="changePhoto(-1, event)" class="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/5 rounded-full hidden md:flex items-center justify-center text-white z-[110]"><i class="fas fa-chevron-left"></i></button>
+        <button onclick="changePhoto(1, event)" class="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/5 rounded-full hidden md:flex items-center justify-center text-white z-[110]"><i class="fas fa-chevron-right"></i></button>
+
+        <div id="modal-touch-zone" class="w-full h-full flex items-center justify-center px-4 py-10 sm:p-6">
+            <img id="modal-img" src="" class="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl transition-all duration-300 transform scale-95 select-none" onclick="event.stopPropagation()">
+        </div>
+        
+        <div id="photo-counter" class="absolute bottom-8 left-1/2 -translate-x-1/2 px-4 py-1 bg-white/10 rounded-full text-xs font-bold tracking-widest uppercase"></div>
+    </div>
+    
+    <style>
+        #photo-modal.flex img { scale: 1; }
+    </style>
+
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const apiFaqUrl = '/api/faqs/';
             const apiYearResultsUrl = '/api/year-results/';
 
-            // 1. Мобильное меню
+            // --- 1. Мобильное меню ---
             const menuBtn = document.getElementById('menu-btn');
             const mobileMenu = document.getElementById('mobile-menu');
             if (menuBtn) {
@@ -340,7 +378,7 @@
                 });
             }
 
-            // 2. Загрузка FAQ
+            // --- 2. Загрузка FAQ ---
             async function loadFAQ() {
                 try {
                     const res = await fetch(apiFaqUrl);
@@ -368,7 +406,7 @@
                 } catch (e) { console.error('FAQ API error', e); }
             }
 
-            // 3. Загрузка графика для футера
+            // --- 3. Загрузка графика для футера ---
             async function loadChartStats() {
                 try {
                     const response = await fetch(apiYearResultsUrl);
@@ -463,17 +501,174 @@
                 }
             }
 
-            // Инициализация загрузки API
+            // --- 4. ДИНАМИЧЕСКАЯ ЗАГРУЗКА АНКЕТЫ ВОЛОНТЕРА ---
+            let activeRecruitmentSlug = null;
+
+            async function loadRecruitmentForm() {
+                const loader = document.getElementById('form-loader');
+                const closedState = document.getElementById('form-closed');
+                const formState = document.getElementById('dynamic-volunteer-form');
+                const qContainer = document.getElementById('questions-container');
+                
+                try {
+                    const response = await fetch('/api/recruitments/active/');
+                    const result = await response.json();
+
+                    loader.classList.add('hidden');
+
+                    if (result.status === 'closed') {
+                        closedState.classList.remove('hidden');
+                        return;
+                    }
+
+                    // Набор открыт
+                    const data = result.data;
+                    activeRecruitmentSlug = data.slug;
+                    
+                    document.getElementById('form-title').innerText = data.title;
+                    if (data.description) {
+                        const descEl = document.getElementById('recruitment-desc');
+                        descEl.innerText = data.description;
+                        descEl.style.display = 'block';
+                    }
+
+                    let questionsHtml = '';
+                    data.questions.forEach(q => {
+                        const requiredAttr = q.required ? 'required' : '';
+                        const reqStar = q.required ? '<span class="text-red-500 ml-1">*</span>' : '';
+                        
+                        let inputHtml = '';
+
+                        if (q.field_type === 'short_text' || q.field_type === 'number') {
+                            const type = q.field_type === 'number' ? 'number' : 'text';
+                            inputHtml = `<input type="${type}" name="q_${q.id}" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-royal-blue outline-none transition text-black" ${requiredAttr}>`;
+                        
+                        } else if (q.field_type === 'long_text') {
+                            inputHtml = `<textarea name="q_${q.id}" rows="4" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-royal-blue outline-none transition text-black" ${requiredAttr}></textarea>`;
+                        
+                        } else if (q.field_type === 'select') {
+                            const opts = Array.isArray(q.options) ? q.options : [];
+                            inputHtml = `<select name="q_${q.id}" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-royal-blue outline-none transition text-black" ${requiredAttr}>
+                                <option value="" disabled selected>Выберите вариант</option>
+                                ${opts.map(o => `<option value="${o}">${o}</option>`).join('')}
+                            </select>`;
+                        
+                        } else if (q.field_type === 'multiple_select') {
+                            const opts = Array.isArray(q.options) ? q.options : [];
+                            inputHtml = `<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                ${opts.map((o, idx) => `
+                                    <label class="flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-100 transition">
+                                        <input type="checkbox" name="q_${q.id}" value="${o}" class="w-5 h-5 text-royal-blue rounded border-gray-300 focus:ring-royal-blue">
+                                        <span class="text-sm font-medium text-gray-700">${o}</span>
+                                    </label>
+                                `).join('')}
+                            </div>`;
+                        
+                        } else if (q.field_type === 'photo' || q.field_type === 'video') {
+                            const accept = q.field_type === 'photo' ? 'image/*' : 'video/*';
+                            inputHtml = `<input type="file" name="file_q_${q.id}" accept="${accept}" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-black file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-royal-blue/10 file:text-royal-blue hover:file:bg-royal-blue/20 transition" ${requiredAttr}>`;
+                        }
+
+                        questionsHtml += `
+                            <div class="form-group flex flex-col gap-2 text-left">
+                                <label class="font-bold text-gray-800 text-lg">${q.label}${reqStar}</label>
+                                ${inputHtml}
+                            </div>
+                        `;
+                    });
+
+                    qContainer.innerHTML = questionsHtml;
+                    formState.classList.remove('hidden');
+
+                } catch (error) {
+                    loader.innerHTML = '<p class="text-red-500">Ошибка при загрузке анкеты.</p>';
+                    console.error('Recruitment load error:', error);
+                }
+            }
+
+            // --- 5. ОТПРАВКА ДАННЫХ АНКЕТЫ ---
+            const recruitmentForm = document.getElementById('dynamic-volunteer-form');
+            if (recruitmentForm) {
+                recruitmentForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    
+                    const submitBtn = document.getElementById('submit-btn');
+                    const errorBox = document.getElementById('form-error');
+                    const successBox = document.getElementById('form-success');
+                    
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Отправка...';
+                    errorBox.classList.add('hidden');
+                    
+                    const formData = new FormData(recruitmentForm);
+                    const apiFormData = new FormData();
+                    const answers = {};
+
+                    apiFormData.append('recruitment_slug', activeRecruitmentSlug);
+
+                    // Разбор ответов и файлов
+                    for (let [key, value] of formData.entries()) {
+                        if (key.startsWith('file_')) {
+                            const qId = key.replace('file_', '');
+                            apiFormData.append('TEXT__' + qId, value);
+                        } else {
+                            if (answers[key]) {
+                                if (!Array.isArray(answers[key])) answers[key] = [answers[key]];
+                                answers[key].push(value);
+                            } else {
+                                const inputs = recruitmentForm.querySelectorAll(`input[name="${key}"]`);
+                                if (inputs.length > 0 && inputs[0].type === 'checkbox') {
+                                    answers[key] = [value];
+                                } else {
+                                    answers[key] = value;
+                                }
+                            }
+                        }
+                    }
+
+                    apiFormData.append('answers', JSON.stringify(answers));
+
+                    try {
+                        const response = await fetch('/api/recruitments/applications/', {
+                            method: 'POST',
+                            body: apiFormData
+                        });
+
+                        const data = await response.json();
+
+                        if (response.ok) {
+                            recruitmentForm.reset();
+                            document.getElementById('questions-container').style.display = 'none';
+                            submitBtn.style.display = 'none';
+                            document.getElementById('recruitment-desc').style.display = 'none';
+                            successBox.classList.remove('hidden');
+                        } else {
+                            errorBox.innerText = data.error || 'Произошла ошибка при отправке.';
+                            errorBox.classList.remove('hidden');
+                            submitBtn.disabled = false;
+                            submitBtn.innerText = 'Отправить заявку';
+                        }
+                    } catch (err) {
+                        errorBox.innerText = 'Ошибка сети. Проверьте подключение к интернету.';
+                        errorBox.classList.remove('hidden');
+                        submitBtn.disabled = false;
+                        submitBtn.innerText = 'Отправить заявку';
+                    }
+                });
+            }
+
+            // --- ИНИЦИАЛИЗАЦИЯ ЗАГРУЗОК ---
             loadFAQ();
             loadChartStats();
+            loadRecruitmentForm();
 
-            // Анимации при скролле (Reveal)
+            // --- Анимации при скролле (Reveal) ---
             const observer = new IntersectionObserver(entries => {
                 entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('active'); });
             }, { threshold: 0.1 });
             document.querySelectorAll('.reveal').forEach(r => observer.observe(r));
             
-            // Фон Navbar при скролле
+            // --- Фон Navbar при скролле ---
             const navbarBg = document.getElementById('navbar-bg');
             window.addEventListener('scroll', () => {
                 if(window.scrollY > 20) navbarBg.classList.replace('opacity-0', 'opacity-100');
@@ -481,7 +676,7 @@
             });
         });
 
-        // Функция для аккордеона FAQ
+        // --- ФУНКЦИИ ГАЛЕРЕИ (ФОТО МОДАЛКА) И АККОРДЕОНА ---
         function toggleAccordion(el) {
             const content = el.querySelector('.accordion-content');
             const icon = el.querySelector('.fa-plus');
@@ -542,68 +737,26 @@
             document.body.style.overflow = '';
         }
 
-        // Свайп логика
+        // Свайп логика для фото
         const touchZone = document.getElementById('modal-touch-zone');
-        touchZone.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; }, {passive: true});
-        touchZone.addEventListener('touchend', e => {
-            touchEndX = e.changedTouches[0].screenX;
-            const diff = touchStartX - touchEndX;
-            if (Math.abs(diff) > 50) changePhoto(diff > 0 ? 1 : -1);
-        }, {passive: true});
-
-        // Клавиатура (Esc и стрелки)
-        document.addEventListener('keydown', (e) => {
-            if (!document.getElementById('photo-modal').classList.contains('hidden')) {
-                if (e.key === 'ArrowRight') changePhoto(1);
-                if (e.key === 'ArrowLeft') changePhoto(-1);
-                if (e.key === 'Escape') closePhotoModal();
-            }
-        });
-
-        function handleSwipe() {
-            const swipeThreshold = 50; // Минимальное расстояние для свайпа
-            if (touchEndX < touchStartX - swipeThreshold) {
-                changePhoto(1); // Свайп влево -> следующее фото
-            }
-            if (touchEndX > touchStartX + swipeThreshold) {
-                changePhoto(-1); // Свайп вправо -> предыдущее фото
-            }
+        if (touchZone) {
+            touchZone.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; }, {passive: true});
+            touchZone.addEventListener('touchend', e => {
+                touchEndX = e.changedTouches[0].screenX;
+                const diff = touchStartX - touchEndX;
+                if (Math.abs(diff) > 50) changePhoto(diff > 0 ? 1 : -1);
+            }, {passive: true});
         }
 
-        // Управление стрелками клавиатуры
+        // Клавиатура (Esc и стрелки) для фото
         document.addEventListener('keydown', (e) => {
-            if (document.getElementById('photo-modal').classList.contains('flex')) {
+            const modal = document.getElementById('photo-modal');
+            if (modal && !modal.classList.contains('hidden')) {
                 if (e.key === 'ArrowRight') changePhoto(1);
                 if (e.key === 'ArrowLeft') changePhoto(-1);
                 if (e.key === 'Escape') closePhotoModal();
             }
-        });
-        // Закрытие по клавише Esc
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') closePhotoModal();
         });
     </script>
-        <div id="photo-modal" class="fixed inset-0 z-[100] hidden bg-black/95 backdrop-blur-xl flex items-center justify-center" onclick="closePhotoModal()">
-            <button class="absolute top-5 right-5 w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-white z-[120]">
-                <i class="fas fa-times text-xl"></i>
-            </button>
-
-            <button onclick="changePhoto(-1, event)" class="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/5 rounded-full hidden md:flex items-center justify-center text-white z-[110]"><i class="fas fa-chevron-left"></i></button>
-            <button onclick="changePhoto(1, event)" class="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/5 rounded-full hidden md:flex items-center justify-center text-white z-[110]"><i class="fas fa-chevron-right"></i></button>
-
-            <div id="modal-touch-zone" class="w-full h-full flex items-center justify-center px-4 py-10 sm:p-6">
-                <img id="modal-img" src="" class="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl transition-all duration-300 transform scale-95 select-none" onclick="event.stopPropagation()">
-            </div>
-            
-            <div id="photo-counter" class="absolute bottom-8 left-1/2 -translate-x-1/2 px-4 py-1 bg-white/10 rounded-full text-xs font-bold tracking-widest uppercase"></div>
-        </div>
-
-    <style>
-        /* Анимация при открытии */
-        #photo-modal.flex img {
-            scale: 1;
-        }
-        .cursor-zoom-in { cursor: zoom-in; }
-</style>
 </body>
 </html>

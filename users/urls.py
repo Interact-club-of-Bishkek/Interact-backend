@@ -1,9 +1,9 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from users.views import (
-    DeductPointsView, RemoveVolunteerFromCommandView, VolunteerLoginView, VolunteerRegisterView, VolunteerProfileView,
+    ActiveRecruitmentView, DeductPointsView, RecruitmentApplicationListCreateView, RecruitmentApplicationUpdateStatusView, RemoveVolunteerFromCommandView, VolunteerLoginView, VolunteerRegisterView, VolunteerProfileView,
     VolunteerActivityViewSet, DiscoveryListView, CuratorSubmissionViewSet,
-    VolunteerApplicationViewSet, VolunteerViewSet, VolunteerColumnsView,
+    VolunteerViewSet, VolunteerColumnsView,
     DownloadInterviewScheduleView, DownloadAcceptedNamesView,
     CuratorPanelView, VolunteerCabinetView, LoginPageView, VolunteerBoardView,
     VolunteerListView,
@@ -36,7 +36,6 @@ router = DefaultRouter()
 # /api/miniteams/
 # /api/sponsors/
 router.register(r'volunteers', VolunteerViewSet, basename='volunteer')
-router.register(r'applications', VolunteerApplicationViewSet, basename='application')
 router.register(r'activities', VolunteerActivityViewSet, basename='vol-activity')
 router.register(r'curator/submissions', CuratorSubmissionViewSet, basename='cur-submission')
 router.register(r'attendance', AttendanceViewSet, basename='attendance')
@@ -93,4 +92,12 @@ urlpatterns = [
     path('bailiff-base-panel/', BailiffBasePanelView.as_view(), name='bailiff_base_panel'),
 
     path('api/chat/', ai_pdf_chat, name='ai_pdf_chat'),
+
+
+    # --- Заявки новых волонтеров ---
+    path('api/recruitments/active/', ActiveRecruitmentView.as_view(), name='recruitment-active'),
+    # Отправка заявки
+    path('api/recruitments/applications/', RecruitmentApplicationListCreateView.as_view(), name='recruitment-apply'),
+    # Изменение статуса заявки админом (accept/reject)
+    path('recruitments/applications/<int:pk>/status/', RecruitmentApplicationUpdateStatusView.as_view(), name='application-status'),
 ]

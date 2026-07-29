@@ -3,9 +3,10 @@ from django.db.models import Q, Count
 from django.utils.html import format_html
 from django.urls import reverse
 from .models import (
-    ChatSession, ChatMessage, Volunteer, VolunteerApplication, VolunteerArchive, 
-    ActivityTask, ActivitySubmission, BotAccessConfig,
-    Attendance, YellowCard, AppSettings, MiniTeam, MiniTeamMembership, SponsorTask
+    ChatSession, ChatMessage, RecruitmentQuestion, Volunteer, 
+    ActivityTask, ActivitySubmission,
+    Attendance, YellowCard, AppSettings, MiniTeam, MiniTeamMembership, SponsorTask,
+    Recruitment, RecruitmentApplication, RecruitmentAttachment
 )
 
 # --- НАСТРОЙКИ ШАПКИ АДМИНКИ ---
@@ -256,13 +257,148 @@ class YellowCardAdmin(admin.ModelAdmin):
     autocomplete_fields = ['volunteer', 'issued_by']
 
 
-@admin.register(VolunteerApplication)
-class VolunteerApplicationAdmin(admin.ModelAdmin):
-    list_display = ('full_name', 'direction', 'status', 'created_at')
+class RecruitmentQuestionInline(admin.StackedInline):
+    model = RecruitmentQuestion
+    extra = 0  
+    fieldsets = (
+        (None, {
+            'fields': (
+                ('order', 'required'),
+                'label',
+                'field_type',
+                'use_directions_list', # 👈 Галочка автоматического выбора направлений
+                'options'             # Ручной ввод вариантов
+            )
+        }),
+    )
+    ordering = ('order',)
+    verbose_name = "Вопрос"
+    verbose_name_plural = "📝 Конструктор анкеты"
+
+class RecruitmentAttachmentInline(admin.TabularInline):
+    model = RecruitmentAttachment
+    extra = 0
+    fields = ('label', 'file', 'preview')
+    readonly_fields = ('preview',)
+    verbose_name = "Файл"
+    verbose_name_plural = "📎 Вложения"
+
+    def preview(self, obj):
+        if not obj.file: return "—"
+        if obj.file.url.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp')):
+            return format_html('<a href="{}" target="_blank"><img src="{}" style="height:50px;"></a>', obj.file.url, obj.file.url)
+        return format_html('<a href="{}" target="_blank">📄 Скачать</a>', obj.file.url)
+    preview.short_description = "Превью"
 
 
-admin.site.register(BotAccessConfig)
-admin.site.register(VolunteerArchive)
+@admin.register(Recruitment)
+class RecruitmentAdmin(admin.ModelAdmin):
+    list_display = ('title', 'dates_display', 'api_link_btn')
+    inlines = [RecruitmentQuestionInline] 
+    save_on_top = True
+
+    fieldsets = (
+        ('📌 Основная информация', {
+            'fields': ('title', 'slug', 'description') 
+        }),
+        ('📅 Сроки проведения', {
+            'fields': (('start_date', 'end_date'),),
+            'description': 'Если дедлайн прошел, сервер автоматически перестанет принимать заявки.'
+        }),
+    )
+
+    def dates_display(self, obj):
+        s = obj.start_date.strftime('%d.%m.%y %H:%M') if obj.start_date else "Открыто"
+        e = obj.end_date.strftime('%d.%m.%y %H:%M') if obj.end_date else "Бессрочно"
+        return f"{s} — {e}"
+    dates_display.short_description = "Период приема"
+
+    def api_link_btn(self, obj):
+        if not obj.slug: return "-"
+        try:
+            url = reverse('recruitment-detail', kwargs={'slug': obj.slug}) 
+            return format_html('<a href="{}" target="_blank" style="background:#3b82f6; color:white; padding:3px 8px; border-radius:4px; text-decoration:none;">JSON</a>', url)
+        except: return "-"
+    api_link_btn.short_description = "API"
+
+
+@admin.register(RecruitmentApplication)
+class RecruitmentApplicationAdmin(admin.ModelAdmin):
+    # Добавили is_archived в отображение
+    list_display = ('id', 'recruitment', 'volunteer_display', 'status_badge', 'is_archived_badge', 'created_at')
+    
+    # Добавили фильтр по is_archived, чтобы можно было скрыть архивные
+    list_filter = ('is_archived', 'status', 'recruitment', 'created_at')
+    
+    readonly_fields = ('created_at', 'answers_table')
+    inlines = [RecruitmentAttachmentInline]
+    
+    # 👈 ДОБАВИЛИ ЭКШЕНЫ АРХИВАЦИИ
+    actions = ['mark_accepted', 'mark_rejected', 'mark_archived', 'unmark_archived']
+
+    fieldsets = (
+        ('Инфо о заявке', {
+            'fields': ('recruitment', 'status', 'is_archived', 'created_at')
+        }),
+        ('📋 Ответы анкеты', {
+            'fields': ('answers_table',)
+        }),
+    )
+
+    def is_archived_badge(self, obj):
+        if obj.is_archived:
+            return format_html('<span style="color: gray;">📦 В архиве</span>')
+        return format_html('<span style="color: green;">Активна</span>')
+    is_archived_badge.short_description = "Архив"
+
+    def volunteer_display(self, obj):
+        if hasattr(obj, 'volunteer') and obj.volunteer:
+            return f"{obj.volunteer.name} (@{obj.volunteer.login})"
+        return "Гость"
+    volunteer_display.short_description = "Кандидат"
+
+    def status_badge(self, obj):
+        colors = {'pending': '#f59e0b', 'accepted': '#10b981', 'rejected': '#ef4444'}
+        labels = {'pending': '⏳ Ожидает', 'accepted': '✅ Принят', 'rejected': '❌ Отказ'}
+        return format_html('<span style="background:{}; color:white; padding:4px 8px; border-radius:12px; font-weight:bold;">{}</span>', colors.get(obj.status, '#666'), labels.get(obj.status, obj.status))
+    status_badge.short_description = "Статус"
+
+    def answers_table(self, obj):
+        if not obj.answers: return "Нет ответов"
+        html = '<table style="width:100%; border-collapse: collapse;">'
+        
+        for k, v in obj.answers.items():
+            label = k
+            if k.startswith('q_') and k[2:].isdigit():
+                q = RecruitmentQuestion.objects.filter(id=k[2:]).first()
+                if q: label = q.label
+            
+            if isinstance(v, list):
+                v = ", ".join(map(str, v))
+                
+            html += f'<tr style="border-bottom: 1px solid #eee;"><td style="padding: 8px; width: 40%; color: #666; font-weight: bold;">{label}</td><td style="padding: 8px;">{v}</td></tr>'
+        html += '</table>'
+        return format_html(html)
+    answers_table.short_description = "Ответы пользователя"
+
+    # ==========================
+    # 🛠 MASS ACTIONS (МАССОВЫЕ ДЕЙСТВИЯ)
+    # ==========================
+    @admin.action(description="✅ Принять выбранные заявки")
+    def mark_accepted(self, request, queryset):
+        queryset.update(status='accepted')
+
+    @admin.action(description="❌ Отклонить выбранные заявки")
+    def mark_rejected(self, request, queryset):
+        queryset.update(status='rejected')
+
+    @admin.action(description="📦 Переместить в АРХИВ (скрыть)")
+    def mark_archived(self, request, queryset):
+        queryset.update(is_archived=True)
+
+    @admin.action(description="♻️ Достать из АРХИВА")
+    def unmark_archived(self, request, queryset):
+        queryset.update(is_archived=False)
 
 class ChatMessageInline(admin.TabularInline):
     model = ChatMessage

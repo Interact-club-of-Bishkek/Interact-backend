@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from .models import Attendance, Volunteer, VolunteerApplication, ActivityTask, ActivitySubmission
+from .models import Attendance, Volunteer, ActivityTask, ActivitySubmission, Recruitment, RecruitmentQuestion, RecruitmentApplication, RecruitmentAttachment
 from directions.models import VolunteerDirection
 from commands.models import Command
 from commands.serializers import QuestionSerializer
@@ -119,6 +119,79 @@ class ActivitySubmissionSerializer(serializers.ModelSerializer):
             'quantity'
         ]
 
+class RecruitmentQuestionSerializer(serializers.ModelSerializer):
+    options = serializers.SerializerMethodField()
+
+    class Meta:
+        model = RecruitmentQuestion
+        fields = ['id', 'label', 'field_type', 'required', 'options']
+
+    def get_options(self, obj):
+        # 👈 Если в админке галочка "Брать варианты из направлений" включена:
+        if obj.use_directions_list and obj.field_type in ['select', 'multiple_select']:
+            # Достаем названия всех направлений из базы данных
+            return list(VolunteerDirection.objects.values_list('name', flat=True))
+        
+        # Иначе возвращаем обычный JSON-список, который вы заполнили вручную
+        return obj.options if isinstance(obj.options, list) else []
+
+class RecruitmentSerializer(serializers.ModelSerializer):
+    questions = RecruitmentQuestionSerializer(many=True, read_only=True)
+    
+    class Meta:
+        model = Recruitment
+        fields = ['id', 'title', 'slug', 'description', 'start_date', 'end_date', 'questions']
+
+class RecruitmentAttachmentSerializer(serializers.ModelSerializer):
+    file = serializers.SerializerMethodField()
+
+    class Meta:
+        model = RecruitmentAttachment
+        fields = ['id', 'file', 'label']
+
+    def get_file(self, obj):
+        if not obj.file:
+            return None
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(obj.file.url)
+        return obj.file.url
+
+class RecruitmentApplicationSerializer(serializers.ModelSerializer):
+    recruitment_title = serializers.CharField(source='recruitment.title', read_only=True)
+    files = RecruitmentAttachmentSerializer(many=True, read_only=True) 
+    formatted_answers = serializers.SerializerMethodField()
+
+    class Meta:
+        model = RecruitmentApplication
+        fields = [
+            'id', 
+            'recruitment', 
+            'recruitment_title', 
+            'volunteer', 
+            'answers', 
+            'formatted_answers', 
+            'status', 
+            'created_at',
+            'files'
+        ]
+        
+    def get_formatted_answers(self, obj):
+        if not obj.answers or not isinstance(obj.answers, dict):
+            return {}
+        
+        q_ids = [int(k[2:]) for k in obj.answers.keys() if k.startswith('q_') and k[2:].isdigit()]
+        questions = RecruitmentQuestion.objects.filter(id__in=q_ids)
+        q_map = {f"q_{q.id}": q.label for q in questions}
+        
+        readable_answers = {}
+        for key, value in obj.answers.items():
+            question_text = q_map.get(key, key)
+            # Если это список (от multiple_select), он будет красиво отформатирован фронтендом
+            readable_answers[question_text] = value
+            
+        return readable_answers
+
 # --- 🔥 ИСПРАВЛЕННЫЙ СПИСОК ДЛЯ КУРАТОРА ---
 class VolunteerListSerializer(serializers.ModelSerializer):
     direction = VolunteerDirectionSerializer(many=True, read_only=True)
@@ -147,13 +220,7 @@ class VolunteerListSerializer(serializers.ModelSerializer):
         # Оптимально возвращаем список команд
         return obj.volunteer_commands.values('id', 'title')
 
-# --- Анкета ---
-class VolunteerApplicationSerializer(serializers.ModelSerializer):
-    direction = serializers.PrimaryKeyRelatedField(queryset=VolunteerDirection.objects.all(), required=False)
 
-    class Meta:
-        model = VolunteerApplication
-        fields = ['id', 'full_name', 'phone_number', 'direction', 'status']
 
 # --- Вспомогательные ---
 class VolunteerLoginSerializer(serializers.Serializer):

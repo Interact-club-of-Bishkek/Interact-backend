@@ -7,8 +7,11 @@ from django.contrib.auth.decorators import user_passes_test
 from django.shortcuts import get_object_or_404
 from django.db.models import Count, Q
 
-from users.models import Volunteer, VolunteerApplication, AppSettings, ActivitySubmission
+from users.models import Volunteer, AppSettings, ActivitySubmission
 from projects.models import Project  # Убедись, что путь к модели Project правильный!
+
+# 👇 ИМПОРТИРУЕМ НОВУЮ МОДЕЛЬ ЗАЯВОК (замени 'commands' на свое приложение, если нужно)
+from users.models import RecruitmentApplication 
 
 
 def is_admin_or_curator(user):
@@ -31,16 +34,15 @@ class AdminDashboardView(UserPassesTestMixin, TemplateView):
         # 1. Проекты
         context['projects'] = Project.objects.all().order_by('-time_start')
         
-        # 2. Волонтеры (🔥 ОПТИМИЗАЦИЯ: Считаем желтые карточки в БД за 1 запрос!)
-        # Сортировка по '-point' автоматически формирует рейтинг (в HTML используем forloop.counter)
+        # 2. Волонтеры
         context['volunteers'] = Volunteer.objects.prefetch_related('direction').annotate(
             yc_count=Count('yellow_cards', distinct=True)
         ).order_by('-point')
         
-        # 3. Новые заявки в волонтеры (статус 'submitted')
-        context['pending_apps'] = VolunteerApplication.objects.filter(status='submitted').select_related('direction')
+        # 3. 🔥 ИСПРАВЛЕНО: Новые заявки в волонтеры (статус 'pending')
+        context['pending_apps'] = RecruitmentApplication.objects.filter(status='pending').select_related('recruitment')
         
-        # 4. 🔥 НОВОЕ: Отчеты по заданиям (учитываем ограничение видимости для кураторов из твоего admin.py)
+        # 4. Отчеты по заданиям
         submissions_qs = ActivitySubmission.objects.filter(status='pending').select_related('volunteer', 'task', 'task__command')
         if not (user.is_superuser or getattr(user, 'role', '') == 'admin'):
             submissions_qs = submissions_qs.filter(
@@ -49,7 +51,7 @@ class AdminDashboardView(UserPassesTestMixin, TemplateView):
             ).distinct()
         context['pending_submissions'] = submissions_qs
         
-        # 5. Настройки системы (все 3 рубильника)
+        # 5. Настройки системы
         context['app_settings'] = AppSettings.get_settings()
         
         return context
@@ -80,7 +82,8 @@ def handle_application(request):
     app_id = data.get('id')
     action = data.get('action')
     
-    application = get_object_or_404(VolunteerApplication, id=app_id)
+    # 🔥 ИСПРАВЛЕНО: Используем новую модель заявок
+    application = get_object_or_404(RecruitmentApplication, id=app_id)
     if action == 'accept': application.status = 'accepted'
     elif action == 'reject': application.status = 'rejected'
     application.save()
@@ -91,17 +94,16 @@ def handle_application(request):
 @require_POST
 @user_passes_test(is_admin_or_curator)
 def handle_submission(request):
-    """🔥 НОВОЕ: Одобрение или отклонение отчета по заданию прямо со страницы"""
     data = json.loads(request.body)
     sub_id = data.get('id')
-    action = data.get('action') # 'approve' или 'reject'
+    action = data.get('action')
     
     submission = get_object_or_404(ActivitySubmission, id=sub_id)
     if action == 'approve':
         submission.status = 'approved'
     elif action == 'reject':
         submission.status = 'rejected'
-    submission.save() # Это автоматически пересчитает баллы через твой метод в save()!
+    submission.save() 
     
     return JsonResponse({"status": "success", "new_status": submission.status})
 

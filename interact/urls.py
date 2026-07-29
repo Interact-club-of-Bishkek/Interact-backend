@@ -11,7 +11,7 @@ from drf_yasg import openapi
 from django.contrib.sitemaps.views import sitemap
 from .sitemaps import ProjectSitemap, StaticViewSitemap # Импортируем наш класс из файла sitemaps.py
 # Импорты только для роутера
-from users.views import VolunteerViewSet, VolunteerApplicationViewSet
+from users.views import VolunteerViewSet
 from directions.views import VolunteerDirectionViewSet, ProjectDirectionViewSet
 
 # ------------------ Swagger Setup ------------------
@@ -32,7 +32,6 @@ router = DefaultRouter()
 router.register(r'volunteer', VolunteerViewSet)
 router.register(r'volunteer-directions', VolunteerDirectionViewSet, basename='volunteer-directions')
 router.register(r'project-directions', ProjectDirectionViewSet, basename='project-directions')
-router.register(r'applications', VolunteerApplicationViewSet, basename='applications')
 
 sitemaps = {
     'static': StaticViewSitemap,

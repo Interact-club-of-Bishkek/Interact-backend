@@ -1,12 +1,14 @@
+from datetime import timezone
+from django.utils import timezone
 import io
 import os
 import random
 from decimal import Decimal, InvalidOperation
-
+from django.db import models
 from django.http import JsonResponse
 import json
 
-
+from rest_framework import generics, status
 from django.db import transaction
 from django.conf import settings
 from django.http import FileResponse
@@ -47,19 +49,17 @@ from projects.models import Project, TeamMember
 from directions.models import VolunteerDirection
 from commands.models import Command
 from .models import (
-    AppSettings, Attendance, Volunteer, VolunteerApplication, BotAccessConfig, 
+    AppSettings, Attendance, Recruitment, RecruitmentApplication, RecruitmentAttachment, Volunteer, BotAccessConfig, 
     ActivityTask, ActivitySubmission, YellowCard, ChatSession, ChatMessage, 
     MiniTeam, MiniTeamMembership, SponsorTask
 )
 
-from commands.models import  Application
 from .serializers import (
     BulkAttendanceSerializer, VolunteerSerializer, VolunteerLoginSerializer, VolunteerRegisterSerializer,
-    VolunteerApplicationSerializer, ActivityTaskSerializer, 
+    RecruitmentSerializer, RecruitmentApplicationSerializer, ActivityTaskSerializer, 
     ActivitySubmissionSerializer, VolunteerDirectionSerializer, CommandSerializer,
     VolunteerListSerializer, MiniTeamSerializer, SponsorTaskSerializer
 )
-from django.contrib.auth.mixins import UserPassesTestMixin
 
 # ---------------- АВТОРИЗАЦИЯ И ПРОФИЛЬ ----------------
 class VolunteerLoginView(APIView):
@@ -352,37 +352,113 @@ class CuratorSubmissionViewSet(viewsets.ModelViewSet):
             ActivitySubmission.objects.filter(id__in=pending_ids).update(status='approved')
         return Response({"message": f"Успешно принято отчетов: {count}", "count": count})
     
-class VolunteerApplicationViewSet(viewsets.ModelViewSet):
-    permission_classes = [permissions.IsAuthenticated]
-    serializer_class = VolunteerApplicationSerializer
-    queryset = VolunteerApplication.objects.all()
+class RecruitmentApplicationListCreateView(generics.ListCreateAPIView):
+    serializer_class = RecruitmentApplicationSerializer
+    
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [AllowAny()]
+        return [IsAuthenticated()]
 
     def get_queryset(self):
         user = self.request.user
-        if user.is_superuser or user.role == 'admin':
-            return VolunteerApplication.objects.all()
-        return VolunteerApplication.objects.filter(
-            commands__leader=user
-        ).distinct()
 
-    def perform_create(self, serializer):
-        user = self.request.user
-        data = serializer.validated_data
+        if not user.is_authenticated:
+            return RecruitmentApplication.objects.none()
 
-        if 'full_name' in data: user.name = data['full_name']
-        if 'phone_number' in data: user.phone_number = data['phone_number']
-        if 'email' in data: user.email = data['email']
-        if 'direction' in data and data['direction']: user.direction.set([data['direction']])
-        if 'commands' in data: user.volunteer_commands.set(data['commands'])
+        # 👈 ПО УМОЛЧАНИЮ ОТДАЕМ ТОЛЬКО НЕ АРХИВНЫЕ (is_archived=False)
+        queryset = RecruitmentApplication.objects.filter(is_archived=False).order_by("-created_at")
 
-        is_responsible = VolunteerDirection.objects.filter(responsible=user).exists()
-        is_leader = Command.objects.filter(leader=user).exists()
+        is_management = user.is_superuser or getattr(user, "role", "") in ["admin", "president"]
+        if not is_management:
+            return RecruitmentApplication.objects.none() 
 
-        if is_responsible or is_leader:
-            user.role = 'curator'
-            user.is_staff = True
+        slug = self.request.query_params.get("slug")
+        if slug:
+            queryset = queryset.filter(recruitment__slug=slug)
+            
+        # Если фронтенд явно попросит архивные (например ?archived=true в ссылке)
+        show_archived = self.request.query_params.get("archived")
+        if show_archived == 'true':
+            # Сбрасываем фильтр is_archived=False, чтобы показать всё
+            queryset = RecruitmentApplication.objects.all().order_by("-created_at")
 
-        user.save()
+        return queryset
+
+    def post(self, request, *args, **kwargs):
+        try:
+            recruitment_slug = request.data.get('recruitment_slug')
+            recruitment = get_object_or_404(Recruitment, slug=recruitment_slug)
+            
+            # 🕒 ПРОВЕРКА ДЕДЛАЙНОВ (АВТОМАТИЧЕСКОЕ ЗАКРЫТИЕ ЗАЯВОК)
+            now = timezone.now()
+            if recruitment.start_date and now < recruitment.start_date:
+                return Response({"error": "Набор ещё не открыт."}, status=status.HTTP_400_BAD_REQUEST)
+            if recruitment.end_date and now > recruitment.end_date:
+                return Response({"error": "Набор уже завершён. Дедлайн прошел."}, status=status.HTTP_400_BAD_REQUEST)
+
+            answers_raw = request.data.get('answers', '{}')
+            answers = json.loads(answers_raw)
+            
+            # Для множественного выбора answers должен получать список:
+            # {"q_1": ["Дизайн", "СММ"]} - JSON сохраняет это без проблем.
+
+            app = RecruitmentApplication.objects.create(
+                recruitment=recruitment, 
+                answers=answers,
+                volunteer=request.user if request.user.is_authenticated else None
+            )
+
+            # Сохранение файлов
+            for key in request.FILES:
+                for f in request.FILES.getlist(key):
+                    RecruitmentAttachment.objects.create(
+                        application=app,
+                        file=f,
+                        label=key.replace('TEXT__','')
+                    )
+
+            return Response({"status": "success", "id": app.id}, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class RecruitmentApplicationUpdateStatusView(generics.UpdateAPIView):
+    queryset = RecruitmentApplication.objects.all()
+    serializer_class = RecruitmentApplicationSerializer
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, *args, **kwargs):
+        instance = self.get_object()
+        is_management = request.user.is_superuser or getattr(request.user, "role", "") in ["admin", "president"]
+        
+        if not is_management:
+            return Response({"error": "Нет прав для управления заявками"}, status=status.HTTP_403_FORBIDDEN)
+
+        new_status = request.data.get("status")
+        if new_status in dict(RecruitmentApplication.STATUS_CHOICES).keys():
+            instance.status = new_status
+            instance.save()
+            return Response(self.get_serializer(instance).data)
+        
+        return Response({"error": "Неверный статус"}, status=status.HTTP_400_BAD_REQUEST)
+
+class ActiveRecruitmentView(generics.GenericAPIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, *args, **kwargs):
+        now = timezone.now()
+        # Ищем набор, который уже начался и еще не закончился (или бессрочный)
+        active_recruitment = Recruitment.objects.filter(
+            models.Q(start_date__lte=now) | models.Q(start_date__isnull=True),
+            models.Q(end_date__gte=now) | models.Q(end_date__isnull=True)
+        ).first()
+
+        if active_recruitment:
+            serializer = RecruitmentSerializer(active_recruitment)
+            return Response({"status": "active", "data": serializer.data})
+        
+        return Response({"status": "closed"})
 
 class VolunteerListView(generics.ListAPIView):
     serializer_class = VolunteerListSerializer  

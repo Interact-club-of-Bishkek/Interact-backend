@@ -1,11 +1,12 @@
 import random
 import string
+import uuid
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
-from django.db.models import DecimalField, Sum, F, Q, Value
+from django.utils.text import slugify
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from django.db.models.functions import Coalesce
 
@@ -247,69 +248,165 @@ class ActivitySubmission(models.Model):
         if vol_id:
             recalc_volunteer_points(vol_id)
 
-# --- АНКЕТЫ ---
-class VolunteerApplication(models.Model):
-    full_name = models.CharField("ФИО", max_length=200)
-    phone_number = models.CharField("Телефон", max_length=50)
-    email = models.EmailField("Email", blank=True, null=True)
-    photo = models.ImageField("Фото", upload_to='volunteers_photos/', null=True, blank=True)
-    date_of_birth = models.DateField("Дата рождения", null=True, blank=True)
-    place_of_study = models.CharField("Место учебы/работы", max_length=255, blank=True)
-    
-    choice_motives = models.TextField("Мотивы", blank=True)
-    why_volunteer = models.TextField("Почему волонтер?", blank=True)
-    volunteer_experience = models.TextField("Опыт", blank=True)
-    hobbies_skills = models.TextField("Хобби", blank=True)
-    strengths = models.TextField("Качества", blank=True)
-    why_choose_you = models.TextField("Почему вы?", blank=True)
-    ideas_improvements = models.TextField("Идеи", blank=True)
-    expectations = models.TextField("Ожидания", blank=True)
-    feedback = models.TextField("Фидбэк", blank=True, null=True)
-    
-    agree_inactivity_removal = models.BooleanField(default=False)
-    agree_terms = models.BooleanField(default=False)
-    ready_travel = models.BooleanField(default=False)
-    attend_meetings = models.BooleanField(default=False)
-    
-    weekly_hours = models.CharField("Время в неделю", max_length=50, blank=True)
 
-    status = models.CharField("Статус", max_length=20, choices=[('submitted', 'Отправлено'), ('interview', 'На собеседовании'), ('accepted', 'Принят'), ('rejected', 'Отказ')], default='submitted')
-    volunteer_created = models.BooleanField(default=False, editable=False)
-    volunteer = models.OneToOneField(Volunteer, on_delete=models.SET_NULL, null=True, blank=True, related_name="application_profile")
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
-    direction = models.ForeignKey(
-        'directions.VolunteerDirection', 
-        on_delete=models.SET_NULL, 
-        null=True, 
-        blank=False,
-        related_name='volunteer_applications'
+class Recruitment(models.Model):
+    title = models.CharField("Название набора", max_length=255)
+    slug = models.SlugField(
+        "URL",
+        unique=True,
+        blank=True,
+        max_length=255,
+        allow_unicode=True,
+        help_text="Генерируется автоматически"
+    )
+    description = models.TextField("Описание", blank=True)
+    
+    # 🕒 Поля для автоматического открытия и закрытия заявок
+    start_date = models.DateTimeField("Начало набора", null=True, blank=True)
+    end_date = models.DateTimeField("Конец набора (Дедлайн)", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Набор волонтеров"
+        verbose_name_plural = "Наборы волонтеров"
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base_slug = slugify(self.title, allow_unicode=True)
+            if not base_slug:
+                base_slug = "recruitment-" + uuid.uuid4().hex[:6]
+
+            slug = base_slug
+            counter = 1
+            while Recruitment.objects.filter(slug=slug).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+            self.slug = slug
+            
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.title
+
+
+class RecruitmentQuestion(models.Model):
+    FIELD_TYPES = [
+        ('short_text', 'Короткий текст'),
+        ('long_text', 'Длинный текст'),
+        ('number', 'Число'),
+        ('photo', 'Фото'),
+        ('video', 'Видео'),
+        ('select', 'Одиночный выбор (Select)'),
+        ('multiple_select', 'Множественный выбор (Несколько вариантов)'),
+    ]
+
+    recruitment = models.ForeignKey(
+        Recruitment,
+        related_name='questions',
+        on_delete=models.CASCADE,
+        verbose_name="Набор"
+    )
+    label = models.CharField("Текст вопроса", max_length=500)
+    field_type = models.CharField("Тип поля", max_length=20, choices=FIELD_TYPES)
+    required = models.BooleanField("Обязательный", default=True)
+    order = models.PositiveIntegerField("Порядок", blank=True, null=True)
+
+    # Опции вручную (если нужно написать свой список)
+    options = models.JSONField(
+        blank=True,
+        default=list,
+        help_text="Оставьте пустым, если хотите автоматически подгрузить направления из базы"
     )
 
-    commands = models.ManyToManyField(
-                'commands.Command', 
-                related_name="volunteer_members", 
-                blank=True
-            )
+    # 👈 НОВОЕ ПОЛЕ: Если вопрос требует выбора направления из VolunteerDirection
+    use_directions_list = models.BooleanField(
+        "Брать варианты из направлений (VolunteerDirection)?", 
+        default=False,
+        help_text="Если включено, варианты для select/multiple_select автоматически возьмутся из справочника направлений"
+    )
 
     class Meta:
-        verbose_name = "Анкета кандидата"
-        verbose_name_plural = "Анкеты кандидатов"
+        verbose_name = "Вопрос анкеты"
+        verbose_name_plural = "Вопросы анкеты"
+        ordering = ['order']
 
-class VolunteerArchive(models.Model):
-    full_name = models.CharField("ФИО", max_length=200)
-    email = models.EmailField("Email", blank=True, null=True)
-    phone_number = models.CharField("Телефон", max_length=50)
-    photo = models.ImageField(upload_to='volunteers_archive_photos/', null=True, blank=True)
-    date_of_birth = models.DateField(null=True, blank=True)
-    why_volunteer = models.TextField(blank=True)
-    directions = models.ManyToManyField(VolunteerDirection, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    def save(self, *args, **kwargs):
+        if self.order is None:
+            last = RecruitmentQuestion.objects.filter(recruitment=self.recruitment).aggregate(
+                models.Max('order')
+            )['order__max'] or 0
+            self.order = last + 1
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.label
+
+
+class RecruitmentApplication(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Ожидает'),
+        ('accepted', 'Принят'),
+        ('rejected', 'Отклонен'),
+    ]
+
+    recruitment = models.ForeignKey(
+        Recruitment,
+        on_delete=models.CASCADE,
+        related_name='applications',
+        verbose_name="Набор"
+    )
+
+    volunteer = models.ForeignKey(
+        'users.Volunteer', 
+        on_delete=models.CASCADE, 
+        related_name='recruitment_applications',
+        verbose_name="Волонтер",
+        null=True 
+    )
+
+    answers = models.JSONField("Ответы")
+    status = models.CharField(
+        "Статус",
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default='pending'
+    )
+    
+    # 👈 НОВОЕ ПОЛЕ: Флаг архивации
+    is_archived = models.BooleanField("В архиве", default=False)
+    
+    created_at = models.DateTimeField("Дата подачи", auto_now_add=True)
 
     class Meta:
-        verbose_name = "Архив волонтера"
-        verbose_name_plural = "Архив волонтеров"
+        verbose_name = "Заявка на набор"
+        verbose_name_plural = "Заявки на наборы"
+
+    def __str__(self):
+        return f"Заявка #{self.id} на набор {self.recruitment.title}"
+
+
+def recruitment_attachment_upload_to(instance, filename):
+    ext = filename.split('.')[-1]
+    name = uuid.uuid4().hex
+    return f'recruitments/{instance.application.id}/{name}.{ext}'
+
+
+class RecruitmentAttachment(models.Model):
+    application = models.ForeignKey(
+        RecruitmentApplication,
+        related_name='files',
+        on_delete=models.CASCADE,
+        verbose_name="Заявка"
+    )
+    file = models.FileField("Файл", upload_to=recruitment_attachment_upload_to)
+    label = models.CharField("Вопрос", max_length=255)
+
+    class Meta:
+        verbose_name = "Файл заявки"
+        verbose_name_plural = "Файлы заявок"
+
+    def __str__(self):
+        return self.label
 
 class BotAccessConfig(models.Model):
     role = models.CharField("Роль доступа", max_length=20, choices=[('volunteer', 'Волонтер'), ('curator', 'Куратор')], unique=True)
