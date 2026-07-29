@@ -373,10 +373,22 @@ class RecruitmentApplicationAdmin(admin.ModelAdmin):
                 q = RecruitmentQuestion.objects.filter(id=k[2:]).first()
                 if q: label = q.label
             
+            # Обработка списков (например, multiple_select)
             if isinstance(v, list):
                 v = ", ".join(map(str, v))
+            
+            # Проверяем, является ли значение строкой и ссылкой на картинку/медиа
+            val_str = str(v)
+            is_image = any(val_str.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp', '.gif']) or '/media/' in val_str and any(ext in val_str.lower() for ext in ['image', 'photo', '.jpg', '.jpeg', '.png', '.webp'])
+            
+            if is_image and val_str.startswith(('http://', 'https://', '/media/')):
+                # Если это путь к изображению, рендерим тег img с превью
+                v_formatted = f'<a href="{val_str}" target="_blank"><img src="{val_str}" style="max-height: 100px; max-width: 150px; border-radius: 6px; object-fit: cover; border: 1px solid #ddd;" /></a>'
+            else:
+                v_formatted = val_str
                 
-            html += f'<tr style="border-bottom: 1px solid #eee;"><td style="padding: 8px; width: 40%; color: #666; font-weight: bold;">{label}</td><td style="padding: 8px;">{v}</td></tr>'
+            html += f'<tr style="border-bottom: 1px solid #eee;"><td style="padding: 8px; width: 40%; color: #666; font-weight: bold;">{label}</td><td style="padding: 8px;">{v_formatted}</td></tr>'
+            
         html += '</table>'
         return format_html(html)
     answers_table.short_description = "Ответы пользователя"
