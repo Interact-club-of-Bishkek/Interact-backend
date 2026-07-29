@@ -364,31 +364,38 @@ class RecruitmentApplicationAdmin(admin.ModelAdmin):
     status_badge.short_description = "Статус"
 
     def answers_table(self, obj):
-        if not obj.answers: return "Нет ответов"
+        if not obj.answers and not hasattr(obj, 'attachments'): 
+            return "Нет ответов"
+            
         html = '<table style="width:100%; border-collapse: collapse;">'
         
-        for k, v in obj.answers.items():
-            label = k
-            if k.startswith('q_') and k[2:].isdigit():
-                q = RecruitmentQuestion.objects.filter(id=k[2:]).first()
-                if q: label = q.label
-            
-            # Обработка списков (например, multiple_select)
-            if isinstance(v, list):
-                v = ", ".join(map(str, v))
-            
-            # Проверяем, является ли значение строкой и ссылкой на картинку/медиа
-            val_str = str(v)
-            is_image = any(val_str.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp', '.gif']) or '/media/' in val_str and any(ext in val_str.lower() for ext in ['image', 'photo', '.jpg', '.jpeg', '.png', '.webp'])
-            
-            if is_image and val_str.startswith(('http://', 'https://', '/media/')):
-                # Если это путь к изображению, рендерим тег img с превью
-                v_formatted = f'<a href="{val_str}" target="_blank"><img src="{val_str}" style="max-height: 100px; max-width: 150px; border-radius: 6px; object-fit: cover; border: 1px solid #ddd;" /></a>'
-            else:
-                v_formatted = val_str
+        # 1. Сначала выводим текстовые ответы из JSON
+        if obj.answers:
+            for k, v in obj.answers.items():
+                label = k
+                if k.startswith('q_') and k[2:].isdigit():
+                    q = RecruitmentQuestion.objects.filter(id=k[2:]).first()
+                    if q: label = q.label
                 
-            html += f'<tr style="border-bottom: 1px solid #eee;"><td style="padding: 8px; width: 40%; color: #666; font-weight: bold;">{label}</td><td style="padding: 8px;">{v_formatted}</td></tr>'
-            
+                if isinstance(v, list):
+                    v = ", ".join(map(str, v))
+                
+                html += f'<tr style="border-bottom: 1px solid #eee;"><td style="padding: 8px; width: 40%; color: #666; font-weight: bold;">{label}</td><td style="padding: 8px;">{v}</td></tr>'
+
+        # 2. Отдельно выводим прикрепленные файлы (фото/видео), если они есть в базе
+        if hasattr(obj, 'attachments') and obj.attachments.exists():
+            for att in obj.attachments.all():
+                file_url = att.file.url if att.file else ""
+                if file_url:
+                    # Проверяем, картинка ли это
+                    is_img = any(file_url.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp', '.gif'])
+                    if is_img:
+                        val_formatted = f'<a href="{file_url}" target="_blank"><img src="{file_url}" style="max-height: 120px; max-width: 180px; border-radius: 6px; object-fit: cover; border: 1px solid #ddd;" /></a>'
+                    else:
+                        val_formatted = f'<a href="{file_url}" target="_blank" style="color: #2563EB; text-decoration: underline;">Открыть файл</a>'
+                    
+                    html += f'<tr style="border-bottom: 1px solid #eee;"><td style="padding: 8px; width: 40%; color: #666; font-weight: bold;">📎 Прикрепленный файл</td><td style="padding: 8px;">{val_formatted}</td></tr>'
+
         html += '</table>'
         return format_html(html)
     answers_table.short_description = "Ответы пользователя"
