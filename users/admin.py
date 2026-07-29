@@ -363,35 +363,39 @@ class RecruitmentApplicationAdmin(admin.ModelAdmin):
     status_badge.short_description = "Статус"
 
     def answers_table(self, obj):
-        # 1. Собираем вложения из таблицы RecruitmentAttachment (если они там есть)
+        # 1. Достаём все вложения из БД (и через attachments, и через _set)
         attachments_manager = getattr(obj, 'attachments', None) or getattr(obj, 'recruitmentattachment_set', None)
         attachments_list = list(attachments_manager.all()) if attachments_manager else []
         
-        # Группируем вложения по label (например, {'q_5': [url, ...]})
-        attachments_map = {}
-        for att in attachments_list:
-            if att.file:
-                lbl = str(att.label).strip() if hasattr(att, 'label') and att.label else ''
-                if lbl not in attachments_map:
-                    attachments_map[lbl] = []
-                attachments_map[lbl].append(att.file.url)
+        # Собираем все URL из таблицы вложений в список
+        all_attachment_urls = [att.file.url for att in attachments_list if att.file]
+
+        # =========================================================
+        # 🔍 ДИАГНОСТИЧЕСКАЯ ПАНЕЛЬ (Покажет правду прямо в админке)
+        # =========================================================
+        debug_html = f'''
+        <div style="background: rgba(59, 130, 246, 0.12); border-left: 4px solid #3b82f6; padding: 12px; margin-bottom: 15px; border-radius: 6px; font-size: 13px; color: inherit;">
+            <b style="color: #3b82f6;">🔍 Диагностика заявки #{obj.id}:</b><br>
+            • <b>Файлов в таблице вложений (attachments):</b> {len(all_attachment_urls)} шт. <i>({', '.join(all_attachment_urls) if all_attachment_urls else 'пусто'})</i><br>
+            • <b>Сырой JSON из answers:</b> <code>{obj.answers}</code>
+        </div>
+        '''
+        # =========================================================
 
         if not obj.answers and not attachments_list: 
-            return "Нет ответов"
+            return format_html(debug_html + "Нет ответов")
             
-        html = '<table style="width:100%; border-collapse: collapse;">'
+        html = debug_html + '<table style="width:100%; border-collapse: collapse;">'
         rendered_urls = set()
 
-        # 2. Перебираем ответы из JSON
+        # 2. Выводим ответы из JSON анкеты
         if obj.answers:
             for k, v in obj.answers.items():
                 label = k
-                q_id = None
                 question = None
 
                 if k.startswith('q_') and k[2:].isdigit():
-                    q_id = k[2:]
-                    question = RecruitmentQuestion.objects.filter(id=q_id).first()
+                    question = RecruitmentQuestion.objects.filter(id=k[2:]).first()
                     if question: 
                         label = question.label
                 
@@ -399,29 +403,27 @@ class RecruitmentApplicationAdmin(admin.ModelAdmin):
                     v = ", ".join(map(str, v))
                 
                 val_str = str(v).strip()
+                matched_url = None
+
+                # --- АГРЕССИВНЫЙ ПОИСК КАРТИНКИ ---
+                # 1) Если само значение содержит ссылку или путь к файлу
+                is_file_path = (
+                    any(ext in val_str.lower() for ext in ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.svg']) or
+                    '/media/' in val_str or
+                    '/recruitments/' in val_str or
+                    val_str.startswith('http://') or
+                    val_str.startswith('https://')
+                )
+                if is_file_path:
+                    matched_url = val_str
                 
-                # --- УМНЫЙ ПОИСК ФОТО ---
-                # 1) Ищем в базе вложений по ключу 'q_5' или по ID '5'
-                file_urls = attachments_map.get(k) or (attachments_map.get(q_id) if q_id else None)
-                matched_url = file_urls[0] if file_urls else None
-
-                # 2) ЕСЛИ НЕ НАШЛИ В БАЗЕ ВЛОЖЕНИЙ: проверяем, не является ли сам текст в answers ссылкой/путем к файлу!
-                if not matched_url and val_str:
-                    is_img_path = (
-                        any(val_str.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp', '.gif']) or
-                        ('/media/' in val_str and any(ext in val_str.lower() for ext in ['.jpg', '.jpeg', '.png', '.webp'])) or
-                        ('/recruitments/' in val_str)
-                    )
-                    if is_img_path:
-                        matched_url = val_str
-
-                # 3) Если это вопрос типа 'photo' и у нас есть незадействованный файл из attachments_list
-                if not matched_url and question and getattr(question, 'field_type', '') == 'photo' and attachments_list:
-                    for att in attachments_list:
-                        if att.file and att.file.url not in rendered_urls:
-                            matched_url = att.file.url
+                # 2) Если это вопрос с типом "photo" (или в названии есть слово фото/photo), берём первый свободный URL из базы
+                elif (question and getattr(question, 'field_type', '') == 'photo') or ('фото' in label.lower()) or ('photo' in label.lower()):
+                    for url in all_attachment_urls:
+                        if url not in rendered_urls:
+                            matched_url = url
                             break
-                # ------------------------
+                # ----------------------------------
 
                 if matched_url:
                     rendered_urls.add(matched_url)
@@ -435,7 +437,7 @@ class RecruitmentApplicationAdmin(admin.ModelAdmin):
                 else:
                     v_formatted = val_str
                 
-                # color: inherit и opacity: 0.9 решают проблему с черным текстом в темной теме
+                # color: inherit и opacity: 0.9 решают проблему с черным текстом в темной теме Jazzmin
                 html += f'''
                     <tr style="border-bottom: 1px solid rgba(128,128,128,0.2);">
                         <td style="padding: 14px 10px; width: 35%; opacity: 0.9; font-weight: 600; font-size: 14px; vertical-align: top; color: inherit;">{label}</td>
@@ -443,25 +445,23 @@ class RecruitmentApplicationAdmin(admin.ModelAdmin):
                     </tr>
                 '''
 
-        # 3. Если какие-то файлы всё ещё не вывелись выше — выводим их здесь
-        for att in attachments_list:
-            if not att.file or att.file.url in rendered_urls:
+        # 3. Если в базе вложений остались фото, которые не привязались к вопросам — выводим их в конце таблицы
+        for url in all_attachment_urls:
+            if url in rendered_urls:
                 continue
                 
-            file_url = att.file.url
-            is_img = any(file_url.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp', '.gif'])
-            
+            is_img = any(ext in url.lower() for ext in ['.jpg', '.jpeg', '.png', '.webp', '.gif'])
             if is_img:
                 v_formatted = f'''
                     <div style="margin: 10px 0;">
-                        <a href="{file_url}" target="_blank" title="Нажмите, чтобы открыть оригинал">
-                            <img src="{file_url}" style="max-height: 450px; max-width: 550px; width: 100%; border-radius: 10px; object-fit: contain; border: 2px solid rgba(128,128,128,0.3); background: rgba(0,0,0,0.05); padding: 6px; box-shadow: 0 4px 14px rgba(0,0,0,0.18);" />
+                        <a href="{url}" target="_blank" title="Нажмите, чтобы открыть оригинал">
+                            <img src="{url}" style="max-height: 450px; max-width: 550px; width: 100%; border-radius: 10px; object-fit: contain; border: 2px solid rgba(128,128,128,0.3); background: rgba(0,0,0,0.05); padding: 6px; box-shadow: 0 4px 14px rgba(0,0,0,0.18);" />
                         </a>
                     </div>
                 '''
                 label_text = "📷 Загруженное фото"
             else:
-                v_formatted = f'<a href="{file_url}" target="_blank" style="color: #3b82f6; text-decoration: underline; font-weight: bold; font-size: 14px;">Скачать / Открыть файл</a>'
+                v_formatted = f'<a href="{url}" target="_blank" style="color: #3b82f6; text-decoration: underline; font-weight: bold; font-size: 14px;">Скачать / Открыть файл</a>'
                 label_text = "📎 Прикрепленный файл"
                 
             html += f'''
