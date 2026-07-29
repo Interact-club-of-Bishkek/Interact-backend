@@ -363,15 +363,19 @@ class RecruitmentApplicationAdmin(admin.ModelAdmin):
     status_badge.short_description = "Статус"
 
     def answers_table(self, obj):
-        if not obj.answers and not (hasattr(obj, 'attachments') and obj.attachments.exists()): 
+        # 1. Надежно получаем менеджер вложений (ищем и по attachments, и по стандартному recruitmentattachment_set)
+        attachments_manager = getattr(obj, 'attachments', None) or getattr(obj, 'recruitmentattachment_set', None)
+        has_attachments = attachments_manager and attachments_manager.exists()
+
+        if not obj.answers and not has_attachments: 
             return "Нет ответов"
             
         html = '<table style="width:100%; border-collapse: collapse;">'
         
-        # 1. Собираем все загруженные файлы из attachments в список/словарь
+        # Собираем список всех URL файлов из базы
         attachments_files = []
-        if hasattr(obj, 'attachments') and obj.attachments.exists():
-            for att in obj.attachments.all():
+        if has_attachments:
+            for att in attachments_manager.all():
                 if att.file:
                     attachments_files.append(att.file.url)
 
@@ -389,31 +393,31 @@ class RecruitmentApplicationAdmin(admin.ModelAdmin):
                 
                 val_str = str(v).strip()
                 
-                # Проверяем, является ли сам ответ ссылкой/путем на картинку
+                # Проверяем, является ли значение ссылкой/путем на картинку
                 is_img_link = any(val_str.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp', '.gif']) or ('/media/' in val_str and any(ext in val_str.lower() for ext in ['.jpg', '.jpeg', '.png', '.webp']))
                 
                 if is_img_link:
-                    # Рендерим БОЛЬШОЕ фото прямо напротив вопроса
                     v_formatted = f'''
                         <div style="margin: 8px 0;">
                             <a href="{val_str}" target="_blank">
-                                <img src="{val_str}" style="max-height: 380px; max-width: 480px; width: 100%; border-radius: 10px; object-fit: contain; border: 2px solid #ddd; background: #f8f9fa; padding: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);" />
+                                <img src="{val_str}" style="max-height: 380px; max-width: 480px; width: 100%; border-radius: 10px; object-fit: contain; border: 2px solid rgba(128,128,128,0.3); background: rgba(0,0,0,0.05); padding: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);" />
                             </a>
                         </div>
                     '''
                 else:
                     v_formatted = val_str
                 
+                # Убрали жесткий черный цвет — теперь текст использует цвет темы админки
                 html += f'''
-                    <tr style="border-bottom: 1px solid #eee;">
-                        <td style="padding: 14px 10px; width: 35%; color: #333; font-weight: 600; font-size: 14px; vertical-align: top;">{label}</td>
-                        <td style="padding: 14px 10px; vertical-align: top; font-size: 14px; color: #111;">{v_formatted}</td>
+                    <tr style="border-bottom: 1px solid rgba(128,128,128,0.2);">
+                        <td style="padding: 14px 10px; width: 35%; opacity: 0.8; font-weight: 600; font-size: 14px; vertical-align: top;">{label}</td>
+                        <td style="padding: 14px 10px; vertical-align: top; font-size: 14px; font-weight: 500;">{v_formatted}</td>
                     </tr>
                 '''
 
-        # 3. Если файл сохранился только в модели attachments (и не отобразился выше), выводим его БОЛЬШИМ ФОТО внутри этой же таблицы
+        # 3. Выводим все загруженные фото из таблицы вложений прямо в эту же таблицу
         for file_url in attachments_files:
-            # Проверяем, не вывели ли мы уже этот URL на шаге 2
+            # Пропускаем, если этот URL уже вывелся на предыдущем шаге
             if obj.answers and any(file_url in str(val) for val in obj.answers.values()):
                 continue
                 
@@ -422,18 +426,18 @@ class RecruitmentApplicationAdmin(admin.ModelAdmin):
                 v_formatted = f'''
                     <div style="margin: 8px 0;">
                         <a href="{file_url}" target="_blank">
-                            <img src="{file_url}" style="max-height: 380px; max-width: 480px; width: 100%; border-radius: 10px; object-fit: contain; border: 2px solid #ddd; background: #f8f9fa; padding: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);" />
+                            <img src="{file_url}" style="max-height: 380px; max-width: 480px; width: 100%; border-radius: 10px; object-fit: contain; border: 2px solid rgba(128,128,128,0.3); background: rgba(0,0,0,0.05); padding: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);" />
                         </a>
                     </div>
                 '''
                 label_text = "📷 Загруженное фото"
             else:
-                v_formatted = f'<a href="{file_url}" target="_blank" style="color: #2563EB; text-decoration: underline; font-weight: bold; font-size: 14px;">Скачать / Открыть файл</a>'
+                v_formatted = f'<a href="{file_url}" target="_blank" style="color: #3b82f6; text-decoration: underline; font-weight: bold; font-size: 14px;">Скачать / Открыть файл</a>'
                 label_text = "📎 Прикрепленный файл"
                 
             html += f'''
-                <tr style="border-bottom: 1px solid #eee;">
-                    <td style="padding: 14px 10px; width: 35%; color: #333; font-weight: 600; font-size: 14px; vertical-align: top;">{label_text}</td>
+                <tr style="border-bottom: 1px solid rgba(128,128,128,0.2);">
+                    <td style="padding: 14px 10px; width: 35%; opacity: 0.8; font-weight: 600; font-size: 14px; vertical-align: top;">{label_text}</td>
                     <td style="padding: 14px 10px; vertical-align: top;">{v_formatted}</td>
                 </tr>
             '''
