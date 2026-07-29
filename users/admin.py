@@ -363,14 +363,14 @@ class RecruitmentApplicationAdmin(admin.ModelAdmin):
     status_badge.short_description = "Статус"
 
     def answers_table(self, obj):
-        # 1. Получаем все вложения заявки и группируем их по label (например, {'q_5': [att1, ...]})
+        # 1. Собираем вложения из таблицы RecruitmentAttachment (если они там есть)
         attachments_manager = getattr(obj, 'attachments', None) or getattr(obj, 'recruitmentattachment_set', None)
         attachments_list = list(attachments_manager.all()) if attachments_manager else []
         
+        # Группируем вложения по label (например, {'q_5': [url, ...]})
         attachments_map = {}
         for att in attachments_list:
             if att.file:
-                # Группируем по очищенному label (q_1, q_2 и т.д.)
                 lbl = str(att.label).strip() if hasattr(att, 'label') and att.label else ''
                 if lbl not in attachments_map:
                     attachments_map[lbl] = []
@@ -380,11 +380,9 @@ class RecruitmentApplicationAdmin(admin.ModelAdmin):
             return "Нет ответов"
             
         html = '<table style="width:100%; border-collapse: collapse;">'
-        
-        # Список URL-ов, которые мы уже отобразили (чтобы не дублировать их ниже)
         rendered_urls = set()
 
-        # 2. Выводим вопросы и ответы из JSON
+        # 2. Перебираем ответы из JSON
         if obj.answers:
             for k, v in obj.answers.items():
                 label = k
@@ -402,39 +400,50 @@ class RecruitmentApplicationAdmin(admin.ModelAdmin):
                 
                 val_str = str(v).strip()
                 
-                # Ищем URL файла: сначала по ключу вопроса (k), затем по id (q_id)
+                # --- УМНЫЙ ПОИСК ФОТО ---
+                # 1) Ищем в базе вложений по ключу 'q_5' или по ID '5'
                 file_urls = attachments_map.get(k) or (attachments_map.get(q_id) if q_id else None)
-                
-                # Если файл нашелся по label — берем его!
-                if file_urls:
-                    matched_url = file_urls[0]
-                # Либо проверяем: вдруг сама строка ответа — это ссылка на фото
-                elif any(val_str.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp', '.gif']) or ('/media/' in val_str and any(ext in val_str.lower() for ext in ['.jpg', '.jpeg', '.png', '.webp'])):
-                    matched_url = val_str
-                else:
-                    matched_url = None
+                matched_url = file_urls[0] if file_urls else None
+
+                # 2) ЕСЛИ НЕ НАШЛИ В БАЗЕ ВЛОЖЕНИЙ: проверяем, не является ли сам текст в answers ссылкой/путем к файлу!
+                if not matched_url and val_str:
+                    is_img_path = (
+                        any(val_str.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp', '.gif']) or
+                        ('/media/' in val_str and any(ext in val_str.lower() for ext in ['.jpg', '.jpeg', '.png', '.webp'])) or
+                        ('/recruitments/' in val_str)
+                    )
+                    if is_img_path:
+                        matched_url = val_str
+
+                # 3) Если это вопрос типа 'photo' и у нас есть незадействованный файл из attachments_list
+                if not matched_url and question and getattr(question, 'field_type', '') == 'photo' and attachments_list:
+                    for att in attachments_list:
+                        if att.file and att.file.url not in rendered_urls:
+                            matched_url = att.file.url
+                            break
+                # ------------------------
 
                 if matched_url:
                     rendered_urls.add(matched_url)
                     v_formatted = f'''
                         <div style="margin: 10px 0;">
                             <a href="{matched_url}" target="_blank" title="Нажмите, чтобы открыть оригинал">
-                                <img src="{matched_url}" style="max-height: 420px; max-width: 520px; width: 100%; border-radius: 10px; object-fit: contain; border: 2px solid rgba(128,128,128,0.3); background: rgba(0,0,0,0.05); padding: 6px; box-shadow: 0 4px 14px rgba(0,0,0,0.18);" />
+                                <img src="{matched_url}" style="max-height: 450px; max-width: 550px; width: 100%; border-radius: 10px; object-fit: contain; border: 2px solid rgba(128,128,128,0.3); background: rgba(0,0,0,0.05); padding: 6px; box-shadow: 0 4px 14px rgba(0,0,0,0.18);" />
                             </a>
                         </div>
                     '''
                 else:
                     v_formatted = val_str
                 
-                # Использовано opacity: 0.85 и color: inherit — текст отлично виден и на белом, и на черном фоне!
+                # color: inherit и opacity: 0.9 решают проблему с черным текстом в темной теме
                 html += f'''
                     <tr style="border-bottom: 1px solid rgba(128,128,128,0.2);">
-                        <td style="padding: 14px 10px; width: 35%; opacity: 0.85; font-weight: 600; font-size: 14px; vertical-align: top; color: inherit;">{label}</td>
+                        <td style="padding: 14px 10px; width: 35%; opacity: 0.9; font-weight: 600; font-size: 14px; vertical-align: top; color: inherit;">{label}</td>
                         <td style="padding: 14px 10px; vertical-align: top; font-size: 14px; font-weight: 500; color: inherit;">{v_formatted}</td>
                     </tr>
                 '''
 
-        # 3. Если остались какие-то файлы, которые не совпали по ключам из obj.answers — выводим их в конце таблицы
+        # 3. Если какие-то файлы всё ещё не вывелись выше — выводим их здесь
         for att in attachments_list:
             if not att.file or att.file.url in rendered_urls:
                 continue
@@ -446,7 +455,7 @@ class RecruitmentApplicationAdmin(admin.ModelAdmin):
                 v_formatted = f'''
                     <div style="margin: 10px 0;">
                         <a href="{file_url}" target="_blank" title="Нажмите, чтобы открыть оригинал">
-                            <img src="{file_url}" style="max-height: 420px; max-width: 520px; width: 100%; border-radius: 10px; object-fit: contain; border: 2px solid rgba(128,128,128,0.3); background: rgba(0,0,0,0.05); padding: 6px; box-shadow: 0 4px 14px rgba(0,0,0,0.18);" />
+                            <img src="{file_url}" style="max-height: 450px; max-width: 550px; width: 100%; border-radius: 10px; object-fit: contain; border: 2px solid rgba(128,128,128,0.3); background: rgba(0,0,0,0.05); padding: 6px; box-shadow: 0 4px 14px rgba(0,0,0,0.18);" />
                         </a>
                     </div>
                 '''
@@ -457,7 +466,7 @@ class RecruitmentApplicationAdmin(admin.ModelAdmin):
                 
             html += f'''
                 <tr style="border-bottom: 1px solid rgba(128,128,128,0.2);">
-                    <td style="padding: 14px 10px; width: 35%; opacity: 0.85; font-weight: 600; font-size: 14px; vertical-align: top; color: inherit;">{label_text}</td>
+                    <td style="padding: 14px 10px; width: 35%; opacity: 0.9; font-weight: 600; font-size: 14px; vertical-align: top; color: inherit;">{label_text}</td>
                     <td style="padding: 14px 10px; vertical-align: top; color: inherit;">{v_formatted}</td>
                 </tr>
             '''
