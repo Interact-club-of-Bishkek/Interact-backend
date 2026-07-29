@@ -364,37 +364,53 @@ class RecruitmentApplicationAdmin(admin.ModelAdmin):
     status_badge.short_description = "Статус"
 
     def answers_table(self, obj):
-        if not obj.answers and not hasattr(obj, 'attachments'): 
+        if not obj.answers: 
             return "Нет ответов"
             
         html = '<table style="width:100%; border-collapse: collapse;">'
         
-        # 1. Сначала выводим текстовые ответы из JSON
-        if obj.answers:
-            for k, v in obj.answers.items():
-                label = k
-                if k.startswith('q_') and k[2:].isdigit():
-                    q = RecruitmentQuestion.objects.filter(id=k[2:]).first()
-                    if q: label = q.label
-                
-                if isinstance(v, list):
-                    v = ", ".join(map(str, v))
-                
-                html += f'<tr style="border-bottom: 1px solid #eee;"><td style="padding: 8px; width: 40%; color: #666; font-weight: bold;">{label}</td><td style="padding: 8px;">{v}</td></tr>'
-
-        # 2. Отдельно выводим прикрепленные файлы (фото/видео), если они есть в базе
+        # Собираем вложения в словарь для быстрого поиска по ключу или вопросу
+        attachments_map = {}
         if hasattr(obj, 'attachments') and obj.attachments.exists():
             for att in obj.attachments.all():
-                file_url = att.file.url if att.file else ""
-                if file_url:
-                    # Проверяем, картинка ли это
-                    is_img = any(file_url.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp', '.gif'])
-                    if is_img:
-                        val_formatted = f'<a href="{file_url}" target="_blank"><img src="{file_url}" style="max-height: 120px; max-width: 180px; border-radius: 6px; object-fit: cover; border: 1px solid #ddd;" /></a>'
-                    else:
-                        val_formatted = f'<a href="{file_url}" target="_blank" style="color: #2563EB; text-decoration: underline;">Открыть файл</a>'
-                    
-                    html += f'<tr style="border-bottom: 1px solid #eee;"><td style="padding: 8px; width: 40%; color: #666; font-weight: bold;">📎 Прикрепленный файл</td><td style="padding: 8px;">{val_formatted}</td></tr>'
+                if att.file:
+                    file_url = att.file.url
+                    # Если у аттача есть привязка к вопросу (например, вопрос ID)
+                    if hasattr(att, 'question_id') and att.question_id:
+                        attachments_map[str(att.question_id)] = file_url
+                    # Или сохраняем все файлы в список на случай общего поиска
+                    attachments_map[file_url] = file_url
+
+        for k, v in obj.answers.items():
+            label = k
+            q_id = None
+            if k.startswith('q_') and k[2:].isdigit():
+                q_id = k[2:]
+                q = RecruitmentQuestion.objects.filter(id=q_id).first()
+                if q: label = q.label
+            
+            # Проверяем, является ли значение или вложение картинкой
+            file_url = None
+            if q_id and q_id in attachments_map:
+                file_url = attachments_map[q_id]
+            elif isinstance(v, str) and any(v.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp', '.gif']):
+                file_url = v
+            
+            if file_url:
+                # 🖼 Уведомленный нормальный размер картинки (например, max-height: 250px, max-width: 350px)
+                v_formatted = f'''
+                    <div style="margin-top: 5px;">
+                        <a href="{file_url}" target="_blank">
+                            <img src="{file_url}" style="max-height: 250px; max-width: 350px; width: 100%; border-radius: 8px; object-fit: contain; border: 1px solid #ccc; background: #f9f9f9; padding: 4px;" />
+                        </a>
+                    </div>
+                '''
+            else:
+                if isinstance(v, list):
+                    v = ", ".join(map(str, v))
+                v_formatted = str(v)
+                
+            html += f'<tr style="border-bottom: 1px solid #eee;"><td style="padding: 12px 8px; width: 40%; color: #444; font-weight: bold; vertical-align: top;">{label}</td><td style="padding: 12px 8px; vertical-align: top;">{v_formatted}</td></tr>'
 
         html += '</table>'
         return format_html(html)
