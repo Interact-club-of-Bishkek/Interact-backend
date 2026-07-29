@@ -363,9 +363,8 @@ class RecruitmentApplicationAdmin(admin.ModelAdmin):
     status_badge.short_description = "Статус"
 
     def answers_table(self, obj):
-        # 1. Достаём все вложения из БД (и через attachments, и через _set)
-        attachments_manager = getattr(obj, 'attachments', None) or getattr(obj, 'recruitmentattachment_set', None)
-        attachments_list = list(attachments_manager.all()) if attachments_manager else []
+
+        attachments_list = list(obj.files.all())
         
         # Собираем все URL из таблицы вложений в список
         all_attachment_urls = [att.file.url for att in attachments_list if att.file]
@@ -474,7 +473,7 @@ class RecruitmentApplicationAdmin(admin.ModelAdmin):
         html += '</table>'
         return format_html(html)
     answers_table.short_description = "Ответы пользователя"
-    
+
     @admin.action(description="✅ Принять выбранные заявки")
     def mark_accepted(self, request, queryset):
         queryset.update(status='accepted')
