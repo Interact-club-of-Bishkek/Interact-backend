@@ -331,7 +331,6 @@ class RecruitmentApplicationAdmin(admin.ModelAdmin):
     list_filter = ('is_archived', 'status', 'recruitment', 'created_at')
     
     readonly_fields = ('created_at', 'answers_table')
-    inlines = [RecruitmentAttachmentInline]
     
     # 👈 ДОБАВИЛИ ЭКШЕНЫ АРХИВАЦИИ
     actions = ['mark_accepted', 'mark_rejected', 'mark_archived', 'unmark_archived']
@@ -369,38 +368,75 @@ class RecruitmentApplicationAdmin(admin.ModelAdmin):
             
         html = '<table style="width:100%; border-collapse: collapse;">'
         
-        # 1. Выводим все текстовые ответы
+        # 1. Собираем все загруженные файлы из attachments в список/словарь
+        attachments_files = []
+        if hasattr(obj, 'attachments') and obj.attachments.exists():
+            for att in obj.attachments.all():
+                if att.file:
+                    attachments_files.append(att.file.url)
+
+        # 2. Выводим ответы из JSON анкеты
         if obj.answers:
             for k, v in obj.answers.items():
                 label = k
                 if k.startswith('q_') and k[2:].isdigit():
                     q = RecruitmentQuestion.objects.filter(id=k[2:]).first()
-                    if q: label = q.label
+                    if q: 
+                        label = q.label
                 
                 if isinstance(v, list):
                     v = ", ".join(map(str, v))
                 
-                html += f'<tr style="border-bottom: 1px solid #eee;"><td style="padding: 12px 8px; width: 40%; color: #444; font-weight: bold; vertical-align: top;">{label}</td><td style="padding: 12px 8px; vertical-align: top; color: #111;">{v}</td></tr>'
+                val_str = str(v).strip()
+                
+                # Проверяем, является ли сам ответ ссылкой/путем на картинку
+                is_img_link = any(val_str.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp', '.gif']) or ('/media/' in val_str and any(ext in val_str.lower() for ext in ['.jpg', '.jpeg', '.png', '.webp']))
+                
+                if is_img_link:
+                    # Рендерим БОЛЬШОЕ фото прямо напротив вопроса
+                    v_formatted = f'''
+                        <div style="margin: 8px 0;">
+                            <a href="{val_str}" target="_blank">
+                                <img src="{val_str}" style="max-height: 380px; max-width: 480px; width: 100%; border-radius: 10px; object-fit: contain; border: 2px solid #ddd; background: #f8f9fa; padding: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);" />
+                            </a>
+                        </div>
+                    '''
+                else:
+                    v_formatted = val_str
+                
+                html += f'''
+                    <tr style="border-bottom: 1px solid #eee;">
+                        <td style="padding: 14px 10px; width: 35%; color: #333; font-weight: 600; font-size: 14px; vertical-align: top;">{label}</td>
+                        <td style="padding: 14px 10px; vertical-align: top; font-size: 14px; color: #111;">{v_formatted}</td>
+                    </tr>
+                '''
 
-        # 2. Выводим все прикрепленные файлы (фото/видео) прямо здесь же нормальным крупным превью
-        if hasattr(obj, 'attachments') and obj.attachments.exists():
-            for att in obj.attachments.all():
-                if att.file:
-                    file_url = att.file.url
-                    is_img = any(file_url.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp', '.gif'])
-                    
-                    if is_img:
-                        v_formatted = f'''
-                            <div style="margin-top: 5px;">
-                                <a href="{file_url}" target="_blank">
-                                    <img src="{file_url}" style="max-height: 250px; max-width: 350px; width: 100%; border-radius: 8px; object-fit: contain; border: 1px solid #ccc; background: #f9f9f9; padding: 4px;" />
-                                </a>
-                            </div>
-                        '''
-                    else:
-                        v_formatted = f'<a href="{file_url}" target="_blank" style="color: #2563EB; text-decoration: underline; font-weight: bold;">Скачать/Открыть файл</a>'
-                    
-                    html += f'<tr style="border-bottom: 1px solid #eee;"><td style="padding: 12px 8px; width: 40%; color: #444; font-weight: bold; vertical-align: top;">📷 Загруженное фото / файл</td><td style="padding: 12px 8px; vertical-align: top;">{v_formatted}</td></tr>'
+        # 3. Если файл сохранился только в модели attachments (и не отобразился выше), выводим его БОЛЬШИМ ФОТО внутри этой же таблицы
+        for file_url in attachments_files:
+            # Проверяем, не вывели ли мы уже этот URL на шаге 2
+            if obj.answers and any(file_url in str(val) for val in obj.answers.values()):
+                continue
+                
+            is_img = any(file_url.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp', '.gif'])
+            if is_img:
+                v_formatted = f'''
+                    <div style="margin: 8px 0;">
+                        <a href="{file_url}" target="_blank">
+                            <img src="{file_url}" style="max-height: 380px; max-width: 480px; width: 100%; border-radius: 10px; object-fit: contain; border: 2px solid #ddd; background: #f8f9fa; padding: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);" />
+                        </a>
+                    </div>
+                '''
+                label_text = "📷 Загруженное фото"
+            else:
+                v_formatted = f'<a href="{file_url}" target="_blank" style="color: #2563EB; text-decoration: underline; font-weight: bold; font-size: 14px;">Скачать / Открыть файл</a>'
+                label_text = "📎 Прикрепленный файл"
+                
+            html += f'''
+                <tr style="border-bottom: 1px solid #eee;">
+                    <td style="padding: 14px 10px; width: 35%; color: #333; font-weight: 600; font-size: 14px; vertical-align: top;">{label_text}</td>
+                    <td style="padding: 14px 10px; vertical-align: top;">{v_formatted}</td>
+                </tr>
+            '''
 
         html += '</table>'
         return format_html(html)
