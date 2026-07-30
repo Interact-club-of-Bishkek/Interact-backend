@@ -3,7 +3,7 @@
 <html lang="ru" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Волонтёрство | Interact Club of Bishkek</title>
     <meta name="description" content="Хочешь стать частью большой семьи волонтеров? Узнай, как вступить в Interact Club of Bishkek, развивай лидерские навыки и помогай обществу вместе с нами.">
     
@@ -24,10 +24,16 @@
                         'royal-blue': '#2563EB',
                         'light-blue': '#60A5FA',
                         'card-dark': '#121212',
+                        'almost-white': '#F5F5F5',
+                        'figma-bg': '#040B16',       
+                        'figma-card': '#22283A',
                     },
                     fontFamily: {
                         header: ['"Cormorant"', 'serif'],
                         body: ['"Geologica"', 'sans-serif'],
+                    },
+                    backgroundImage: {
+                        'gradient-glow': 'linear-gradient(135deg, #1E40AF 0%, #3B82F6 100%)',
                     }
                 }
             }
@@ -74,14 +80,42 @@
         .snap-item { scroll-snap-align: center; }
         .cursor-zoom-in { cursor: zoom-in; }
         body { -webkit-tap-highlight-color: transparent; }
+
+        /* --- СТИЛИ ИИ ЧАТА --- */
+        .chat-widget { position: fixed; bottom: 24px; right: 24px; z-index: 1000; }
+        .chat-btn { width: 60px; height: 60px; border-radius: 50%; background: #2563EB; color: white; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 10px 25px rgba(37, 99, 235, 0.4); cursor: pointer; transition: transform 0.3s ease; }
+        .chat-btn:hover { transform: scale(1.1); }
+        .chat-window { position: absolute; bottom: 80px; right: 0; width: 350px; height: 500px; background: #121212; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.8); display: flex; flex-direction: column; overflow: hidden; opacity: 0; pointer-events: none; transform: translateY(20px) scale(0.95); transition: all 0.3s ease; transform-origin: bottom right; }
+        .chat-window.active { opacity: 1; pointer-events: auto; transform: translateY(0) scale(1); }
+        .chat-header { background: #2563EB; padding: 15px 20px; font-weight: bold; font-family: 'Cormorant', serif; font-size: 20px; display: flex; justify-content: space-between; align-items: center; color: white; }
+        .chat-header i { cursor: pointer; opacity: 0.8; transition: 0.2s; }
+        .chat-header i:hover { opacity: 1; }
+        .chat-messages { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+        .msg-bubble { max-width: 85%; padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.4; word-wrap: break-word; font-family: 'Geologica', sans-serif; white-space: pre-wrap; }
+        .msg-ai { align-self: flex-start; background: rgba(255,255,255,0.1); color: white; border-bottom-left-radius: 4px; }
+        .msg-user { align-self: flex-end; background: #2563EB; color: white; border-bottom-right-radius: 4px; }
+        .chat-input-area { padding: 15px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; gap: 10px; background: #121212; }
+        .chat-input { flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 10px 15px; border-radius: 20px; color: white; outline: none; transition: 0.2s; font-family: 'Geologica', sans-serif; font-size: 14px;}
+        .chat-input:focus { border-color: #2563EB; }
+        .chat-send { background: #2563EB; border: none; width: 42px; height: 42px; border-radius: 50%; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; flex-shrink: 0;}
+        .chat-send:hover { background: #1D4ED8; }
+        .typing { display: inline-flex; gap: 4px; align-items: center; padding: 14px 16px; }
+        .typing span { width: 6px; height: 6px; background: #fff; border-radius: 50%; animation: blink 1.4s infinite both; }
+        .typing span:nth-child(2) { animation-delay: 0.2s; }
+        .typing span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes blink { 0% { opacity: 0.2; } 20% { opacity: 1; } 100% { opacity: 0.2; } }
+        @media (max-width: 480px) {
+            .chat-window { width: calc(100vw - 48px); bottom: 75px; height: 420px; }
+        }
     </style>
 </head>
 <body class="bg-black text-white font-body antialiased overflow-x-hidden selection:bg-royal-blue selection:text-white flex flex-col min-h-screen">
 
-    <!-- Navbar -->
+    <!-- Обновленный Navbar -->
     <header id="navbar" class="fixed w-full top-0 z-50 transition-all duration-300 py-3 md:py-4 border-b border-transparent">
         <div class="absolute inset-0 bg-black/90 backdrop-blur-md -z-10 opacity-0 transition-opacity duration-300" id="navbar-bg"></div>
         <div class="container mx-auto px-4 md:px-6 flex justify-between items-center relative z-20">
+            
             <a href="{% url 'main' %}" class="flex items-center gap-2 md:gap-3 cursor-pointer group">
                 <img src="{% static 'img/logo.png' %}" alt="Interact Club of Bishkek" class="w-9 h-9 md:w-10 md:h-10 rounded-full object-cover border border-white/10">
                 <span class="font-header font-bold text-lg md:text-xl uppercase tracking-wide group-hover:text-light-blue transition pt-1 hidden sm:block">Interact club of Bishkek</span>
@@ -95,15 +129,20 @@
             </nav>
 
             <div class="flex items-center gap-3 md:gap-4">
-                <a href="{% url 'donate-html' %}" class="hidden md:flex items-center justify-center h-10 px-6 rounded-xl text-white font-header font-bold text-lg btn-glow shadow-lg">Хочу помочь</a>
+                <a href="{% url 'donate-html' %}" class="hidden md:flex items-center justify-center h-10 px-6 rounded-xl text-white font-header font-bold text-lg btn-glow shadow-lg">
+                    Хочу помочь
+                </a>
                 <div class="flex gap-2">
-                    <a href="/login/" class="w-9 h-9 md:w-10 md:h-10 rounded-full bg-white/10 hover:bg-white hover:text-black flex items-center justify-center transition flex-shrink-0"><i class="fas fa-user text-xs md:text-base"></i></a>
-                    <button id="menu-btn" class="lg:hidden w-9 h-9 flex items-center justify-center text-lg text-white flex-shrink-0 bg-white/10 rounded-full active:scale-95 transition"><i class="fas fa-bars"></i></button>
+                    <a href="/login/" class="w-9 h-9 md:w-10 md:h-10 rounded-full bg-white/10 hover:bg-white hover:text-black flex items-center justify-center transition flex-shrink-0" title="Войти в личный кабинет">
+                        <i class="fas fa-user text-xs md:text-base"></i>
+                    </a>
+                    <button id="menu-btn" class="lg:hidden w-9 h-9 flex items-center justify-center text-lg text-white flex-shrink-0 bg-white/10 rounded-full active:scale-95 transition">
+                        <i class="fas fa-bars transition-transform duration-300"></i>
+                    </button>
                 </div>
             </div>
         </div>
 
-        <!-- Мобильное меню -->
         <div id="mobile-menu" class="hidden lg:hidden bg-black/95 backdrop-blur-xl fixed inset-0 top-[60px] z-40 p-6 flex flex-col gap-6 overflow-y-auto border-t border-white/10 pb-24">
             <a href="{% url 'about-html' %}" class="text-3xl font-header font-bold border-b border-white/10 pb-4">О нас</a>
             <a href="{% url 'projects-list-html' %}" class="text-3xl font-header font-bold border-b border-white/10 pb-4">Проекты</a>
@@ -114,12 +153,12 @@
     </header>
 
     <main class="flex-grow pt-[72px] md:pt-[88px]">
-        <section class="relative min-h-[60vh] sm:min-h-[70vh] md:h-screen flex items-center justify-center overflow-hidden px-4">
-            <div class="absolute inset-0 bg-black/40 z-10"></div>
-            <img src="{% static 'img/new_volunteer.webp' %}" class="absolute inset-0 w-full h-full object-cover opacity-50" alt="Volunteers Team">
-            <div class="container mx-auto px-6 relative z-20 text-center reveal active">
-                <h1 class="text-3xl sm:text-5xl md:text-8xl font-header font-bold uppercase mb-4 text-white drop-shadow-lg">Волонтёрство</h1>
-                <p class="max-w-2xl mx-auto text-gray-200 text-sm md:text-lg font-light leading-relaxed">
+        <section class="relative min-h-[50vh] sm:min-h-[70vh] md:h-screen flex items-center justify-center overflow-hidden px-4">
+            <div class="absolute inset-0 bg-black/50 md:bg-black/40 z-10"></div>
+            <img src="{% static 'img/new_volunteer.webp' %}" class="absolute inset-0 w-full h-full object-cover opacity-60 md:opacity-50" alt="Volunteers Team">
+            <div class="container mx-auto px-4 md:px-6 relative z-20 text-center reveal active pt-10 md:pt-0">
+                <h1 class="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-header font-bold uppercase mb-4 text-white drop-shadow-2xl">Волонтёрство</h1>
+                <p class="max-w-2xl mx-auto text-gray-200 text-sm md:text-lg font-light leading-relaxed px-2">
                     Interact Club of Bishkek открыт для партнёрства, новых идей и единомышленников. Вместе мы стремимся создавать будущее.
                 </p>
             </div>
@@ -128,30 +167,30 @@
         <!-- Описание и слайдер -->
         <section class="py-12 md:py-20 bg-black">
             <div class="container mx-auto px-4 md:px-6">
-                <div class="mb-20 md:mb-32 reveal">
-                    <h2 class="text-2xl sm:text-3xl md:text-5xl font-header font-bold uppercase mb-6 md:mb-8 text-white leading-tight">Волонтёрство в нашем фонде</h2>
-                    <div class="flex flex-col lg:grid lg:grid-cols-2 gap-10 lg:gap-16 items-start">
-                        <div class="text-gray-400 text-sm md:text-base leading-relaxed space-y-5 pr-2 sm:pr-0">
+                <div class="mb-16 md:mb-32 reveal">
+                    <h2 class="text-3xl md:text-5xl font-header font-bold uppercase mb-6 md:mb-8 text-white leading-tight">Волонтёрство в нашем фонде</h2>
+                    <div class="flex flex-col lg:grid lg:grid-cols-2 gap-8 lg:gap-16 items-start">
+                        <div class="text-gray-400 text-sm md:text-base leading-relaxed space-y-4 md:space-y-5">
                             <p>Мы всегда рады новым людям, готовым делиться своим временем, энергией и навыками ради помощи другим. Волонтёром может стать любой, кто разделяет ценности фонда, уважает наших подопечных и команду.</p>
                             <p>Наши волонтёры помогают на благотворительных акциях и мероприятиях, поддерживают информационную работу в социальных сетях, участвуют в организации и сопровождении сборов, а также делятся своим профессиональным опытом.</p>
                             <p>Чтобы присоединиться к команде, достаточно заполнить анкету и пройти короткое собеседование. Мы поддерживаем добровольцев на всех этапах.</p>
-                            <div class="pt-4">
-                                <a href="#volunteer-form" class="inline-block px-10 py-3.5 rounded-xl font-header font-bold text-lg text-white btn-glow shadow-lg transition text-center">Анкета</a>
+                            <div class="pt-2 md:pt-4">
+                                <a href="#volunteer-form" class="inline-block w-full sm:w-auto px-8 py-3.5 rounded-xl font-header font-bold text-lg text-white btn-glow shadow-lg transition text-center">Перейти к анкете</a>
                             </div>
                         </div>
 
-                        <div class="relative bg-white/5 rounded-[2.5rem] p-3 md:p-6 border border-white/5">
-                            <div id="volunteer-slider" class="flex gap-4 overflow-x-auto hide-scroll rounded-2xl pb-4">
-                                <div class="snap-item w-full max-w-[280px] sm:w-[280px] aspect-[4/5] bg-card-dark rounded-2xl overflow-hidden flex-shrink-0 border border-white/10 group">
+                        <div class="relative bg-white/5 rounded-[2rem] md:rounded-[2.5rem] p-3 md:p-6 border border-white/5 mt-4 md:mt-0">
+                            <div id="volunteer-slider" class="flex gap-3 md:gap-4 overflow-x-auto hide-scroll rounded-xl md:rounded-2xl pb-2 md:pb-4">
+                                <div class="snap-item w-[220px] sm:w-[280px] aspect-[4/5] bg-card-dark rounded-xl md:rounded-2xl overflow-hidden flex-shrink-0 border border-white/10 group">
                                     <img src="{% static 'img/img_1.webp' %}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 cursor-zoom-in" onclick="openPhotoModal(this.src)">
                                 </div>
-                                <div class="snap-item w-full max-w-[280px] sm:w-[280px] aspect-[4/5] bg-card-dark rounded-2xl overflow-hidden flex-shrink-0 border border-white/10 group">
+                                <div class="snap-item w-[220px] sm:w-[280px] aspect-[4/5] bg-card-dark rounded-xl md:rounded-2xl overflow-hidden flex-shrink-0 border border-white/10 group">
                                     <img src="{% static 'img/img_2.webp' %}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 cursor-zoom-in" onclick="openPhotoModal(this.src)">
                                 </div>                                
-                                <div class="snap-item w-full max-w-[280px] sm:w-[280px] aspect-[4/5] bg-card-dark rounded-2xl overflow-hidden flex-shrink-0 border border-white/10 group">
+                                <div class="snap-item w-[220px] sm:w-[280px] aspect-[4/5] bg-card-dark rounded-xl md:rounded-2xl overflow-hidden flex-shrink-0 border border-white/10 group">
                                     <img src="{% static 'img/img_3.webp' %}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 cursor-zoom-in" onclick="openPhotoModal(this.src)">
                                 </div>                                
-                                <div class="snap-item w-full max-w-[280px] sm:w-[280px] aspect-[4/5] bg-card-dark rounded-2xl overflow-hidden flex-shrink-0 border border-white/10 group">
+                                <div class="snap-item w-[220px] sm:w-[280px] aspect-[4/5] bg-card-dark rounded-xl md:rounded-2xl overflow-hidden flex-shrink-0 border border-white/10 group">
                                     <img src="{% static 'img/img_4.webp' %}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 cursor-zoom-in" onclick="openPhotoModal(this.src)">
                                 </div>
                             </div>
@@ -165,59 +204,62 @@
             </div>
         </section>
 
-        <!-- ДИНАМИЧЕСКАЯ ФОРМА -->
-        <section id="volunteer-form" class="py-12 md:py-24 bg-black scroll-mt-24">
+        <!-- ДИНАМИЧЕСКАЯ ФОРМА АДАПТИРОВАННАЯ ПОД МОБИЛЬНЫЕ -->
+        <section id="volunteer-form" class="py-12 md:py-24 bg-black scroll-mt-20 md:scroll-mt-24">
             <div class="container mx-auto px-4 md:px-6 reveal">
-                <div class="bg-[#f8f9fa] text-black rounded-[2rem] md:rounded-[3rem] p-6 sm:p-8 md:p-14 mx-3 sm:mx-auto shadow-2xl relative overflow-hidden">
+                <!-- Уменьшены padding на мобилках (p-5 вместо p-8/14) -->
+                <div class="bg-[#f8f9fa] text-black rounded-[1.5rem] md:rounded-[3rem] p-5 sm:p-8 md:p-14 mx-auto max-w-4xl shadow-2xl relative overflow-hidden">
                     
-                    <h2 class="text-4xl md:text-5xl font-header font-bold mb-8 uppercase text-center text-black" id="form-title">Анкета волонтёра</h2>
+                    <h2 class="text-3xl md:text-5xl font-header font-bold mb-6 md:mb-8 uppercase text-center text-black leading-tight" id="form-title">Анкета волонтёра</h2>
                     
-                    <div id="recruitment-container" class="min-h-[300px]">
+                    <div id="recruitment-container" class="min-h-[250px] md:min-h-[300px]">
                         <!-- Скелетон загрузки -->
                         <div id="form-loader" class="flex flex-col items-center justify-center py-10 text-gray-500">
-                            <i class="fas fa-circle-notch fa-spin text-4xl text-royal-blue mb-4"></i>
-                            <p class="font-medium text-lg">Загрузка вопросов...</p>
+                            <i class="fas fa-circle-notch fa-spin text-3xl md:text-4xl text-royal-blue mb-4"></i>
+                            <p class="font-medium text-base md:text-lg">Загрузка вопросов...</p>
                         </div>
 
                         <!-- Набор закрыт -->
-                        <div id="form-closed" class="hidden py-10 md:py-16 text-center">
-                            <div class="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-6">
-                                <i class="fas fa-lock text-4xl text-gray-500"></i>
+                        <div id="form-closed" class="hidden py-8 md:py-16 text-center">
+                            <div class="w-20 h-20 md:w-24 md:h-24 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <i class="fas fa-lock text-3xl md:text-4xl text-gray-500"></i>
                             </div>
-                            <h3 class="text-3xl font-bold mb-4 font-header text-gray-800">Набор временно закрыт</h3>
-                            <p class="text-gray-600 text-lg max-w-lg mx-auto mb-8 leading-relaxed">В данный момент мы не проводим набор новых волонтёров. Пожалуйста, следите за нашими анонсами в социальных сетях!</p>
+                            <h3 class="text-2xl md:text-3xl font-bold mb-3 md:mb-4 font-header text-gray-800">Набор временно закрыт</h3>
+                            <p class="text-gray-600 text-sm md:text-lg max-w-lg mx-auto mb-8 leading-relaxed px-4">В данный момент мы не проводим набор новых волонтёров. Пожалуйста, следите за нашими анонсами в социальных сетях!</p>
                             <div class="flex justify-center gap-4">
-                                <a href="https://www.instagram.com/interactbishkek/" class="w-14 h-14 rounded-full bg-black text-white flex items-center justify-center text-xl hover:scale-110 hover:bg-royal-blue transition shadow-lg"><i class="fab fa-instagram"></i></a>
-                                <a href="https://t.me/interact_club_kg_bot" class="w-14 h-14 rounded-full bg-black text-white flex items-center justify-center text-xl hover:scale-110 hover:bg-royal-blue transition shadow-lg"><i class="fab fa-telegram-plane"></i></a>
+                                <a href="https://www.instagram.com/interactbishkek/" class="w-12 h-12 md:w-14 md:h-14 rounded-full bg-black text-white flex items-center justify-center text-lg md:text-xl hover:scale-110 hover:bg-royal-blue transition shadow-lg"><i class="fab fa-instagram"></i></a>
+                                <a href="https://t.me/interact_club_kg_bot" class="w-12 h-12 md:w-14 md:h-14 rounded-full bg-black text-white flex items-center justify-center text-lg md:text-xl hover:scale-110 hover:bg-royal-blue transition shadow-lg"><i class="fab fa-telegram-plane"></i></a>
                             </div>
                         </div>
 
                         <!-- КРАСИВЫЙ БЛОК УСПЕШНОЙ ОТПРАВКИ -->
-                        <div id="form-success" class="hidden py-10 px-4 text-center">
-                            <div id="success-icon" class="w-28 h-28 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-green-500/40 transform scale-0 transition-transform duration-500 ease-out">
-                                <i class="fas fa-check text-5xl text-white"></i>
+                        <div id="form-success" class="hidden py-8 md:py-10 px-2 md:px-4 text-center">
+                            <div id="success-icon" class="w-20 h-20 md:w-28 md:h-28 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-green-500/40 transform scale-0 transition-transform duration-500 ease-out">
+                                <i class="fas fa-check text-4xl md:text-5xl text-white"></i>
                             </div>
-                            <h3 class="text-3xl md:text-4xl font-header font-bold text-black mb-4">Отлично!</h3>
-                            <p class="text-gray-600 text-lg max-w-md mx-auto mb-10 font-medium">Ваша заявка успешно отправлена.<br>Мы внимательно её изучим и свяжемся с вами в ближайшее время!</p>
-                            <a href="{% url 'main' %}" class="inline-block px-10 py-4 bg-black text-white font-bold text-lg rounded-xl hover:bg-gray-800 transition shadow-xl">
+                            <h3 class="text-2xl md:text-4xl font-header font-bold text-black mb-3 md:mb-4">Отлично!</h3>
+                            <p class="text-gray-600 text-sm md:text-lg max-w-md mx-auto mb-8 md:mb-10 font-medium">Ваша заявка успешно отправлена.<br>Мы внимательно её изучим и свяжемся с вами в ближайшее время!</p>
+                            <a href="{% url 'main' %}" class="inline-block w-full sm:w-auto px-8 md:px-10 py-3.5 md:py-4 bg-black text-white font-bold text-base md:text-lg rounded-xl hover:bg-gray-800 transition shadow-xl">
                                 Вернуться на главную
                             </a>
                         </div>
 
                         <!-- Сама форма -->
-                        <form id="dynamic-volunteer-form" class="hidden space-y-8 max-w-3xl mx-auto" enctype="multipart/form-data">
-                            <p id="recruitment-desc" class="text-gray-600 text-center mb-10 text-lg"></p>
+                        <form id="dynamic-volunteer-form" class="hidden space-y-6 md:space-y-8 w-full" enctype="multipart/form-data">
+                            <p id="recruitment-desc" class="text-gray-600 text-center mb-6 md:mb-10 text-sm md:text-lg px-2"></p>
                             
                             <!-- Контейнер для вопросов -->
-                            <div id="questions-container" class="space-y-8"></div>
+                            <div id="questions-container" class="space-y-6 md:space-y-8"></div>
                             
-                            <div id="form-error" class="hidden bg-red-100 border border-red-200 text-red-700 p-5 rounded-xl text-center font-semibold text-lg shadow-sm"></div>
+                            <div id="form-error" class="hidden bg-red-100 border border-red-200 text-red-700 p-4 md:p-5 rounded-xl text-center font-semibold text-sm md:text-lg shadow-sm"></div>
 
-                            <div class="pt-4 border-t border-gray-200">
-                                <button type="submit" id="submit-btn" class="w-full px-8 py-5 rounded-xl font-bold text-xl text-white btn-glow shadow-xl transition-all">
+                            <div class="pt-4 md:pt-6 border-t border-gray-200 mt-6">
+                                <button type="submit" id="submit-btn" class="w-full px-6 py-4 md:px-8 md:py-5 rounded-xl font-bold text-lg md:text-xl text-white btn-glow shadow-xl transition-all">
                                     Отправить заявку
                                 </button>
-                                <p class="text-center text-xs text-gray-500 mt-4 font-medium">Ваши данные автоматически сохраняются при вводе. Вы не потеряете прогресс при случайном обновлении страницы.</p>
+                                <p class="text-center text-[11px] md:text-xs text-gray-500 mt-4 md:mt-5 font-medium px-2 leading-relaxed">
+                                    <i class="fas fa-save mr-1 opacity-70"></i> Ваши данные автоматически сохраняются. Прогресс не исчезнет при обновлении страницы.
+                                </p>
                             </div>
                         </form>
                     </div>
@@ -228,25 +270,47 @@
         <!-- FAQ -->
         <section class="py-12 md:py-20 bg-black">
             <div class="container mx-auto px-4 md:px-6 reveal">
-                <h2 class="text-3xl md:text-6xl font-header font-bold uppercase text-center mb-10 md:mb-16">Часто задаваемые вопросы</h2>
-                <div id="faq-container" class="max-w-4xl mx-auto space-y-2">
+                <h2 class="text-3xl md:text-5xl font-header font-bold uppercase text-center mb-8 md:mb-12">Часто задаваемые вопросы</h2>
+                <div id="faq-container" class="max-w-3xl mx-auto space-y-2">
                     <div class="text-center text-gray-500 text-sm">Загрузка вопросов...</div>
                 </div>
             </div>
         </section>
     </main>
 
-    <!-- Footer -->
-    <footer class="bg-[#09152E] border-t border-white/10 pt-12 pb-12 mt-auto">
-        <!-- Тот же самый футер, что и был -->
+    <!-- ИИ ЧАТ ВИДЖЕТ -->
+    <div class="chat-widget">
+        <div class="chat-window" id="chat-window">
+            <div class="chat-header">
+                <span>ИИ-Помощник клуба</span>
+                <i class="fas fa-times close-chat" onclick="toggleChat()"></i>
+            </div>
+            <div class="chat-messages" id="chat-messages">
+                <div class="msg-bubble msg-ai">Привет! Я ИИ-помощник Interact Club of Bishkek. Если у вас есть вопросы по заполнению анкеты или о самом клубе — смело задавайте!</div>
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="chat-input" class="chat-input" placeholder="Напишите сообщение..." onkeypress="handleChatKeypress(event)">
+                <button class="chat-send" onclick="sendChatMessage()">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+        <div class="chat-btn" onclick="toggleChat()" title="Чат с ИИ">
+            <i class="fas fa-robot"></i>
+        </div>
+    </div>
+
+    <!-- Обновленный Footer -->
+    <footer class="bg-[#09152E] border-t border-white/10 pt-10 md:pt-12 pb-10 md:pb-12 mt-auto">
         <div class="container mx-auto px-4 md:px-6">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 md:gap-8 text-center md:text-left items-start">
+                
                 <div class="flex flex-col items-center md:items-start">
                     <div class="flex items-center gap-3 mb-4">
                         <img src="{% static 'img/logo.png' %}" alt="Interact" class="w-10 h-10 rounded-full border border-white/10">
                         <span class="font-header font-bold text-lg uppercase leading-tight text-left">Interact Club<br>of Bishkek</span>
                     </div>
-                    <p class="text-xs text-gray-400 leading-relaxed mb-4 max-w-xs">Наш клуб — часть международной организации Rotary International.</p>
+                    <p class="text-xs text-gray-400 leading-relaxed mb-4 max-w-xs">Наш клуб — часть международной организации Rotary International. Мы создаем позитивные изменения.</p>
                 </div>
 
                 <div class="flex flex-col items-center md:items-start lg:pl-8 pt-2">
@@ -254,15 +318,32 @@
                     <div class="flex flex-col gap-3 text-sm text-gray-400">
                         <a href="{% url 'about-html' %}" class="hover:text-light-blue transition">О нас</a>
                         <a href="{% url 'projects-list-html' %}" class="hover:text-light-blue transition">Проекты</a>
+                        <a href="{% url 'sponsorship-html' %}" class="hover:text-light-blue transition">Спонсорство</a>
+                        <a href="{% url 'volunteer-html' %}" class="hover:text-light-blue transition text-white">Волонтёрство</a>
                     </div>
                 </div>
 
                 <div class="flex flex-col items-center md:items-start pt-2 w-full">
-                    <h4 class="text-sm font-bold mb-6 uppercase tracking-wider text-white">Статистика</h4>
+                    <h4 class="text-sm font-bold mb-6 uppercase tracking-wider text-white text-center md:text-left w-full">Статистика проектов</h4>
                     <div id="chart-loader" class="text-[10px] text-gray-500 animate-pulse">Загрузка графика...</div>
+                    
                     <div id="chart-container" class="hidden w-full flex items-center justify-center md:justify-start gap-4 lg:gap-5">
                         <div class="relative w-[110px] h-[110px] flex-shrink-0 drop-shadow-lg">
                             <canvas id="projectsChart"></canvas>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-0.5">
+                                <span id="chart-total-num" class="text-2xl font-bold font-body text-white tracking-tighter leading-none mb-0.5 drop-shadow-md">0</span>
+                                <span class="text-[7px] text-gray-400 uppercase tracking-widest">Всего</span>
+                            </div>
+                        </div>
+                        
+                        <div class="flex flex-col flex-grow max-w-[180px]">
+                            <div id="chart-legend" class="text-gray-300 w-full mb-3"></div>
+                            <div class="border-t border-white/10 pt-2 flex flex-col w-full">
+                                <span class="text-[8px] text-gray-400 mb-1 uppercase tracking-widest">Собрано средств</span>
+                                <div id="chart-total-amount" class="text-xl font-bold font-body text-light-blue tracking-wide leading-none">
+                                    0 <span class="text-[10px] text-gray-500 font-normal">сом</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -270,6 +351,22 @@
                 <div class="flex flex-col items-center md:items-end lg:text-right pt-2">
                     <h4 class="text-sm font-bold mb-4 uppercase tracking-wider text-white">Контакты</h4>
                     <a href="mailto:info@interact-club.kg" class="block text-sm text-light-blue hover:text-white mb-2 transition">info@interact-club.kg</a>
+                    <a href="tel:+996557038848" class="block text-xl font-body font-bold text-white tracking-wider mb-5 hover:text-light-blue transition">+996 557 038 848</a>
+                    
+                    <div class="flex gap-3 justify-center md:justify-end">
+                        <a href="https://www.instagram.com/interactbishkek/" target="_blank" rel="noopener noreferrer" class="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center hover:bg-light-blue transition text-white"><i class="fab fa-instagram"></i></a>
+                        <a href="https://t.me/interact_club_kg_bot" target="_blank" rel="noopener noreferrer" class="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center hover:bg-light-blue transition text-white"><i class="fab fa-telegram-plane"></i></a>
+                        <a href="https://tiktok.com/@interactbishkek" target="_blank" rel="noopener noreferrer" class="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center hover:bg-light-blue transition text-white"><i class="fab fa-tiktok"></i></a>
+                    </div>
+                </div>
+
+            </div>
+            
+            <div class="border-t border-white/10 mt-10 md:mt-12 pt-6 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] md:text-xs text-gray-500">
+                <p>&copy; 2026 Interact Club of Bishkek. Все права защищены.</p>
+                <div class="flex gap-4">
+                    <a href="{% url 'privacy-html' %}" class="hover:text-white transition">Политика конфиденциальности</a>
+                    <a href="{% url 'terms-html' %}" class="hover:text-white transition">Условия использования</a>
                 </div>
             </div>
         </div>
@@ -288,7 +385,7 @@
             const apiFaqUrl = '/api/faqs/';
             const apiYearResultsUrl = '/api/year-results/';
 
-            // Мобильное меню
+            // --- 1. МОБИЛЬНОЕ МЕНЮ ---
             const menuBtn = document.getElementById('menu-btn');
             const mobileMenu = document.getElementById('mobile-menu');
             if (menuBtn) {
@@ -307,7 +404,7 @@
                 });
             }
 
-            // Загрузка FAQ и Статистики (оставлена базовая логика без изменений)
+            // --- 2. FAQ И СТАТИСТИКА (График) ---
             async function loadFAQ() {
                 try {
                     const res = await fetch(apiFaqUrl);
@@ -316,19 +413,118 @@
                     const container = document.getElementById('faq-container');
                     if(faqs.length > 0) {
                         container.innerHTML = faqs.map(f => `
-                            <div class="border-b border-white/10 py-4 md:py-6 cursor-pointer group" onclick="toggleAccordion(this)">
+                            <div class="border-b border-white/20 py-4 cursor-pointer group" onclick="toggleAccordion(this)">
                                 <div class="flex justify-between items-center gap-4">
-                                    <h3 class="text-base md:text-xl font-bold group-hover:text-light-blue transition font-body text-white">${f.question}</h3>
-                                    <div class="w-6 h-6 flex items-center justify-center flex-shrink-0"><i class="fas fa-plus text-gray-500 group-hover:text-white transition-transform"></i></div>
+                                    <h3 class="text-sm md:text-xl font-bold font-body group-hover:text-light-blue transition text-left">${f.question}</h3>
+                                    <div class="w-6 h-6 md:w-8 md:h-8 flex items-center justify-center flex-shrink-0">
+                                        <i class="fas fa-plus text-sm md:text-lg text-gray-500 group-hover:text-white transition-transform duration-300"></i>
+                                    </div>
                                 </div>
-                                <div class="accordion-content"><p class="pt-3 md:pt-4 text-gray-400 leading-relaxed text-sm md:text-base">${f.answer}</p></div>
+                                <div class="accordion-content">
+                                    <p class="pt-3 text-gray-400 font-body leading-relaxed text-xs md:text-base">${f.answer}</p>
+                                </div>
                             </div>
                         `).join('');
                     } else { container.innerHTML = ''; }
                 } catch (e) { console.error('FAQ error', e); }
             }
 
-            // Логика сохранения данных формы
+            async function loadChartStats() {
+                try {
+                    const response = await fetch(apiYearResultsUrl);
+                    if (response.ok) {
+                        const data = await response.json();
+                        const res = Array.isArray(data) ? data[0] : data;
+                        
+                        if (res) {
+                            const statsData = [
+                                { label: 'Фандрайзинг', value: res.fundraising || 0, color: '#3B82F6' },
+                                { label: 'Образование', value: res.education || 0, color: '#1D4ED8' },
+                                { label: 'Культура', value: res.cultural || 0, color: '#60A5FA' },
+                                { label: 'Спорт', value: res.sport || 0, color: '#1E3A8A' },
+                                { label: 'Киберспорт', value: res.cyber_sport || 0, color: '#93C5FD' }
+                            ];
+
+                            const activeStats = statsData.filter(item => item.value > 0);
+                            const totalProjects = activeStats.reduce((acc, curr) => acc + curr.value, 0);
+                            const totalAmount = res.total_amount ? res.total_amount.toLocaleString('ru-RU') : '0';
+
+                            document.getElementById('chart-total-num').innerText = totalProjects;
+                            document.getElementById('chart-total-amount').innerHTML = `${totalAmount} <span class="text-[10px] text-gray-500 font-normal ml-0.5">сом</span>`;
+
+                            const chartValues = totalProjects > 0 ? activeStats.map(item => item.value) : [1];
+                            const chartColors = totalProjects > 0 ? activeStats.map(item => item.color) : ['#1e293b'];
+                            const chartLabels = totalProjects > 0 ? activeStats.map(item => item.label) : ['Нет данных'];
+
+                            const ctx = document.getElementById('projectsChart').getContext('2d');
+                            new Chart(ctx, {
+                                type: 'doughnut',
+                                data: {
+                                    labels: chartLabels,
+                                    datasets: [{
+                                        data: chartValues,
+                                        backgroundColor: chartColors,
+                                        borderWidth: 0,
+                                        hoverOffset: 4
+                                    }]
+                                },
+                                options: {
+                                    cutout: '72%', 
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    plugins: {
+                                        legend: { display: false },
+                                        tooltip: {
+                                            backgroundColor: '#040B16',
+                                            titleColor: '#3B82F6',
+                                            bodyColor: '#fff',
+                                            borderColor: '#1e293b',
+                                            borderWidth: 1,
+                                            padding: 10,
+                                            displayColors: true,
+                                            callbacks: {
+                                                label: function(context) {
+                                                    if (totalProjects === 0) return ' Нет проектов';
+                                                    return ` ${context.label}: ${context.raw}`;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            });
+
+                            const legendContainer = document.getElementById('chart-legend');
+                            if (totalProjects > 0) {
+                                let legendHtml = '';
+                                activeStats.forEach(item => {
+                                    legendHtml += `
+                                        <div class="flex items-center justify-between w-full mb-1.5">
+                                            <div class="flex items-center">
+                                                <span class="inline-block w-2 h-2 rounded-full mr-2.5 flex-shrink-0" style="background-color: ${item.color};"></span>
+                                                <span class="truncate text-[10px] md:text-[11px]">${item.label}</span>
+                                            </div>
+                                            <span class="font-bold text-[10px] font-body text-white bg-white/10 px-2 py-0.5 rounded ml-2 leading-none">${item.value}</span>
+                                        </div>
+                                    `;
+                                });
+                                legendContainer.innerHTML = legendHtml;
+                            } else {
+                                legendContainer.innerHTML = '<p class="text-center md:text-left text-[10px] text-gray-500 py-1">Пока нет завершенных проектов</p>';
+                            }
+
+                            document.getElementById('chart-loader').classList.add('hidden');
+                            document.getElementById('chart-container').classList.remove('hidden');
+                            document.getElementById('chart-container').classList.add('flex');
+                        }
+                    }
+                } catch (e) {
+                    console.error('Stats load error:', e);
+                    document.getElementById('chart-loader').innerText = 'Ошибка загрузки графика';
+                }
+            }
+
+
+            // --- 3. ЛОГИКА ФОРМЫ И LOCALSTORAGE ---
             let activeRecruitmentSlug = null;
             const STORAGE_KEY = 'interact_volunteer_form';
 
@@ -366,7 +562,6 @@
                 }
             }
 
-            // Загрузка формы
             async function loadRecruitmentForm() {
                 const loader = document.getElementById('form-loader');
                 const closedState = document.getElementById('form-closed');
@@ -399,14 +594,14 @@
                         const reqStar = q.required ? '<span class="text-red-500 ml-1">*</span>' : '';
                         
                         let inputHtml = '';
-                        // Обновленный заметный дизайн инпутов
-                        const baseInputClass = "w-full p-4 bg-white border-2 border-gray-300 rounded-xl focus:border-royal-blue focus:ring-4 focus:ring-royal-blue/20 outline-none transition-all text-black text-lg font-medium shadow-sm placeholder-gray-400";
+                        // АДАПТИВНЫЕ КЛАССЫ: p-3 текст-base на телефонах, p-4 текст-lg на ПК
+                        const baseInputClass = "w-full p-3 md:p-4 bg-white border-2 border-gray-200 rounded-xl focus:border-royal-blue focus:ring-4 focus:ring-royal-blue/20 outline-none transition-all text-black text-base md:text-lg font-medium shadow-sm placeholder-gray-400";
 
                         if (q.field_type === 'short_text' || q.field_type === 'number') {
                             const type = q.field_type === 'number' ? 'number' : 'text';
                             inputHtml = `<input type="${type}" name="q_${q.id}" class="${baseInputClass}" ${requiredAttr}>`;
                         } else if (q.field_type === 'long_text') {
-                            inputHtml = `<textarea name="q_${q.id}" rows="4" class="${baseInputClass}" ${requiredAttr}></textarea>`;
+                            inputHtml = `<textarea name="q_${q.id}" rows="3" class="${baseInputClass}" ${requiredAttr}></textarea>`;
                         } else if (q.field_type === 'select') {
                             const opts = Array.isArray(q.options) ? q.options : [];
                             inputHtml = `<select name="q_${q.id}" class="${baseInputClass} cursor-pointer" ${requiredAttr}>
@@ -415,22 +610,22 @@
                             </select>`;
                         } else if (q.field_type === 'multiple_select') {
                             const opts = Array.isArray(q.options) ? q.options : [];
-                            inputHtml = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            inputHtml = `<div class="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                                 ${opts.map((o) => `
-                                    <label class="flex items-center gap-4 p-4 bg-white border-2 border-gray-200 rounded-xl cursor-pointer hover:border-royal-blue hover:bg-blue-50/30 transition-all shadow-sm">
-                                        <input type="checkbox" name="q_${q.id}" value="${o}" class="w-6 h-6 text-royal-blue rounded border-2 border-gray-300 focus:ring-royal-blue focus:ring-offset-1">
-                                        <span class="text-base font-bold text-gray-800">${o}</span>
+                                    <label class="flex items-start gap-3 p-3 md:p-4 bg-white border-2 border-gray-200 rounded-xl cursor-pointer hover:border-royal-blue hover:bg-blue-50/30 transition-all shadow-sm">
+                                        <input type="checkbox" name="q_${q.id}" value="${o}" class="mt-0.5 w-5 h-5 md:w-6 md:h-6 text-royal-blue rounded border-2 border-gray-300 focus:ring-royal-blue focus:ring-offset-1 flex-shrink-0">
+                                        <span class="text-sm md:text-base font-bold text-gray-800 leading-tight">${o}</span>
                                     </label>
                                 `).join('')}
                             </div>`;
                         } else if (q.field_type === 'photo' || q.field_type === 'video') {
                             const accept = q.field_type === 'photo' ? 'image/*' : 'video/*';
-                            inputHtml = `<input type="file" name="file_q_${q.id}" accept="${accept}" class="w-full p-3 bg-white border-2 border-dashed border-gray-300 rounded-xl text-black font-medium file:mr-4 file:py-2.5 file:px-6 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-royal-blue/10 file:text-royal-blue hover:file:bg-royal-blue hover:file:text-white transition-all shadow-sm cursor-pointer" ${requiredAttr}>`;
+                            inputHtml = `<input type="file" name="file_q_${q.id}" accept="${accept}" class="w-full p-2.5 md:p-3 bg-white border-2 border-dashed border-gray-300 rounded-xl text-black font-medium file:mr-3 md:file:mr-4 file:py-2 file:px-4 md:file:px-6 file:rounded-xl file:border-0 file:text-xs md:file:text-sm file:font-bold file:bg-royal-blue/10 file:text-royal-blue hover:file:bg-royal-blue hover:file:text-white transition-all shadow-sm cursor-pointer" ${requiredAttr}>`;
                         }
 
                         questionsHtml += `
-                            <div class="form-group flex flex-col gap-3 text-left bg-white/50 p-1 rounded-xl">
-                                <label class="font-bold text-gray-900 text-xl tracking-tight">${q.label}${reqStar}</label>
+                            <div class="form-group flex flex-col gap-2 md:gap-3 text-left bg-white/40 p-1 rounded-xl">
+                                <label class="font-bold text-gray-900 text-lg md:text-xl tracking-tight leading-snug">${q.label}${reqStar}</label>
                                 ${inputHtml}
                             </div>
                         `;
@@ -439,7 +634,6 @@
                     qContainer.innerHTML = questionsHtml;
                     formState.classList.remove('hidden');
 
-                    // Восстанавливаем данные и вешаем слушатели для автосохранения
                     restoreFormData();
                     formState.addEventListener('input', saveFormData);
                     formState.addEventListener('change', saveFormData);
@@ -449,7 +643,6 @@
                 }
             }
 
-            // Отправка формы
             const recruitmentForm = document.getElementById('dynamic-volunteer-form');
             if (recruitmentForm) {
                 recruitmentForm.addEventListener('submit', async (e) => {
@@ -498,15 +691,10 @@
                         const data = await response.json();
 
                         if (response.ok) {
-                            // Очищаем кэш после успеха
                             localStorage.removeItem(STORAGE_KEY + '_' + activeRecruitmentSlug);
                             recruitmentForm.reset();
-                            
-                            // Прячем форму и показываем красивое сообщение
                             recruitmentForm.style.display = 'none';
                             successBox.classList.remove('hidden');
-                            
-                            // Анимация галочки
                             setTimeout(() => {
                                 document.getElementById('success-icon').classList.replace('scale-0', 'scale-100');
                             }, 50);
@@ -525,7 +713,9 @@
                 });
             }
 
+            // Инициализация
             loadFAQ();
+            loadChartStats();
             loadRecruitmentForm();
 
             // Анимации Reveal
@@ -548,13 +738,94 @@
             document.querySelectorAll('.accordion-content').forEach(c => {
                 c.classList.remove('open'); c.style.maxHeight = '0';
                 c.parentElement.querySelector('i').style.transform = 'rotate(0deg)';
+                c.parentElement.querySelector('h3').classList.remove('text-light-blue');
             });
             if(!isOpen) {
                 content.classList.add('open');
                 content.style.maxHeight = content.scrollHeight + 'px';
                 icon.style.transform = 'rotate(45deg)';
+                el.querySelector('h3').classList.add('text-light-blue');
             }
         }
+
+        // ====== СКРИПТ ИИ-ЧАТА ======
+        let chatSessionId = localStorage.getItem('chatSessionId');
+        if (!chatSessionId) {
+            chatSessionId = 'session_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('chatSessionId', chatSessionId);
+        }
+
+        function toggleChat() {
+            document.getElementById('chat-window').classList.toggle('active');
+        }
+
+        function handleChatKeypress(e) {
+            if (e.key === 'Enter') sendChatMessage();
+        }
+
+        async function sendChatMessage() {
+            const inputField = document.getElementById('chat-input');
+            const messagesContainer = document.getElementById('chat-messages');
+            const message = inputField.value.trim();
+
+            if (!message) return;
+
+            messagesContainer.innerHTML += `<div class="msg-bubble msg-user">${message}</div>`;
+            inputField.value = '';
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            const typingId = 'typing_' + Date.now();
+            messagesContainer.innerHTML += `
+                <div id="${typingId}" class="msg-bubble msg-ai typing">
+                    <span></span><span></span><span></span>
+                </div>`;
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            try {
+                const response = await fetch('/api/chat/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        session_id: chatSessionId
+                    })
+                });
+
+                const data = await response.json();
+                document.getElementById(typingId).remove();
+
+                if (response.ok) {
+                    let formattedAnswer = data.answer.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+                    formattedAnswer = formattedAnswer.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-light-blue underline hover:text-white" target="_blank">$1</a>');
+                    messagesContainer.innerHTML += `<div class="msg-bubble msg-ai">${formattedAnswer}</div>`;
+                } else {
+                    messagesContainer.innerHTML += `<div class="msg-bubble msg-ai text-red-400">Ошибка: ${data.error}</div>`;
+                }
+            } catch (err) {
+                document.getElementById(typingId).remove();
+                messagesContainer.innerHTML += `<div class="msg-bubble msg-ai text-red-400">Ошибка сети. Попробуйте позже.</div>`;
+            }
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        // ============================
     </script>
 </body>
 </html>

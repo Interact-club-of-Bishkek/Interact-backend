@@ -164,12 +164,15 @@
             </div>
         </div>
 
-        <div id="mobile-menu" class="hidden lg:hidden bg-black/95 backdrop-blur-xl fixed inset-0 top-[60px] z-40 p-6 flex flex-col gap-6 overflow-y-auto border-t border-white/10 pb-24">
-            <a href="{% url 'about-html' %}" class="text-3xl font-header font-bold border-b border-white/10 pb-4">О нас</a>
-            <a href="{% url 'projects-list-html' %}" class="text-3xl font-header font-bold border-b border-white/10 pb-4">Проекты</a>
-            <a href="{% url 'sponsorship-html' %}" class="text-3xl font-header font-bold border-b border-white/10 pb-4">Спонсорство</a>
-            <a href="#" class="text-3xl font-header font-bold border-b border-white/10 pb-4">Волонтёрство</a>
-            <a href="{% url 'donate-html' %}" class="text-3xl font-header text-royal-blue font-bold pt-2">Хочу помочь</a>
+        <!-- ИСПРАВЛЕНО: Убрано flex flex-col, добавлена структура с внутренним контейнером для избежания конфликта классов -->
+        <div id="mobile-menu" class="hidden lg:hidden bg-black/95 backdrop-blur-xl fixed inset-0 top-[60px] z-40 overflow-y-auto border-t border-white/10 pb-24 opacity-0 transition-opacity duration-300">
+            <div class="flex flex-col gap-6 p-6">
+                <a href="{% url 'about-html' %}" class="text-3xl font-header font-bold border-b border-white/10 pb-4">О нас</a>
+                <a href="{% url 'projects-list-html' %}" class="text-3xl font-header font-bold border-b border-white/10 pb-4">Проекты</a>
+                <a href="{% url 'sponsorship-html' %}" class="text-3xl font-header font-bold border-b border-white/10 pb-4">Спонсорство</a>
+                <a href="{% url 'volunteer-html' %}" class="text-3xl font-header font-bold border-b border-white/10 pb-4">Волонтёрство</a>
+                <a href="{% url 'donate-html' %}" class="text-3xl font-header text-royal-blue font-bold pt-2">Хочу помочь</a>
+            </div>
         </div>
     </header>
 
@@ -550,15 +553,12 @@
             const apiHeroSlidesUrl = '/api/hero-slides/';
             const apiYearResultsUrl = '/api/year-results/';
             const apiFaqUrl = '/api/faqs/';
-            const apiPartnersUrl = '/api/partners/'; // <--- Новый URL для партнеров
+            const apiPartnersUrl = '/api/partners/'; 
 
             // --- 1. SLIDER JS ---
-            // --- 1. SLIDER JS (Обновленный) ---
-            // Получаем ссылки на оба новых слоя фона
             const elBgBlur = document.getElementById('hero-bg-blur');
             const elBgMain = document.getElementById('hero-bg-main');
 
-            // Остальные переменные остаются прежними
             const elBadgeContainer = document.getElementById('hero-badge-container');
             const elBadge = document.getElementById('hero-badge');
             const elTitle = document.getElementById('hero-title');
@@ -709,7 +709,6 @@
             initSlider();
 
 
-            // Логика счетчиков
             function initStatsObserver() {
                 const counters = document.querySelectorAll('.counter');
                 let hasAnimated = false;
@@ -748,9 +747,6 @@
                 }
             }
 
-
-            // --- 2. PROJECTS API ---
-// --- 2. PROJECTS API (Лимит 7 проектов) ---
             async function loadProjects() {
                 try {
                     const response = await fetch(apiProjectsUrl);
@@ -758,7 +754,6 @@
                     const allProjects = await response.json();
                     const container = document.getElementById('projects-scroll');
                     
-                    // Ограничиваем до 7 ближайших/последних проектов
                     const recentProjects = allProjects.slice(0, 7);
                     
                     if (recentProjects.length === 0) {
@@ -781,7 +776,6 @@
                             imgHtml = `<div class="w-full h-full flex items-center justify-center bg-[#121212] text-gray-600"><i class="fas fa-image text-4xl"></i></div>`;
                         }
 
-                        // ЗДЕСЬ МЫ ЗАМЕНЯЕМ ЗАГЛУШКУ НА РЕАЛЬНЫЙ СЛАГ ПРОЕКТА
                         const projectUrl = projectUrlTemplate.replace('SLUG_PLACEHOLDER', p.slug);
 
                         html += `
@@ -809,7 +803,6 @@
                         `;
                     });
 
-                    // Карточка-ссылка на страницу со всеми проектами
                     html += `
                     <div class="snap-center w-[200px] md:w-[240px] flex items-center justify-center group cursor-pointer flex-shrink-0 bg-white/5 border border-white/10 rounded-[2rem] hover:bg-royal-blue transition-all duration-500" onclick="location.href='${projectsPageUrl}'">
                         <a href="${projectsPageUrl}" class="flex flex-col items-center gap-4 text-center p-6">
@@ -828,7 +821,7 @@
                 }
             }
             loadProjects();
-            // --- 3. YEAR RESULTS API ---
+
             async function loadChartStats() {
                 try {
                     const response = await fetch(apiYearResultsUrl);
@@ -933,7 +926,6 @@
             }
             loadChartStats();
 
-            // --- 4. PARTNERS API ---
             async function loadPartners() {
                 try {
                     const res = await fetch(apiPartnersUrl);
@@ -958,7 +950,6 @@
             }
             loadPartners();
 
-            // --- 5. FAQ API ---
             async function loadFAQ() {
                 try {
                     const res = await fetch(apiFaqUrl);
@@ -982,31 +973,74 @@
             loadFAQ();
 
 
-            // --- UI LOGIC ---
+            // ====== ИСПРАВЛЕННАЯ ЛОГИКА МОБИЛЬНОГО МЕНЮ ======
             
             const menuBtn = document.getElementById('menu-btn');
             const mobileMenu = document.getElementById('mobile-menu');
-            if (menuBtn) {
-                menuBtn.addEventListener('click', () => {
-                    mobileMenu.classList.toggle('hidden');
-                    const icon = menuBtn.querySelector('i');
-                    if (mobileMenu.classList.contains('hidden')) {
-                        icon.classList.remove('fa-times');
-                        icon.classList.add('fa-bars');
-                        document.body.style.overflow = '';
-                    } else {
-                        icon.classList.remove('fa-bars');
-                        icon.classList.add('fa-times');
-                        document.body.style.overflow = 'hidden';
+            const navbarBg = document.getElementById('navbar-bg');
+            let isMenuOpen = false;
+
+            function toggleMenu(forceClose = false) {
+                if (!menuBtn || !mobileMenu) return;
+                const icon = menuBtn.querySelector('i');
+                
+                if (isMenuOpen || forceClose) {
+                    // Закрываем меню
+                    isMenuOpen = false;
+                    mobileMenu.classList.remove('opacity-100');
+                    mobileMenu.classList.add('opacity-0');
+                    
+                    // Ждем окончания анимации перед тем как убрать элемент
+                    setTimeout(() => {
+                        mobileMenu.classList.add('hidden');
+                    }, 300); 
+                    
+                    icon.classList.remove('fa-times');
+                    icon.classList.add('fa-bars');
+                    document.body.style.overflow = '';
+                    
+                    // Убираем фон хедера, если мы на самом верху страницы
+                    if (window.scrollY <= 20) {
+                        navbarBg.classList.add('opacity-0');
                     }
-                });
+                } else {
+                    // Открываем меню
+                    isMenuOpen = true;
+                    mobileMenu.classList.remove('hidden');
+                    
+                    // Небольшая задержка для срабатывания CSS transition
+                    setTimeout(() => {
+                        mobileMenu.classList.remove('opacity-0');
+                        mobileMenu.classList.add('opacity-100');
+                    }, 10);
+                    
+                    icon.classList.remove('fa-bars');
+                    icon.classList.add('fa-times');
+                    document.body.style.overflow = 'hidden';
+                    
+                    // Делаем хедер непрозрачным, чтобы текст не сливался
+                    navbarBg.classList.remove('opacity-0');
+                }
             }
 
-            const navbarBg = document.getElementById('navbar-bg');
+            if (menuBtn) {
+                menuBtn.addEventListener('click', () => toggleMenu());
+            }
+
+            // Закрываем меню при клике на любую ссылку
+            const mobileLinks = document.querySelectorAll('#mobile-menu a');
+            mobileLinks.forEach(link => {
+                link.addEventListener('click', () => toggleMenu(true));
+            });
+
+            // Обработка скролла с учетом открытого меню
             window.addEventListener('scroll', () => {
+                if (isMenuOpen) return; // Если меню открыто, фон всегда темный
                 if(window.scrollY > 20) navbarBg.classList.remove('opacity-0');
                 else navbarBg.classList.add('opacity-0');
             });
+            // =================================================
+
 
             const observer = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {
@@ -1092,12 +1126,10 @@
 
             if (!message) return;
 
-            // Отображаем сообщение юзера
             messagesContainer.innerHTML += `<div class="msg-bubble msg-user">${message}</div>`;
             inputField.value = '';
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-            // Отображаем индикатор "ИИ печатает..."
             const typingId = 'typing_' + Date.now();
             messagesContainer.innerHTML += `
                 <div id="${typingId}" class="msg-bubble msg-ai typing">
@@ -1106,12 +1138,11 @@
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
             try {
-                // ОТПРАВЛЯЕМ ЗАПРОС К НАШЕМУ DJANGO VIEWS.PY
                 const response = await fetch('/api/chat/', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRFToken': getCookie('csrftoken') // Функция Django CSRF
+                        'X-CSRFToken': getCookie('csrftoken')
                     },
                     body: JSON.stringify({
                         message: message,
@@ -1120,16 +1151,13 @@
                 });
 
                 const data = await response.json();
-                document.getElementById(typingId).remove(); // Удаляем три точки
+                document.getElementById(typingId).remove(); 
 
                 if (response.ok) {
-                    // 1. Превращаем **текст** в жирный HTML
                     let formattedAnswer = data.answer.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
                     
-                    // 2. Превращаем [текст](ссылка) в кликабельные HTML-ссылки
                     formattedAnswer = formattedAnswer.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-light-blue underline hover:text-white" target="_blank">$1</a>');
                     
-                    // 3. Выводим красивый ответ
                     messagesContainer.innerHTML += `<div class="msg-bubble msg-ai">${formattedAnswer}</div>`;
                 } else {
                     messagesContainer.innerHTML += `<div class="msg-bubble msg-ai text-red-400">Ошибка: ${data.error}</div>`;
@@ -1141,7 +1169,6 @@
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
-        // Вспомогательная функция для CSRF-токена в Django
         function getCookie(name) {
             let cookieValue = null;
             if (document.cookie && document.cookie !== '') {
@@ -1156,7 +1183,6 @@
             }
             return cookieValue;
         }
-        // ============================
     </script>
 </body>
 </html>

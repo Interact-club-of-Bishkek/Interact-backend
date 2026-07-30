@@ -152,29 +152,40 @@ class RecruitmentAttachmentSerializer(serializers.ModelSerializer):
     def get_file(self, obj):
         if not obj.file:
             return None
-        request = self.context.get('request')
-        if request:
-            return request.build_absolute_uri(obj.file.url)
+        # Убираем request.build_absolute_uri, чтобы Docker не ломал домен.
+        # Просто отдаем относительный путь, а JS на фронтенде сам подставит нужный домен.
         return obj.file.url
 
 class RecruitmentApplicationSerializer(serializers.ModelSerializer):
+    # МЕНЯЕМ source на recruitmentattachment_set (стандартное имя связи в Django)
+    files = RecruitmentAttachmentSerializer(many=True, read_only=True, source='recruitmentattachment_set') 
     recruitment_title = serializers.CharField(source='recruitment.title', read_only=True)
-    files = RecruitmentAttachmentSerializer(many=True, read_only=True) 
+    recruitment_slug = serializers.CharField(source='recruitment.slug', read_only=True)
+    applicant_name = serializers.SerializerMethodField()
     formatted_answers = serializers.SerializerMethodField()
 
     class Meta:
         model = RecruitmentApplication
         fields = [
-            'id', 
-            'recruitment', 
-            'recruitment_title', 
-            'volunteer', 
-            'answers', 
-            'formatted_answers', 
-            'status', 
-            'created_at',
-            'files'
+            'id', 'status', 'created_at', 'answers', 
+            'recruitment_title', 'recruitment_slug', 
+            'applicant_name', 'formatted_answers', 'files'
         ]
+
+    def get_applicant_name(self, obj):
+        # Пытаемся автоматически найти имя в JSON-ответах пользователя, если нет отдельного поля
+        if obj.answers:
+            for k, v in obj.answers.items():
+                if any(word in k.lower() for word in ['имя', 'фио', 'name', 'фамилия']):
+                    if isinstance(v, str) and v.strip():
+                        return v
+            # Если ключа с именем нет, берем первый попавшийся текстовый ответ
+            vals = list(obj.answers.values())
+            if vals and isinstance(vals[0], str):
+                return vals[0]
+        if obj.volunteer and obj.volunteer.get_full_name():
+            return obj.volunteer.get_full_name()
+        return "Волонтер #" + str(obj.id)
         
     def get_formatted_answers(self, obj):
         if not obj.answers or not isinstance(obj.answers, dict):
