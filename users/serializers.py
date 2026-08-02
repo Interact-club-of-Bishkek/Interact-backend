@@ -157,8 +157,9 @@ class RecruitmentAttachmentSerializer(serializers.ModelSerializer):
         return obj.file.url
 
 class RecruitmentApplicationSerializer(serializers.ModelSerializer):
-    # МЕНЯЕМ source на recruitmentattachment_set (стандартное имя связи в Django)
-    files = RecruitmentAttachmentSerializer(many=True, read_only=True, source='recruitmentattachment_set') 
+    # ✅ Убрали source='recruitmentattachment_set', так как related_name и так равен 'files'
+    files = RecruitmentAttachmentSerializer(many=True, read_only=True) 
+    
     recruitment_title = serializers.CharField(source='recruitment.title', read_only=True)
     recruitment_slug = serializers.CharField(source='recruitment.slug', read_only=True)
     applicant_name = serializers.SerializerMethodField()
@@ -173,13 +174,11 @@ class RecruitmentApplicationSerializer(serializers.ModelSerializer):
         ]
 
     def get_applicant_name(self, obj):
-        # Пытаемся автоматически найти имя в JSON-ответах пользователя, если нет отдельного поля
         if obj.answers:
             for k, v in obj.answers.items():
                 if any(word in k.lower() for word in ['имя', 'фио', 'name', 'фамилия']):
                     if isinstance(v, str) and v.strip():
                         return v
-            # Если ключа с именем нет, берем первый попавшийся текстовый ответ
             vals = list(obj.answers.values())
             if vals and isinstance(vals[0], str):
                 return vals[0]
@@ -198,7 +197,6 @@ class RecruitmentApplicationSerializer(serializers.ModelSerializer):
         readable_answers = {}
         for key, value in obj.answers.items():
             question_text = q_map.get(key, key)
-            # Если это список (от multiple_select), он будет красиво отформатирован фронтендом
             readable_answers[question_text] = value
             
         return readable_answers

@@ -169,8 +169,11 @@
             <div class="container mx-auto px-4 md:px-6">
                 <div class="mb-16 md:mb-32 reveal">
                     <h2 class="text-3xl md:text-5xl font-header font-bold uppercase mb-6 md:mb-8 text-white leading-tight">Волонтёрство в нашем фонде</h2>
-                    <div class="flex flex-col lg:grid lg:grid-cols-2 gap-8 lg:gap-16 items-start">
-                        <div class="text-gray-400 text-sm md:text-base leading-relaxed space-y-4 md:space-y-5">
+                    <!-- ДОБАВЛЕН КЛАСС: w-full -->
+                    <div class="flex flex-col lg:grid lg:grid-cols-2 gap-8 lg:gap-16 items-start w-full">
+                        
+                        <!-- ДОБАВЛЕН КЛАСС: w-full -->
+                        <div class="text-gray-400 text-sm md:text-base leading-relaxed space-y-4 md:space-y-5 w-full">
                             <p>Мы всегда рады новым людям, готовым делиться своим временем, энергией и навыками ради помощи другим. Волонтёром может стать любой, кто разделяет ценности фонда, уважает наших подопечных и команду.</p>
                             <p>Наши волонтёры помогают на благотворительных акциях и мероприятиях, поддерживают информационную работу в социальных сетях, участвуют в организации и сопровождении сборов, а также делятся своим профессиональным опытом.</p>
                             <p>Чтобы присоединиться к команде, достаточно заполнить анкету и пройти короткое собеседование. Мы поддерживаем добровольцев на всех этапах.</p>
@@ -179,8 +182,11 @@
                             </div>
                         </div>
 
-                        <div class="relative bg-white/5 rounded-[2rem] md:rounded-[2.5rem] p-3 md:p-6 border border-white/5 mt-4 md:mt-0">
-                            <div id="volunteer-slider" class="flex gap-3 md:gap-4 overflow-x-auto hide-scroll rounded-xl md:rounded-2xl pb-2 md:pb-4">
+                        <!-- 🛠️ ИСПРАВЛЕНИЕ ТУТ: ДОБАВЛЕНЫ КЛАССЫ w-full min-w-0 overflow-hidden -->
+                        <div class="relative bg-white/5 rounded-[2rem] md:rounded-[2.5rem] p-3 md:p-6 border border-white/5 mt-4 md:mt-0 w-full min-w-0 overflow-hidden">
+                            
+                            <!-- ДОБАВЛЕН КЛАСС: w-full -->
+                            <div id="volunteer-slider" class="flex gap-3 md:gap-4 overflow-x-auto hide-scroll rounded-xl md:rounded-2xl pb-2 md:pb-4 w-full">
                                 <div class="snap-item w-[220px] sm:w-[280px] aspect-[4/5] bg-card-dark rounded-xl md:rounded-2xl overflow-hidden flex-shrink-0 border border-white/10 group">
                                     <img src="{% static 'img/img_1.webp' %}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 cursor-zoom-in" onclick="openPhotoModal(this.src)">
                                 </div>
@@ -730,6 +736,35 @@
                 else navbarBg.classList.replace('opacity-100', 'opacity-0');
             });
         });
+
+        function openPhotoModal(src) {
+            const modal = document.getElementById('photo-modal');
+            const img = document.getElementById('modal-img');
+            img.src = src;
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden'; // Запрещаем скролл фона
+            
+            // Анимация появления
+            setTimeout(() => {
+                img.classList.remove('scale-95');
+                img.classList.add('scale-100');
+            }, 10);
+        }
+
+        function closePhotoModal() {
+            const modal = document.getElementById('photo-modal');
+            const img = document.getElementById('modal-img');
+            
+            // Анимация исчезновения
+            img.classList.remove('scale-100');
+            img.classList.add('scale-95');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                document.body.style.overflow = ''; // Возвращаем скролл
+                img.src = '';
+            }, 300);
+        }
         
         function toggleAccordion(el) {
             const content = el.querySelector('.accordion-content');

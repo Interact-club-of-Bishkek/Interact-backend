@@ -1,4 +1,5 @@
-
+from django.db.models import Q, TextField
+from django.db.models.functions import Cast
 from django.contrib import admin
 from django.db.models import Q, Count
 from django.utils.html import format_html
@@ -331,8 +332,26 @@ class RecruitmentApplicationAdmin(admin.ModelAdmin):
     list_filter = ('is_archived', 'status', 'recruitment', 'created_at')
     readonly_fields = ('created_at', 'answers_table')
     
-    # ❗️ УБРАЛИ inlines = [...], чтобы снизу не было дублирующей таблицы вложений
+    # 👈 1. Включаем саму строку поиска в админке
+    search_fields = ('volunteer__name', 'volunteer__login')
+
     actions = ['mark_accepted', 'mark_rejected', 'mark_archived', 'unmark_archived']
+
+    # 👈 2. Умный поиск (ищет и в профиле, и внутри JSON-ответов)
+    def get_search_results(self, request, queryset, search_term):
+        if search_term:
+            # Cast превращает JSON в обычный текст, что защищает от ошибок базы данных,
+            # и позволяет найти ФИО, на какой бы вопрос (q_1, q_2 и т.д.) кандидат ни ответил.
+            queryset = queryset.annotate(
+                answers_text=Cast('answers', TextField())
+            ).filter(
+                Q(volunteer__name__icontains=search_term) | 
+                Q(volunteer__login__icontains=search_term) |
+                Q(answers_text__icontains=search_term)
+            )
+            return queryset, False
+            
+        return super().get_search_results(request, queryset, search_term)
 
     fieldsets = (
         ('Инфо о заявке', {
@@ -350,8 +369,23 @@ class RecruitmentApplicationAdmin(admin.ModelAdmin):
     is_archived_badge.short_description = "Архив"
 
     def volunteer_display(self, obj):
+        # 1. Пытаемся достать ФИО из JSON ответов (в первую очередь)
+        if obj.answers and isinstance(obj.answers, dict):
+            # Сначала пытаемся найти вопрос по ключевым словам
+            for k, v in obj.answers.items():
+                if any(word in k.lower() for word in ['имя', 'фио', 'name', 'фамилия']):
+                    if isinstance(v, str) and v.strip():
+                        return v
+            
+            # Если по словам не нашли, просто берем самый первый ответ (как вы и просили)
+            vals = list(obj.answers.values())
+            if vals and isinstance(vals[0], str):
+                return vals[0]
+                
+        # 2. Фолбек: если анкета пустая, но есть привязанный аккаунт
         if hasattr(obj, 'volunteer') and obj.volunteer:
             return f"{obj.volunteer.name} (@{obj.volunteer.login})"
+            
         return "Гость"
     volunteer_display.short_description = "Кандидат"
 
