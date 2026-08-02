@@ -1,5 +1,6 @@
 import random
 import string
+import os
 import uuid
 from django.db import models
 from django.core.exceptions import ValidationError
@@ -386,9 +387,18 @@ class RecruitmentApplication(models.Model):
 
 
 def recruitment_attachment_upload_to(instance, filename):
-    ext = filename.split('.')[-1]
+    # 1. Безопасно достаем расширение и сразу переводим в нижний регистр
+    ext = os.path.splitext(filename)[1].lower() 
+    
+    # 2. Если это .jpeg (или телефон вообще не прислал расширение), 
+    # принудительно переименовываем в классический .jpg
+    if ext == '.jpeg' or not ext:
+        ext = '.jpg'
+        
     name = uuid.uuid4().hex
-    return f'recruitments/{instance.application.id}/{name}.{ext}'
+    
+    # 3. Сохраняем. Теперь в базе и на диске будут ТОЛЬКО .jpg
+    return f'recruitments/{instance.application.id}/{name}{ext}'
 
 
 class RecruitmentAttachment(models.Model):
