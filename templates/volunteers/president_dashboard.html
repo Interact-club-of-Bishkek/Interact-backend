@@ -43,7 +43,6 @@
 <body class="flex h-screen overflow-hidden relative">
 
     <div id="toast-container" class="fixed top-5 right-5 left-5 md:left-auto z-[3000] flex flex-col gap-3"></div>
-
     <div id="sidebarBackdrop" onclick="closeSidebar()" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-[1500] hidden opacity-0 transition-opacity duration-300 md:hidden"></div>
 
     <aside id="sidebar" class="sidebar fixed inset-y-0 left-0 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 ease-in-out z-[2000] flex flex-col flex-shrink-0 shadow-2xl md:shadow-none">
@@ -82,15 +81,15 @@
                     <h1 id="pageTitle" class="text-xl md:text-3xl font-black uppercase italic tracking-wide truncate">Набор в команды</h1>
                 </div>
                 
-                <div class="flex flex-col sm:flex-row xl:flex-row gap-3 w-full xl:w-auto">
+                <div class="flex flex-col sm:flex-row xl:flex-row items-center gap-3 w-full xl:w-auto flex-wrap">
                     <!-- Поисковик -->
-                    <div class="relative w-full sm:w-48 xl:w-60">
+                    <div class="relative w-full sm:w-auto flex-1 xl:w-48">
                         <input type="text" id="searchInput" oninput="handleSearch(this.value)" placeholder="Поиск по имени..." class="w-full bg-black/40 border border-white/10 rounded-xl pl-10 pr-4 py-3 sm:py-2 text-xs font-bold text-white focus:outline-none focus:border-primary transition">
                         <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 text-xs pointer-events-none"></i>
                     </div>
 
                     <!-- Фильтр -->
-                    <div class="relative w-full sm:w-48 xl:w-60">
+                    <div class="relative w-full sm:w-auto flex-1 xl:w-48">
                         <select id="itemFilter" onchange="applyFilter(this.value)" class="w-full bg-black/40 border border-white/10 rounded-xl pl-4 pr-10 py-3 sm:py-2 text-xs font-bold uppercase tracking-wider text-white focus:outline-none focus:border-primary appearance-none cursor-pointer">
                             <option value="all">⚡ Все направления</option>
                         </select>
@@ -99,9 +98,15 @@
 
                     <!-- Табы статусов -->
                     <div class="flex bg-black/40 rounded-xl p-1 border border-white/10 shrink-0 w-full sm:w-auto">
-                        <button onclick="switchStatus('pending')" id="status-pending" class="flex-1 sm:flex-none px-4 py-2.5 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold uppercase bg-primary text-black transition text-center">Ожидают</button>
-                        <button onclick="switchStatus('accepted')" id="status-accepted" class="flex-1 sm:flex-none px-4 py-2.5 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold uppercase text-gray-400 hover:text-white transition text-center">Принятые</button>
+                        <button onclick="switchStatus('pending')" id="status-pending" class="flex-1 sm:flex-none px-3 py-2.5 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold uppercase bg-primary text-white transition text-center">Ожидают</button>
+                        <button onclick="switchStatus('accepted')" id="status-accepted" class="flex-1 sm:flex-none px-3 py-2.5 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold uppercase text-gray-400 hover:text-white transition text-center">Принятые</button>
+                        <button onclick="switchStatus('stage_3')" id="status-stage3" class="hidden flex-1 sm:flex-none px-3 py-2.5 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold uppercase text-gray-400 hover:text-white transition text-center">3 этап</button>
                     </div>
+
+                    <!-- Кнопка генерации PDF (скрыта по умолчанию) -->
+                    <button id="btnDownloadPdf" onclick="downloadPdf()" class="hidden w-full sm:w-auto px-4 py-3 sm:py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold uppercase transition flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(168,85,247,0.3)]">
+                        <i class="fas fa-file-pdf text-sm"></i> PDF
+                    </button>
                 </div>
             </div>
         </header>
@@ -121,40 +126,41 @@
             
             <button onclick="closeModal()" class="absolute top-4 right-4 md:top-6 md:right-6 w-9 h-9 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 text-lg z-20 transition"><i class="fas fa-times"></i></button>
             
-            <!-- Шапка модалки -->
             <div class="p-6 md:p-8 border-b border-white/10 bg-black/30 flex-shrink-0">
                 <div class="text-[10px] font-black text-primary uppercase tracking-widest mb-1" id="modalBadge">Команда</div>
                 <h3 class="text-lg md:text-xl font-black uppercase italic text-white leading-tight pr-10" id="modalName">Имя Кандидата</h3>
             </div>
             
-            <!-- Скроллируемая середина с ответами и файлами -->
             <div class="p-6 md:p-8 overflow-y-auto flex-1 custom-scrollbar" id="modalAnswers">
-                <!-- Контент ответов и файлов генерируется через JS -->
+                <!-- Контент ответов и файлов -->
             </div>
             
-            <!-- Нижняя панель со стрелочками и кнопкой принятия -->
             <div class="p-4 md:p-6 border-t border-white/10 bg-black/60 backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-3 flex-shrink-0">
-                <!-- Стрелочки навигации -->
+                <!-- Навигация -->
                 <div class="flex items-center justify-between sm:justify-start gap-2 w-full sm:w-auto">
                     <button id="btnPrevApp" onclick="navigateModal(-1)" class="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs font-black uppercase text-gray-300 hover:text-white hover:bg-white/10 transition"><i class="fas fa-chevron-left mr-1"></i> Пред.</button>
                     <span id="modalCounter" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-2 shrink-0">1 / 10</span>
                     <button id="btnNextApp" onclick="navigateModal(1)" class="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs font-black uppercase text-gray-300 hover:text-white hover:bg-white/10 transition">След. <i class="fas fa-chevron-right ml-1"></i></button>
                 </div>
 
-                <!-- Кнопка действия (Сделали текст белым) -->
-                <button id="btnAccept" onclick="acceptCurrentApplication()" class="w-full sm:w-auto px-6 py-3 rounded-xl bg-primary text-white font-black uppercase text-xs md:text-sm tracking-wide hover:bg-white hover:text-primary transition shadow-[0_0_20px_rgba(0,198,255,0.2)]">
-                    <i class="fas fa-check-double mr-2"></i> Принять
-                </button>
+                <!-- Контейнер для кнопок действий (Принять / 3 Этап) -->
+                <div id="modalActionButtons" class="w-full sm:w-auto">
+                    <!-- Заполняется через JS -->
+                </div>
             </div>
         </div>
     </div>
 
     <script>
         const API = {
-            profile: '/profile/', 
-            commandsApps: '/commands-applications/',
+            profile: '/api/profile/', // <-- Добавили /api/, так как в urls.py у тебя path('api/profile/', ...)
+            
+            commandsApps: '/commands-applications/', 
             volunteersApps: '/api/recruitments/applications/', 
-            volunteersStatus: '/recruitments/applications/'
+            
+            // Эти два пути теперь идеально совпадают с твоим обновленным urls.py
+            volunteersStatus: '/api/applications/',  
+            pdfDownload: '/api/applications/download-schedule-pdf/'
         };
 
         let state = {
@@ -172,16 +178,14 @@
 
         function openSidebar() {
             document.getElementById('sidebar').classList.remove('-translate-x-full');
-            const backdrop = document.getElementById('sidebarBackdrop');
-            backdrop.classList.remove('hidden');
-            setTimeout(() => backdrop.classList.remove('opacity-0'), 10);
+            document.getElementById('sidebarBackdrop').classList.remove('hidden');
+            setTimeout(() => document.getElementById('sidebarBackdrop').classList.remove('opacity-0'), 10);
         }
 
         function closeSidebar() {
             document.getElementById('sidebar').classList.add('-translate-x-full');
-            const backdrop = document.getElementById('sidebarBackdrop');
-            backdrop.classList.add('opacity-0');
-            setTimeout(() => backdrop.classList.add('hidden'), 300);
+            document.getElementById('sidebarBackdrop').classList.add('opacity-0');
+            setTimeout(() => document.getElementById('sidebarBackdrop').classList.add('hidden'), 300);
         }
 
         async function init() {
@@ -193,9 +197,7 @@
                     const user = await res.json();
                     document.getElementById('userNameLabel').innerText = `${user.first_name || user.username || 'Админ'} (${user.role || 'Президент'})`;
                 }
-            } catch (e) {
-                console.warn("Не удалось загрузить профиль");
-            }
+            } catch (e) {}
             
             await fetchData();
         }
@@ -239,7 +241,6 @@
             }
             
             select.innerHTML = options;
-            
             if (uniqueTitles.includes(state.filterValue)) select.value = state.filterValue;
             else { state.filterValue = 'all'; select.value = 'all'; }
         }
@@ -257,13 +258,21 @@
         function extractName(app) {
             if (app.applicant_name) return app.applicant_name;
             
-            if (app.answers) {
-                const keys = Object.keys(app.answers);
-                const nameKey = keys.find(k => k.toLowerCase().includes('имя') || k.toLowerCase().includes('фио'));
-                if (nameKey && app.answers[nameKey]) return app.answers[nameKey];
-                
-                const vals = Object.values(app.answers);
-                if (vals.length > 0 && typeof vals[0] === 'string') return vals[0]; 
+            // Проверяем формат formatted_answers или answers
+            const answers = app.formatted_answers || app.answers;
+            if (answers) {
+                // Если это словарь (объект)
+                if (typeof answers === 'object' && !Array.isArray(answers)) {
+                    for (let [key, val] of Object.entries(answers)) {
+                        const lowerKey = key.toLowerCase();
+                        if (lowerKey.includes('имя') || lowerKey.includes('фио') || lowerKey.includes('name') || lowerKey.includes('фамилия')) {
+                            if (val && typeof val === 'string') return val;
+                        }
+                    }
+                    // Если по ключевым словам не нашлось, берем первое попавшееся текстовое значение
+                    const vals = Object.values(answers);
+                    if (vals.length > 0 && typeof vals[0] === 'string') return vals[0];
+                }
             }
             return 'Неизвестный кандидат';
         }
@@ -326,11 +335,16 @@
             container.innerHTML = filtered.map((app, index) => {
                 const name = extractName(app);
                 const recruitTitle = app.recruitment_title || app.recruitment_slug || 'Волонтерство';
+                
+                // Цвет бортика зависит от статуса
+                let borderColor = 'border-l-primary'; // pending
+                if (state.activeStatus === 'accepted') borderColor = 'border-l-green-500';
+                if (state.activeStatus === 'stage_3') borderColor = 'border-l-purple-500';
 
                 return `
-                <div class="app-card p-5 md:p-6 border-l-4 border-l-green-500" onclick="openModal(${index})">
+                <div class="app-card p-5 md:p-6 border-l-4 ${borderColor}" onclick="openModal(${index})">
                     <div class="flex justify-between items-start mb-3 md:mb-4 gap-2">
-                        <span class="text-[9px] font-black uppercase px-2 py-1 bg-green-500/20 text-green-500 rounded truncate">${recruitTitle}</span>
+                        <span class="text-[9px] font-black uppercase px-2 py-1 bg-white/10 text-white rounded truncate">${recruitTitle}</span>
                         <span class="text-[10px] text-gray-500 shrink-0">${new Date(app.created_at).toLocaleDateString()}</span>
                     </div>
                     <h4 class="text-lg md:text-xl font-bold text-white mb-1 line-clamp-1">${name}</h4>
@@ -352,36 +366,25 @@
             const app = state.currentFilteredList[index];
             state.currentApp = app;
 
-            const btnPrev = document.getElementById('btnPrevApp');
-            const btnNext = document.getElementById('btnNextApp');
-            const counter = document.getElementById('modalCounter');
-            
-            btnPrev.style.visibility = index > 0 ? 'visible' : 'hidden';
-            btnNext.style.visibility = index < (state.currentFilteredList.length - 1) ? 'visible' : 'hidden';
-            counter.innerText = `${index + 1} / ${state.currentFilteredList.length}`;
+            // Навигация
+            document.getElementById('btnPrevApp').style.visibility = index > 0 ? 'visible' : 'hidden';
+            document.getElementById('btnNextApp').style.visibility = index < (state.currentFilteredList.length - 1) ? 'visible' : 'hidden';
+            document.getElementById('modalCounter').innerText = `${index + 1} / ${state.currentFilteredList.length}`;
 
             const isVolunteer = (state.activeTab === 'volunteers');
-            const name = extractName(app);
-            
-            document.getElementById('modalBadge').innerText = isVolunteer 
-                ? 'Набор: ' + (app.recruitment_title || app.recruitment_slug || 'Волонтер') 
-                : 'Команда: ' + (app.command_title || '');
-            document.getElementById('modalName').innerText = name;
+            document.getElementById('modalBadge').innerText = isVolunteer ? 'Набор: ' + (app.recruitment_title || app.recruitment_slug || 'Волонтер') : 'Команда: ' + (app.command_title || '');
+            document.getElementById('modalName').innerText = extractName(app);
 
+            // Отрисовка контента
             let answersHtml = '';
             const answersToRender = app.formatted_answers || app.answers;
 
             if (answersToRender && Object.keys(answersToRender).length > 0) {
                 for (let [question, answer] of Object.entries(answersToRender)) {
-                    
                     if (question.startsWith('q_') && !isNaN(question.replace('q_', ''))) {
-                        const qId = question.replace('q_', '');
-                        question = `Вопрос (№${qId})`;
+                        question = `Вопрос (№${question.replace('q_', '')})`;
                     }
-
-                    if (Array.isArray(answer)) {
-                        answer = answer.join(', ');
-                    }
+                    if (Array.isArray(answer)) answer = answer.join(', ');
 
                     answersHtml += `
                     <div class="mb-6">
@@ -397,77 +400,66 @@
                 answersHtml = '<div class="text-gray-500 italic mb-4">Текстовые ответы отсутствуют.</div>';
             }
 
-            // ИСПРАВЛЕНИЕ ОТОБРАЖЕНИЯ ФАЙЛОВ
             if (app.files && app.files.length > 0) {
-                answersHtml += `<div class="mt-8 pt-6 border-t border-white/10 space-y-3">
-                    <h4 class="text-xs font-black uppercase text-gray-400 tracking-widest mb-3">Прикрепленные файлы</h4>`;
-                
+                answersHtml += `<div class="mt-8 pt-6 border-t border-white/10 space-y-3"><h4 class="text-xs font-black uppercase text-gray-400 tracking-widest mb-3">Прикрепленные файлы</h4>`;
                 app.files.forEach(f => {
                     if (!f.file) return;
-
-                    // Точно такая же очистка домена, как у куратора:
-                    let fileUrl = f.file;
-                    fileUrl = fileUrl.replace(/^https?:\/\/[^\/]+/, ''); 
+                    let fileUrl = f.file.replace(/^https?:\/\/[^\/]+/, ''); 
                     fileUrl = window.location.origin + fileUrl;
-
                     const isImage = /\.(jpg|jpeg|png|webp|gif|bmp|svg)(\?.*)?$/i.test(fileUrl);
-                    const isVideo = /\.(mp4|mov|webm|avi)(\?.*)?$/i.test(fileUrl);
-
+                    
                     if (isImage) {
-                        answersHtml += `
-                        <div class="mb-3">
-                            <p class="text-[10px] text-gray-400 mb-1 uppercase font-semibold">${f.label || 'Фотография'}</p>
-                            <a href="${fileUrl}" target="_blank" class="block overflow-hidden rounded-xl border border-white/10 group bg-black/40">
-                                <img src="${fileUrl}" alt="Прикрепленный файл" class="w-full max-h-60 object-contain group-hover:scale-105 transition duration-300" onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'p-4 text-xs text-red-400\\'>Не удалось загрузить изображение. Ссылка: <a href=\\''+this.src+'\\' class=\\'underline\\'>открыть</a></div>';">
-                            </a>
-                        </div>`;
-                    } else if (isVideo) {
-                        answersHtml += `
-                        <div class="mb-3">
-                            <p class="text-[10px] text-gray-400 mb-1 uppercase font-semibold">${f.label || 'Видеозапись'}</p>
-                            <div class="rounded-xl overflow-hidden border border-white/10 bg-black/50">
-                                <video controls class="w-full max-h-[400px]"><source src="${fileUrl}"></video>
-                            </div>
-                        </div>`;
+                        answersHtml += `<div class="mb-3"><p class="text-[10px] text-gray-400 mb-1 uppercase font-semibold">${f.label || 'Фотография'}</p><a href="${fileUrl}" target="_blank" class="block overflow-hidden rounded-xl border border-white/10 group bg-black/40"><img src="${fileUrl}" alt="Файл" class="w-full max-h-60 object-contain group-hover:scale-105 transition duration-300"></a></div>`;
                     } else {
-                        answersHtml += `
-                        <a href="${fileUrl}" target="_blank" class="flex items-center gap-3 p-3 bg-white/5 rounded-xl hover:bg-white/10 transition border border-white/5">
-                            <div class="w-10 h-10 rounded-lg bg-primary/20 text-primary flex items-center justify-center text-base"><i class="fas fa-file"></i></div>
-                            <div class="overflow-hidden">
-                                <p class="text-sm font-bold text-white truncate">${f.label || 'Документ'}</p>
-                                <p class="text-xs text-primary mt-0.5">Открыть файл <i class="fas fa-external-link-alt ml-1"></i></p>
-                            </div>
-                        </a>`;
+                        answersHtml += `<a href="${fileUrl}" target="_blank" class="flex items-center gap-3 p-3 bg-white/5 rounded-xl hover:bg-white/10 transition border border-white/5"><div class="w-10 h-10 rounded-lg bg-primary/20 text-primary flex items-center justify-center text-base"><i class="fas fa-file"></i></div><div class="overflow-hidden"><p class="text-sm font-bold text-white truncate">${f.label || 'Документ'}</p><p class="text-xs text-primary mt-0.5">Открыть файл <i class="fas fa-external-link-alt ml-1"></i></p></div></a>`;
                     }
                 });
                 answersHtml += `</div>`;
             }
-
             document.getElementById('modalAnswers').innerHTML = answersHtml;
 
-            const btn = document.getElementById('btnAccept');
-            if ((app.status || '').toLowerCase() === 'accepted') {
-                btn.innerHTML = '<i class="fas fa-check"></i> Уже в составе';
-                btn.className = "w-full sm:w-auto px-6 py-3 rounded-xl bg-green-500/10 text-green-500 border border-green-500/20 font-black uppercase text-xs md:text-sm cursor-not-allowed";
-                btn.disabled = true;
-            } else {
-                btn.innerHTML = '<i class="fas fa-check-double mr-2"></i> Принять';
-                btn.className = "w-full sm:w-auto px-6 py-3 rounded-xl bg-primary text-white font-black uppercase text-xs md:text-sm tracking-wide hover:bg-white hover:text-primary transition shadow-[0_0_20px_rgba(0,198,255,0.2)]";
-                btn.disabled = false;
+            // Логика кнопок действия
+            const actionsContainer = document.getElementById('modalActionButtons');
+            let currentStatus = (app.status || 'pending').toLowerCase();
+            
+            if (currentStatus === 'pending') {
+                actionsContainer.innerHTML = `
+                    <button onclick="updateStatus('accepted')" class="w-full sm:w-auto px-6 py-3 rounded-xl bg-primary text-white font-black uppercase text-xs md:text-sm tracking-wide hover:bg-white hover:text-primary transition shadow-[0_0_20px_rgba(0,198,255,0.2)]">
+                        <i class="fas fa-check-double mr-2"></i> Принять
+                    </button>
+                `;
+            } else if (currentStatus === 'accepted') {
+                if (isVolunteer) {
+                    // Если волонтер принят, даем кнопку отправить на 3 этап
+                    actionsContainer.innerHTML = `
+                        <button onclick="updateStatus('stage_3')" class="w-full sm:w-auto px-6 py-3 rounded-xl bg-purple-600 text-white font-black uppercase text-xs md:text-sm tracking-wide hover:bg-white hover:text-purple-600 transition shadow-[0_0_20px_rgba(147,51,234,0.3)]">
+                            <i class="fas fa-share-square mr-2"></i> На 3 этап
+                        </button>
+                    `;
+                } else {
+                    // Для команд просто пишем что в составе
+                    actionsContainer.innerHTML = `
+                        <button disabled class="w-full sm:w-auto px-6 py-3 rounded-xl bg-green-500/10 text-green-500 border border-green-500/20 font-black uppercase text-xs md:text-sm cursor-not-allowed">
+                            <i class="fas fa-check"></i> Уже в составе
+                        </button>
+                    `;
+                }
+            } else if (currentStatus === 'stage_3') {
+                actionsContainer.innerHTML = `
+                    <button disabled class="w-full sm:w-auto px-6 py-3 rounded-xl bg-purple-500/10 text-purple-500 border border-purple-500/20 font-black uppercase text-xs md:text-sm cursor-not-allowed">
+                        <i class="fas fa-check-circle mr-2"></i> Уже на 3 этапе
+                    </button>
+                `;
             }
 
+            // Показ модалки
             const modal = document.getElementById('appModal');
             if (modal.classList.contains('hidden')) {
-                const inner = document.getElementById('appModalInner');
                 modal.classList.remove('hidden');
-                
                 setTimeout(() => {
                     modal.classList.remove('opacity-0');
-                    if (window.innerWidth < 768) {
-                        inner.classList.remove('translate-y-full'); 
-                    } else {
-                        inner.classList.remove('scale-95'); 
-                    }
+                    if (window.innerWidth < 768) document.getElementById('appModalInner').classList.remove('translate-y-full'); 
+                    else document.getElementById('appModalInner').classList.remove('scale-95'); 
                 }, 10);
             }
         }
@@ -475,58 +467,92 @@
         function closeModal() {
             const modal = document.getElementById('appModal');
             const inner = document.getElementById('appModalInner');
-            
             modal.classList.add('opacity-0');
-            if (window.innerWidth < 768) {
-                inner.classList.add('translate-y-full');
-            } else {
-                inner.classList.add('scale-95');
-            }
-
-            setTimeout(() => {
-                modal.classList.add('hidden');
-                state.currentApp = null;
-            }, 300); 
+            if (window.innerWidth < 768) inner.classList.add('translate-y-full');
+            else inner.classList.add('scale-95');
+            setTimeout(() => { modal.classList.add('hidden'); state.currentApp = null; }, 300); 
         }
 
-        async function acceptCurrentApplication() {
+        // Универсальная функция обновления статуса
+        // Универсальная функция обновления статуса
+        async function updateStatus(newStatus) {
             if (!state.currentApp) return;
-            const btn = document.getElementById('btnAccept');
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Обработка...';
-            btn.disabled = true;
+            
+            const actionsContainer = document.getElementById('modalActionButtons');
+            actionsContainer.innerHTML = `<button disabled class="w-full sm:w-auto px-6 py-3 rounded-xl bg-gray-600 text-white font-black uppercase text-xs md:text-sm"><i class="fas fa-spinner fa-spin mr-2"></i> Обработка...</button>`;
 
             const app = state.currentApp;
             const isVol = (state.activeTab === 'volunteers');
             
+            // Определяем URL
             const url = isVol 
                 ? `${API.volunteersStatus}${app.id}/status/` 
                 : `${API.commandsApps}${app.id}/accept/`;
+            
+            const bodyData = isVol ? { status: newStatus } : { status: 'accepted' };
             
             try {
                 const res = await fetch(url, {
                     method: 'PATCH',
                     headers: { 'Authorization': `Bearer ${state.token}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ status: 'accepted' })
+                    body: JSON.stringify(bodyData)
                 });
 
                 if (res.ok) {
-                    showToast("Успешно принято!", "success");
-                    app.status = 'accepted';
-                    renderViews();
+                    showToast(newStatus === 'stage_3' ? "Переведен на 3 этап!" : "Успешно принято!", "success");
+                    app.status = newStatus;
                     
-                    btn.innerHTML = '<i class="fas fa-check"></i> Уже в составе';
-                    btn.className = "w-full sm:w-auto px-6 py-3 rounded-xl bg-green-500/10 text-green-500 border border-green-500/20 font-black uppercase text-xs md:text-sm cursor-not-allowed";
+                    // 1. Сначала закрываем модальное окно
+                    closeModal();
+                    
+                    // 2. Ждем 300мс (пока пройдет красивая анимация закрытия), затем обновляем список.
+                    // Теперь карточка просто плавно исчезнет с экрана и появится в другой вкладке.
+                    setTimeout(() => {
+                        renderViews();
+                    }, 300);
+                    
                 } else {
-                    const data = await res.json();
+                    const data = await res.json().catch(() => ({}));
                     showToast(data.error || "Ошибка сервера", "error");
-                    btn.innerHTML = '<i class="fas fa-check-double mr-2"></i> Принять';
-                    btn.disabled = false;
+                    openModal(state.currentModalIndex); // Возвращаем кнопки только при реальной ошибке бэкенда
                 }
             } catch (e) {
-                showToast("Ошибка сети", "error");
-                btn.innerHTML = '<i class="fas fa-check-double mr-2"></i> Принять';
-                btn.disabled = false;
+                console.error("Ошибка в скрипте или сети:", e);
+                showToast("Произошла ошибка!", "error");
             }
+        }
+
+        // Функция скачивания PDF
+        function downloadPdf() {
+            showToast("Генерация PDF (Ожидайте)...", "success");
+            
+            let url = API.pdfDownload;
+            if (state.filterValue !== 'all') {
+                url += `?slug=${state.filterValue}`;
+            }
+
+            fetch(url, {
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${state.token}` }
+            })
+            .then(res => {
+                if (!res.ok) throw new Error("Ошибка при формировании PDF");
+                return res.blob();
+            })
+            .then(blob => {
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = downloadUrl;
+                a.download = `Расписание_3_Этап_${new Date().toLocaleDateString()}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(downloadUrl);
+                a.remove();
+            })
+            .catch(err => {
+                showToast("Не удалось скачать PDF", "error");
+            });
         }
 
         function switchTab(tab) {
@@ -541,7 +567,17 @@
             
             document.getElementById('pageTitle').innerText = tab === 'commands' ? 'Набор в команды' : 'Набор волонтеров';
             
+            // Показываем/Скрываем вкладку "3 этап" (она только для волонтеров)
+            const stage3Btn = document.getElementById('status-stage3');
+            if (tab === 'volunteers') {
+                stage3Btn.classList.remove('hidden');
+            } else {
+                stage3Btn.classList.add('hidden');
+                if (state.activeStatus === 'stage_3') switchStatus('accepted');
+            }
+
             updateFilterDropdown();
+            togglePdfButton();
             renderViews();
             
             if(window.innerWidth < 768) closeSidebar();
@@ -549,18 +585,38 @@
 
         function switchStatus(status) {
             state.activeStatus = status;
-            const btnP = document.getElementById('status-pending');
-            const btnA = document.getElementById('status-accepted');
-            const baseClass = "flex-1 sm:flex-none px-4 py-2.5 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold uppercase transition text-center";
+            
+            const btns = {
+                'pending': document.getElementById('status-pending'),
+                'accepted': document.getElementById('status-accepted'),
+                'stage_3': document.getElementById('status-stage3')
+            };
 
-            if (status === 'pending') {
-                btnP.className = `${baseClass} bg-primary text-white`; // Сделали активную кнопку белой, чтобы читалась
-                btnA.className = `${baseClass} text-gray-400 hover:text-white bg-black/40`;
-            } else {
-                btnA.className = `${baseClass} bg-primary text-white`;
-                btnP.className = `${baseClass} text-gray-400 hover:text-white bg-black/40`;
+            const baseClass = "flex-1 sm:flex-none px-3 py-2.5 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold uppercase transition text-center";
+
+            for (const key in btns) {
+                if (!btns[key]) continue;
+                if (key === status) {
+                    btns[key].className = `${baseClass} bg-primary text-white`;
+                } else {
+                    // Оставляем hidden для stage_3 если вкладка "Команды"
+                    const hiddenClass = (key === 'stage_3' && state.activeTab === 'commands') ? 'hidden ' : '';
+                    btns[key].className = `${hiddenClass}${baseClass} text-gray-400 hover:text-white bg-black/40`;
+                }
             }
+
+            togglePdfButton();
             renderViews();
+        }
+
+        function togglePdfButton() {
+            const btn = document.getElementById('btnDownloadPdf');
+            // Показываем кнопку PDF ТОЛЬКО во вкладке Волонтеров и ТОЛЬКО у Принятых
+            if (state.activeTab === 'volunteers' && state.activeStatus === 'accepted') {
+                btn.classList.remove('hidden');
+            } else {
+                btn.classList.add('hidden');
+            }
         }
 
         function showToast(msg, type = 'success') {
@@ -569,7 +625,7 @@
             const color = type === 'error' ? 'bg-red-500' : 'bg-green-500';
             const icon = type === 'error' ? 'fa-exclamation-circle' : 'fa-check-circle';
             
-            el.className = `flex items-center gap-3 px-5 py-4 rounded-xl shadow-2xl text-white font-bold text-xs md:text-sm transform transition-all duration-300 translate-x-full ${color}`;
+            el.className = `flex items-center gap-3 px-5 py-4 rounded-xl shadow-2xl text-white font-bold text-xs md:text-sm transform transition-all duration-300 translate-x-full z-[3000] ${color}`;
             el.innerHTML = `<i class="fas ${icon} text-lg md:text-xl"></i> ${msg}`;
             
             container.appendChild(el);

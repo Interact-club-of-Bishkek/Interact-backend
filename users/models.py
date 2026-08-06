@@ -348,6 +348,7 @@ class RecruitmentApplication(models.Model):
         ('pending', 'Ожидает'),
         ('accepted', 'Принят'),
         ('rejected', 'Отклонен'),
+        ('stage_3', '3 этап'),
     ]
 
     recruitment = models.ForeignKey(

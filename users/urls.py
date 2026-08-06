@@ -12,6 +12,7 @@ from users.views import (
     EquityViewSet, 
     EquityPanelView,
     get_app_settings,
+    
     # --- НОВЫЕ ИМПОРТЫ ДЛЯ ПРИСТАВА БАЗ ---
     BailiffBasePanelView,
     generate_auto_distribution,
@@ -21,6 +22,8 @@ from users.views import (
     # --- НОВОЕ ДЛЯ МИНИ-КОМАНД И СПОНСОРОВ ---
     MiniTeamViewSet,
     SponsorTaskViewSet,
+    RecruitmentApplicationUpdateStatusView, 
+    AcceptedVolunteersPDFView
     # --- ИМПОРТЫ ДЛЯ КАСТОМНОЙ АДМИН-ПАНЕЛИ ---
 )
 
@@ -99,5 +102,9 @@ urlpatterns = [
     # Отправка заявки
     path('api/recruitments/applications/', RecruitmentApplicationListCreateView.as_view(), name='recruitment-apply'),
     # Изменение статуса заявки админом (accept/reject)
-    path('recruitments/applications/<int:pk>/status/', RecruitmentApplicationUpdateStatusView.as_view(), name='application-status'),
+    path('api/recruitments/applications/<int:pk>/status/', RecruitmentApplicationUpdateStatusView.as_view(), name='application-status'),
+    path('api/applications/<int:pk>/status/', RecruitmentApplicationUpdateStatusView.as_view(), name='application-update-status'),
+    
+    # Скачивание PDF
+    path('api/applications/download-schedule-pdf/', AcceptedVolunteersPDFView.as_view(), name='download-schedule-pdf'),
 ]

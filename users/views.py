@@ -1,4 +1,4 @@
-from datetime import timezone
+from datetime import datetime, timedelta, timezone
 from django.utils import timezone
 import io
 import os
@@ -49,7 +49,7 @@ from projects.models import Project, TeamMember
 from directions.models import VolunteerDirection
 from commands.models import Command
 from .models import (
-    AppSettings, Attendance, Recruitment, RecruitmentApplication, RecruitmentAttachment, Volunteer, BotAccessConfig, 
+    AppSettings, Attendance, Recruitment, RecruitmentApplication, RecruitmentAttachment, RecruitmentQuestion, Volunteer, BotAccessConfig, 
     ActivityTask, ActivitySubmission, YellowCard, ChatSession, ChatMessage, 
     MiniTeam, MiniTeamMembership, SponsorTask
 )
@@ -60,6 +60,12 @@ from .serializers import (
     ActivitySubmissionSerializer, VolunteerDirectionSerializer, CommandSerializer,
     VolunteerListSerializer, MiniTeamSerializer, SponsorTaskSerializer
 )
+
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase import pdfmetrics
 
 # ---------------- АВТОРИЗАЦИЯ И ПРОФИЛЬ ----------------
 class VolunteerLoginView(APIView):
@@ -461,6 +467,144 @@ class ActiveRecruitmentView(generics.GenericAPIView):
             return Response({"status": "active", "data": serializer.data})
         
         return Response({"status": "closed"})
+
+class AcceptedVolunteersPDFView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        is_management = user.is_superuser or getattr(user, "role", "") in ["admin", "president"]
+        
+        if not is_management:
+            return Response({"error": "Нет прав для скачивания списков"}, status=status.HTTP_403_FORBIDDEN)
+
+        slug = request.query_params.get("slug")
+        
+        queryset = RecruitmentApplication.objects.filter(
+            status='accepted', 
+            is_archived=False
+        ).order_by("created_at")
+
+        if slug and slug != 'all':
+            queryset = queryset.filter(recruitment__slug=slug)
+
+        if not queryset.exists():
+            return Response({"error": "Нет принятых заявок для формирования PDF"}, status=status.HTTP_404_NOT_FOUND)
+
+        # --- СОЗДАЕМ КАРТУ ВОПРОСОВ ---
+        # Расшифровываем ключи q_1, q_2 в реальные названия вопросов из базы
+        all_questions = RecruitmentQuestion.objects.all()
+        q_map = {f"q_{q.id}": q.label.lower() for q in all_questions}
+        # ------------------------------
+
+        start_time = datetime.strptime('10:00', '%H:%M')
+        batch_size = 30 
+        time_increment = timedelta(minutes=30) 
+
+        data = [["ФИО", "Номер телефона", "Время (Этап 3)"]]
+
+        for index, app in enumerate(queryset):
+            batch_number = index // batch_size
+            current_time = (start_time + batch_number * time_increment).strftime('%H:%M')
+
+            answers = app.answers or {}
+            fio = None
+            phone = None
+
+            # 1. Пытаемся найти ФИО и Телефон по тексту вопроса
+            for key, val in answers.items():
+                label = q_map.get(key, key.lower()) # Получаем текст вопроса (например "укажите ваше фио")
+                
+                # Игнорируем массивы (множественный выбор)
+                if isinstance(val, list): 
+                    continue
+
+                if any(word in label for word in ['имя', 'фио', 'name', 'фамилия']):
+                    fio = val
+                elif any(word in label for word in ['телефон', 'номер', 'phone', 'контакт']):
+                    phone = val
+
+            # 2. ЖЕЛЕЗОБЕТОННЫЙ ФОЛЛБЕК (как ты и просил)
+            # Если по названиям не нашлось, просто берем 1-й ответ как имя, 2-й как телефон
+            vals = list(answers.values())
+            
+            if not fio and len(vals) > 0:
+                fio = str(vals[0]) if not isinstance(vals[0], list) else "Не указано"
+                
+            if not phone and len(vals) > 1:
+                phone = str(vals[1]) if not isinstance(vals[1], list) else "Не указано"
+
+            # Заполняем пропуски
+            fio = fio or "Не указано"
+            phone = phone or "Не указано"
+
+            data.append([fio, phone, current_time])
+
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+        
+        font_path = os.path.join(settings.BASE_DIR, 'arial.ttf')
+        
+        try:
+            pdfmetrics.registerFont(TTFont('Arial', font_path))
+            my_font = 'Arial'
+        except Exception as e:
+            print(f"Шрифт не найден: {e}")
+            my_font = 'Helvetica'
+
+        table = Table(data, colWidths=[200, 150, 100])
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#6b21a8")),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('FONTNAME', (0, 0), (-1, -1), my_font), 
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTSIZE', (0, 1), (-1, -1), 10),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+
+        doc.build([table])
+        buffer.seek(0)
+
+        return FileResponse(
+            buffer, 
+            as_attachment=True, 
+            filename=f'volunteers_stage_3_schedule_{datetime.now().strftime("%Y-%m-%d")}.pdf'
+        )
+    
+class RecruitmentApplicationBulkUpdateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        is_management = user.is_superuser or getattr(user, "role", "") in ["admin", "president"]
+        
+        if not is_management:
+            return Response({"error": "Нет прав для управления заявками"}, status=status.HTTP_403_FORBIDDEN)
+
+        # Ожидаем JSON вида: {"application_ids": [1, 2, 5, 12], "status": "stage_3"}
+        application_ids = request.data.get("application_ids", [])
+        new_status = request.data.get("status")
+
+        if not application_ids or not isinstance(application_ids, list):
+            return Response({"error": "Не передан список ID заявок"}, status=status.HTTP_400_BAD_REQUEST)
+
+        valid_statuses = dict(RecruitmentApplication.STATUS_CHOICES).keys()
+        if new_status not in valid_statuses:
+            return Response({"error": f"Неверный статус. Допустимые: {list(valid_statuses)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Обновляем все заявки одним SQL-запросом (это намного быстрее)
+        updated_count = RecruitmentApplication.objects.filter(
+            id__in=application_ids
+        ).update(status=new_status)
+
+        return Response({
+            "status": "success", 
+            "message": f"Успешно обновлен статус для {updated_count} заявок."
+        }, status=status.HTTP_200_OK)    
 
 class VolunteerListView(generics.ListAPIView):
     serializer_class = VolunteerListSerializer  
