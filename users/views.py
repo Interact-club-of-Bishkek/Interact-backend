@@ -501,7 +501,7 @@ class AcceptedVolunteersPDFView(APIView):
         batch_size = 30 
         time_increment = timedelta(minutes=30) 
 
-        data = [["ФИО", "Номер телефона", "Время (Этап 3)"]]
+        data = [["ФИО", "Номер телефона", "Время"]]
 
         for index, app in enumerate(queryset):
             batch_number = index // batch_size
