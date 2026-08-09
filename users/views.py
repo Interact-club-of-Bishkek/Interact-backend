@@ -40,7 +40,7 @@ from langchain.chains.question_answering import load_qa_chain
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
-from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
@@ -1600,6 +1600,166 @@ class SponsorTaskViewSet(viewsets.ModelViewSet):
             "status": task.get_status_display(),
             "comment": task.comment
         })
+
+
+def extract_fio_and_phone(app, q_map):
+    answers = app.answers or {}
+    fio = None
+    phone = None
+
+    # Ищем по тексту вопроса
+    for key, val in answers.items():
+        label = q_map.get(key, key.lower())
+        if isinstance(val, list): continue
+
+        if any(word in label for word in ['имя', 'фио', 'name', 'фамилия']):
+            fio = val
+        elif any(word in label for word in ['телефон', 'номер', 'phone', 'контакт']):
+            phone = val
+
+    # Фолбэк: берем просто 1-й и 2-й ответы
+    vals = list(answers.values())
+    if not fio and len(vals) > 0:
+        fio = str(vals[0]) if not isinstance(vals[0], list) else "Не указано"
+    if not phone and len(vals) > 1:
+        phone = str(vals[1]) if not isinstance(vals[1], list) else "Не указано"
+
+    return fio or "Не указано", phone or "Не указано"
+
+
+# ==========================================
+# 1. ТАБЛИЦА: 3 этап (С номерами, без времени, по алфавиту)
+# ==========================================
+class Stage3TablePDFView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        is_management = user.is_superuser or getattr(user, "role", "") in ["admin", "president"]
+        if not is_management:
+            return Response({"error": "Нет прав"}, status=status.HTTP_403_FORBIDDEN)
+
+        slug = request.query_params.get("slug")
+        
+        # Берем только 3 этап
+        queryset = RecruitmentApplication.objects.filter(status='stage_3', is_archived=False)
+        if slug and slug != 'all':
+            queryset = queryset.filter(recruitment__slug=slug)
+
+        if not queryset.exists():
+            return Response({"error": "Нет заявок на 3 этапе"}, status=status.HTTP_404_NOT_FOUND)
+
+        all_questions = RecruitmentQuestion.objects.all()
+        q_map = {f"q_{q.id}": q.label.lower() for q in all_questions}
+
+        # Собираем данные
+        extracted_data = []
+        for app in queryset:
+            fio, phone = extract_fio_and_phone(app, q_map)
+            extracted_data.append((fio, phone))
+
+        # СОРТИРОВКА ПО АЛФАВИТУ (по ФИО)
+        extracted_data.sort(key=lambda x: x[0].lower())
+
+        # Формируем таблицу с нумерацией
+        data = [["№", "ФИО", "Номер телефона"]]
+        for index, (fio, phone) in enumerate(extracted_data, start=1):
+            data.append([str(index), fio, phone])
+
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+        
+        font_path = os.path.join(settings.BASE_DIR, 'arial.ttf')
+        try:
+            pdfmetrics.registerFont(TTFont('Arial', font_path))
+            my_font = 'Arial'
+        except Exception:
+            my_font = 'Helvetica'
+
+        # Ширина колонок: 40 под номер, 250 под ФИО, 150 под телефон
+        table = Table(data, colWidths=[40, 250, 150])
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#6b21a8")), # Фиолетовый
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('FONTNAME', (0, 0), (-1, -1), my_font), 
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTSIZE', (0, 1), (-1, -1), 10),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+
+        doc.build([table])
+        buffer.seek(0)
+        return FileResponse(buffer, as_attachment=True, filename=f'stage_3_table_{datetime.now().strftime("%Y%m%d")}.pdf')
+
+
+# ==========================================
+# 2. ПРОСТОЙ СПИСОК: 3 этап (Только ФИО, по алфавиту)
+# ==========================================
+class Stage3SimpleListPDFView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        is_management = user.is_superuser or getattr(user, "role", "") in ["admin", "president"]
+        if not is_management:
+            return Response({"error": "Нет прав"}, status=status.HTTP_403_FORBIDDEN)
+
+        slug = request.query_params.get("slug")
+        
+        # Берем только 3 этап
+        queryset = RecruitmentApplication.objects.filter(status='stage_3', is_archived=False)
+        if slug and slug != 'all':
+            queryset = queryset.filter(recruitment__slug=slug)
+
+        if not queryset.exists():
+            return Response({"error": "Нет заявок на 3 этапе"}, status=status.HTTP_404_NOT_FOUND)
+
+        all_questions = RecruitmentQuestion.objects.all()
+        q_map = {f"q_{q.id}": q.label.lower() for q in all_questions}
+
+        # Собираем только ФИО
+        names = []
+        for app in queryset:
+            fio, _ = extract_fio_and_phone(app, q_map)
+            names.append(fio)
+
+        # СОРТИРОВКА ПО АЛФАВИТУ
+        names.sort(key=lambda x: x.lower())
+
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
+        
+        font_path = os.path.join(settings.BASE_DIR, 'arial.ttf')
+        try:
+            pdfmetrics.registerFont(TTFont('Arial', font_path))
+            my_font = 'Arial'
+        except Exception:
+            my_font = 'Helvetica'
+
+        # Стили текста
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'TitleStyle', parent=styles['Heading1'], fontName=my_font, fontSize=16, alignment=1, spaceAfter=20
+        )
+        list_style = ParagraphStyle(
+            'ListStyle', parent=styles['Normal'], fontName=my_font, fontSize=12, leading=18
+        )
+
+        elements = []
+        elements.append(Paragraph(f"Список участников 3 этапа", title_style))
+        
+        # Генерируем абзацы с именами
+        for name in names:
+            elements.append(Paragraph(name, list_style))
+
+        doc.build(elements)
+        buffer.seek(0)
+        return FileResponse(buffer, as_attachment=True, filename=f'stage_3_list_{datetime.now().strftime("%Y%m%d")}.pdf')
+
 
 class CuratorPanelView(TemplateView): template_name = "volunteers/curator_panel.html"
 class VolunteerCabinetView(TemplateView): template_name = "volunteers/page_volunteers/volunteer_cabinet.html"

@@ -82,9 +82,9 @@
                 </div>
                 
                 <div class="flex flex-col sm:flex-row xl:flex-row items-center gap-3 w-full xl:w-auto flex-wrap">
-                    <!-- Поисковик -->
+                    <!-- Поисковик по ФИО -->
                     <div class="relative w-full sm:w-auto flex-1 xl:w-48">
-                        <input type="text" id="searchInput" oninput="handleSearch(this.value)" placeholder="Поиск по имени..." class="w-full bg-black/40 border border-white/10 rounded-xl pl-10 pr-4 py-3 sm:py-2 text-xs font-bold text-white focus:outline-none focus:border-primary transition">
+                        <input type="text" id="searchInput" oninput="handleSearch(this.value)" placeholder="Поиск по ФИО..." class="w-full bg-black/40 border border-white/10 rounded-xl pl-10 pr-4 py-3 sm:py-2 text-xs font-bold text-white focus:outline-none focus:border-primary transition">
                         <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 text-xs pointer-events-none"></i>
                     </div>
 
@@ -103,9 +103,17 @@
                         <button onclick="switchStatus('stage_3')" id="status-stage3" class="hidden flex-1 sm:flex-none px-3 py-2.5 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold uppercase text-gray-400 hover:text-white transition text-center">3 этап</button>
                     </div>
 
-                    <!-- Кнопка генерации PDF (скрыта по умолчанию) -->
-                    <button id="btnDownloadPdf" onclick="downloadPdf()" class="hidden w-full sm:w-auto px-4 py-3 sm:py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold uppercase transition flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(168,85,247,0.3)]">
-                        <i class="fas fa-file-pdf text-sm"></i> PDF
+                    <!-- Кнопки генерации PDF -->
+                    <button id="btnPdfSchedule" onclick="downloadPdf('schedule')" class="hidden w-full sm:w-auto px-4 py-3 sm:py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold uppercase transition flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(168,85,247,0.3)]">
+                        <i class="fas fa-file-pdf text-sm"></i> Расписание
+                    </button>
+
+                    <button id="btnPdfTable" onclick="downloadPdf('stage3_table')" class="hidden w-full sm:w-auto px-4 py-3 sm:py-2 bg-pink-600 hover:bg-pink-500 text-white rounded-xl text-xs font-bold uppercase transition flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(219,39,119,0.3)]">
+                        <i class="fas fa-table text-sm"></i> Таблица
+                    </button>
+
+                    <button id="btnPdfList" onclick="downloadPdf('stage3_list')" class="hidden w-full sm:w-auto px-4 py-3 sm:py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold uppercase transition flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(79,70,229,0.3)]">
+                        <i class="fas fa-list text-sm"></i> Список
                     </button>
                 </div>
             </div>
@@ -153,14 +161,13 @@
 
     <script>
         const API = {
-            profile: '/api/profile/', // <-- Добавили /api/, так как в urls.py у тебя path('api/profile/', ...)
-            
+            profile: '/api/profile/',
             commandsApps: '/commands-applications/', 
             volunteersApps: '/api/recruitments/applications/', 
-            
-            // Эти два пути теперь идеально совпадают с твоим обновленным urls.py
             volunteersStatus: '/api/applications/',  
-            pdfDownload: '/api/applications/download-schedule-pdf/'
+            pdfDownload: '/api/applications/download-schedule-pdf/',
+            pdfStage3Table: '/api/applications/download-stage3-table/', // Новое
+            pdfStage3List: '/api/applications/download-stage3-list/'    // Новое
         };
 
         let state = {
@@ -258,10 +265,8 @@
         function extractName(app) {
             if (app.applicant_name) return app.applicant_name;
             
-            // Проверяем формат formatted_answers или answers
             const answers = app.formatted_answers || app.answers;
             if (answers) {
-                // Если это словарь (объект)
                 if (typeof answers === 'object' && !Array.isArray(answers)) {
                     for (let [key, val] of Object.entries(answers)) {
                         const lowerKey = key.toLowerCase();
@@ -269,7 +274,6 @@
                             if (val && typeof val === 'string') return val;
                         }
                     }
-                    // Если по ключевым словам не нашлось, берем первое попавшееся текстовое значение
                     const vals = Object.values(answers);
                     if (vals.length > 0 && typeof vals[0] === 'string') return vals[0];
                 }
@@ -336,7 +340,6 @@
                 const name = extractName(app);
                 const recruitTitle = app.recruitment_title || app.recruitment_slug || 'Волонтерство';
                 
-                // Цвет бортика зависит от статуса
                 let borderColor = 'border-l-primary'; // pending
                 if (state.activeStatus === 'accepted') borderColor = 'border-l-green-500';
                 if (state.activeStatus === 'stage_3') borderColor = 'border-l-purple-500';
@@ -366,7 +369,6 @@
             const app = state.currentFilteredList[index];
             state.currentApp = app;
 
-            // Навигация
             document.getElementById('btnPrevApp').style.visibility = index > 0 ? 'visible' : 'hidden';
             document.getElementById('btnNextApp').style.visibility = index < (state.currentFilteredList.length - 1) ? 'visible' : 'hidden';
             document.getElementById('modalCounter').innerText = `${index + 1} / ${state.currentFilteredList.length}`;
@@ -375,7 +377,6 @@
             document.getElementById('modalBadge').innerText = isVolunteer ? 'Набор: ' + (app.recruitment_title || app.recruitment_slug || 'Волонтер') : 'Команда: ' + (app.command_title || '');
             document.getElementById('modalName').innerText = extractName(app);
 
-            // Отрисовка контента
             let answersHtml = '';
             const answersToRender = app.formatted_answers || app.answers;
 
@@ -418,7 +419,6 @@
             }
             document.getElementById('modalAnswers').innerHTML = answersHtml;
 
-            // Логика кнопок действия
             const actionsContainer = document.getElementById('modalActionButtons');
             let currentStatus = (app.status || 'pending').toLowerCase();
             
@@ -430,14 +430,12 @@
                 `;
             } else if (currentStatus === 'accepted') {
                 if (isVolunteer) {
-                    // Если волонтер принят, даем кнопку отправить на 3 этап
                     actionsContainer.innerHTML = `
                         <button onclick="updateStatus('stage_3')" class="w-full sm:w-auto px-6 py-3 rounded-xl bg-purple-600 text-white font-black uppercase text-xs md:text-sm tracking-wide hover:bg-white hover:text-purple-600 transition shadow-[0_0_20px_rgba(147,51,234,0.3)]">
                             <i class="fas fa-share-square mr-2"></i> На 3 этап
                         </button>
                     `;
                 } else {
-                    // Для команд просто пишем что в составе
                     actionsContainer.innerHTML = `
                         <button disabled class="w-full sm:w-auto px-6 py-3 rounded-xl bg-green-500/10 text-green-500 border border-green-500/20 font-black uppercase text-xs md:text-sm cursor-not-allowed">
                             <i class="fas fa-check"></i> Уже в составе
@@ -452,7 +450,6 @@
                 `;
             }
 
-            // Показ модалки
             const modal = document.getElementById('appModal');
             if (modal.classList.contains('hidden')) {
                 modal.classList.remove('hidden');
@@ -473,8 +470,6 @@
             setTimeout(() => { modal.classList.add('hidden'); state.currentApp = null; }, 300); 
         }
 
-        // Универсальная функция обновления статуса
-        // Универсальная функция обновления статуса
         async function updateStatus(newStatus) {
             if (!state.currentApp) return;
             
@@ -484,7 +479,6 @@
             const app = state.currentApp;
             const isVol = (state.activeTab === 'volunteers');
             
-            // Определяем URL
             const url = isVol 
                 ? `${API.volunteersStatus}${app.id}/status/` 
                 : `${API.commandsApps}${app.id}/accept/`;
@@ -502,19 +496,13 @@
                     showToast(newStatus === 'stage_3' ? "Переведен на 3 этап!" : "Успешно принято!", "success");
                     app.status = newStatus;
                     
-                    // 1. Сначала закрываем модальное окно
                     closeModal();
-                    
-                    // 2. Ждем 300мс (пока пройдет красивая анимация закрытия), затем обновляем список.
-                    // Теперь карточка просто плавно исчезнет с экрана и появится в другой вкладке.
-                    setTimeout(() => {
-                        renderViews();
-                    }, 300);
+                    setTimeout(() => { renderViews(); }, 300);
                     
                 } else {
                     const data = await res.json().catch(() => ({}));
                     showToast(data.error || "Ошибка сервера", "error");
-                    openModal(state.currentModalIndex); // Возвращаем кнопки только при реальной ошибке бэкенда
+                    openModal(state.currentModalIndex);
                 }
             } catch (e) {
                 console.error("Ошибка в скрипте или сети:", e);
@@ -522,11 +510,26 @@
             }
         }
 
-        // Функция скачивания PDF
-        function downloadPdf() {
+        // Обновленная функция для скачивания разных PDF
+        function downloadPdf(type) {
             showToast("Генерация PDF (Ожидайте)...", "success");
             
-            let url = API.pdfDownload;
+            let endpoint = '';
+            let filename = '';
+
+            // Определяем, куда делаем запрос в зависимости от кнопки
+            if (type === 'schedule') {
+                endpoint = API.pdfDownload;
+                filename = `Расписание_Волонтеры_${new Date().toLocaleDateString()}.pdf`;
+            } else if (type === 'stage3_table') {
+                endpoint = API.pdfStage3Table;
+                filename = `Таблица_3_Этап_${new Date().toLocaleDateString()}.pdf`;
+            } else if (type === 'stage3_list') {
+                endpoint = API.pdfStage3List;
+                filename = `Список_3_Этап_${new Date().toLocaleDateString()}.pdf`;
+            }
+
+            let url = endpoint;
             if (state.filterValue !== 'all') {
                 url += `?slug=${state.filterValue}`;
             }
@@ -544,7 +547,7 @@
                 const a = document.createElement('a');
                 a.style.display = 'none';
                 a.href = downloadUrl;
-                a.download = `Расписание_3_Этап_${new Date().toLocaleDateString()}.pdf`;
+                a.download = filename;
                 document.body.appendChild(a);
                 a.click();
                 window.URL.revokeObjectURL(downloadUrl);
@@ -567,7 +570,6 @@
             
             document.getElementById('pageTitle').innerText = tab === 'commands' ? 'Набор в команды' : 'Набор волонтеров';
             
-            // Показываем/Скрываем вкладку "3 этап" (она только для волонтеров)
             const stage3Btn = document.getElementById('status-stage3');
             if (tab === 'volunteers') {
                 stage3Btn.classList.remove('hidden');
@@ -583,6 +585,7 @@
             if(window.innerWidth < 768) closeSidebar();
         }
 
+        // Обновленная функция управления видимостью кнопок PDF
         function switchStatus(status) {
             state.activeStatus = status;
             
@@ -599,7 +602,6 @@
                 if (key === status) {
                     btns[key].className = `${baseClass} bg-primary text-white`;
                 } else {
-                    // Оставляем hidden для stage_3 если вкладка "Команды"
                     const hiddenClass = (key === 'stage_3' && state.activeTab === 'commands') ? 'hidden ' : '';
                     btns[key].className = `${hiddenClass}${baseClass} text-gray-400 hover:text-white bg-black/40`;
                 }
@@ -609,13 +611,26 @@
             renderViews();
         }
 
+        // Включаем нужные кнопки в зависимости от статуса
         function togglePdfButton() {
-            const btn = document.getElementById('btnDownloadPdf');
-            // Показываем кнопку PDF ТОЛЬКО во вкладке Волонтеров и ТОЛЬКО у Принятых
-            if (state.activeTab === 'volunteers' && state.activeStatus === 'accepted') {
-                btn.classList.remove('hidden');
-            } else {
-                btn.classList.add('hidden');
+            const btnSchedule = document.getElementById('btnPdfSchedule');
+            const btnTable = document.getElementById('btnPdfTable');
+            const btnList = document.getElementById('btnPdfList');
+
+            // Скрываем все
+            btnSchedule.classList.add('hidden');
+            btnTable.classList.add('hidden');
+            btnList.classList.add('hidden');
+
+            if (state.activeTab === 'volunteers') {
+                if (state.activeStatus === 'accepted') {
+                    // Во вкладке принятых показываем кнопку Расписания
+                    btnSchedule.classList.remove('hidden');
+                } else if (state.activeStatus === 'stage_3') {
+                    // Во вкладке 3 этапа показываем Таблицу и Список
+                    btnTable.classList.remove('hidden');
+                    btnList.classList.remove('hidden');
+                }
             }
         }
 

@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from users.views import (
-    ActiveRecruitmentView, DeductPointsView, RecruitmentApplicationListCreateView, RecruitmentApplicationUpdateStatusView, RemoveVolunteerFromCommandView, VolunteerLoginView, VolunteerRegisterView, VolunteerProfileView,
+    ActiveRecruitmentView, DeductPointsView, RecruitmentApplicationListCreateView, RecruitmentApplicationUpdateStatusView, RemoveVolunteerFromCommandView, Stage3TablePDFView, VolunteerLoginView, VolunteerRegisterView, VolunteerProfileView,
     VolunteerActivityViewSet, DiscoveryListView, CuratorSubmissionViewSet,
     VolunteerViewSet, VolunteerColumnsView,
     DownloadInterviewScheduleView, DownloadAcceptedNamesView,
@@ -23,7 +23,9 @@ from users.views import (
     MiniTeamViewSet,
     SponsorTaskViewSet,
     RecruitmentApplicationUpdateStatusView, 
-    AcceptedVolunteersPDFView
+    AcceptedVolunteersPDFView,
+    Stage3TablePDFView,
+    Stage3SimpleListPDFView
     # --- ИМПОРТЫ ДЛЯ КАСТОМНОЙ АДМИН-ПАНЕЛИ ---
 )
 
@@ -107,4 +109,8 @@ urlpatterns = [
     
     # Скачивание PDF
     path('api/applications/download-schedule-pdf/', AcceptedVolunteersPDFView.as_view(), name='download-schedule-pdf'),
+    path('api/applications/download-stage3-table/', Stage3TablePDFView.as_view(), name='download-stage3-table'),
+    
+    # 3 этап (Простой список)
+    path('api/applications/download-stage3-list/', Stage3SimpleListPDFView.as_view(), name='download-stage3-list'),
 ]
