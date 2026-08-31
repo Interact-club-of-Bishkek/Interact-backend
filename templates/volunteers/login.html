@@ -496,22 +496,33 @@
             e.preventDefault();
             const dirId = document.getElementById('dirSelectValue').value;
             if(!dirId) return showToast(translations[currentLang].selectDir);
+            
             setLoading('appBtn', true);
             try {
+                // Собираем данные в соответствии с ожиданиями бэкенда
+                const formData = new FormData();
+                formData.append('recruitment_slug', 'default'); // Укажите актуальный slug набора или передавайте динамически
+                
+                // Формируем поле answers в виде JSON-строки, как ожидает бэкенд
+                const answersObj = {
+                    "full_name": document.getElementById('fullName').value,
+                    "phone": document.getElementById('phone').value,
+                    "direction": dirId
+                };
+                formData.append('answers', JSON.stringify(answersObj));
+
                 const res = await apiFetch('/api/applications/', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        full_name: document.getElementById('fullName').value,
-                        phone_number: document.getElementById('phone').value,
-                        direction: dirId
-                    })
+                    // Заголовок Content-Type указывать не нужно, браузер сам выставит multipart/form-data с границей
+                    body: formData
                 });
+                
                 if (res.ok) {
                     showToast(translations[currentLang].appSuccess, "success");
                     setTimeout(() => location.href = '/cabinet/', 1000);
                 } else {
-                    showToast(translations[currentLang].errorNet, "error");
+                    const errData = await res.json();
+                    showToast(errData.error || translations[currentLang].errorNet, "error");
                     setLoading('appBtn', false);
                 }
             } catch (err) {
