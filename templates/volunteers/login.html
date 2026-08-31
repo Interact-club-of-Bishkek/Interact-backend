@@ -468,16 +468,30 @@
             }
         }
 
+        let activeRecruitmentSlug = 'default';
+
         async function showApp() {
             document.getElementById('authSection').classList.add('hidden');
             document.getElementById('appSection').classList.remove('hidden');
             document.getElementById('appSection').classList.add('fade-in');
+            
             try {
+                // 1. Получаем активный набор
+                const activeRes = await fetch('/api/recruitments/active/');
+                if (activeRes.ok) {
+                    const activeData = await activeRes.json();
+                    if (activeData.status === 'active' && activeData.data) {
+                        activeRecruitmentSlug = activeData.data.slug;
+                    }
+                }
+        
+                // 2. Загружаем направления
                 const res = await apiFetch('/api/discovery/');
                 const data = await res.json();
                 const optionsList = document.getElementById('optionsList');
                 optionsList.innerHTML = '';
                 const list = data.all_directions || data.directions || [];
+                
                 if(list.length === 0) {
                     optionsList.innerHTML = `<div class="text-center p-4 text-gray-500">${translations[currentLang].noData}</div>`;
                     return;
@@ -489,7 +503,9 @@
                     item.onclick = () => selectOption(d.id, d.name);
                     optionsList.appendChild(item);
                 });
-            } catch (e) { showToast(translations[currentLang].errorNet, "error"); }
+            } catch (e) { 
+                showToast(translations[currentLang].errorNet, "error"); 
+            }
         }
 
         async function handleApplication(e) {
@@ -499,21 +515,18 @@
             
             setLoading('appBtn', true);
             try {
-                // Собираем данные в соответствии с ожиданиями бэкенда
                 const formData = new FormData();
-                formData.append('recruitment_slug', 'default'); // Укажите актуальный slug набора или передавайте динамически
+                formData.append('recruitment_slug', activeRecruitmentSlug); // 👈 Передаем реальный slug набора
                 
-                // Формируем поле answers в виде JSON-строки, как ожидает бэкенд
                 const answersObj = {
                     "full_name": document.getElementById('fullName').value,
                     "phone": document.getElementById('phone').value,
                     "direction": dirId
                 };
                 formData.append('answers', JSON.stringify(answersObj));
-
+        
                 const res = await apiFetch('/api/applications/', {
                     method: 'POST',
-                    // Заголовок Content-Type указывать не нужно, браузер сам выставит multipart/form-data с границей
                     body: formData
                 });
                 
