@@ -184,6 +184,10 @@ class VolunteerActivityViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        # ЗАЩИТА ДЛЯ SWAGGER
+        if getattr(self, 'swagger_fake_view', False) or self.request.user.is_anonymous:
+            return ActivitySubmission.objects.none()
+
         user = self.request.user
         if user.role in ['admin', 'bailiff_activity', 'president', 'curator']:
             return ActivitySubmission.objects.all().select_related('task').order_by('-created_at')
@@ -326,6 +330,10 @@ class CuratorSubmissionViewSet(viewsets.ModelViewSet):
     serializer_class = ActivitySubmissionSerializer
 
     def get_queryset(self):
+        # ЗАЩИТА ДЛЯ SWAGGER
+        if getattr(self, 'swagger_fake_view', False) or self.request.user.is_anonymous:
+            return ActivitySubmission.objects.none()
+
         user = self.request.user
         uid = user.id
         
@@ -453,6 +461,7 @@ class RecruitmentApplicationUpdateStatusView(generics.UpdateAPIView):
 
 class ActiveRecruitmentView(generics.GenericAPIView):
     permission_classes = [AllowAny]
+    serializer_class = RecruitmentSerializer  # <-- ДОБАВЛЕНО ЗДЕСЬ
 
     def get(self, request, *args, **kwargs):
         now = timezone.now()
@@ -693,6 +702,10 @@ class VolunteerViewSet(viewsets.ModelViewSet):
     queryset = Volunteer.objects.all()
 
     def get_queryset(self):
+        # ЗАЩИТА ДЛЯ SWAGGER
+        if getattr(self, 'swagger_fake_view', False) or self.request.user.is_anonymous:
+            return Volunteer.objects.none()
+
         user = self.request.user
         is_leader = Command.objects.filter(leader=user).exists()
         
@@ -1390,6 +1403,10 @@ class MiniTeamViewSet(viewsets.ModelViewSet):
     serializer_class = MiniTeamSerializer
 
     def get_queryset(self):
+        # ЗАЩИТА ДЛЯ SWAGGER
+        if getattr(self, 'swagger_fake_view', False) or self.request.user.is_anonymous:
+            return MiniTeam.objects.none()
+
         user = self.request.user
         
         if user.role in ['admin', 'president']:
@@ -1507,6 +1524,10 @@ class SponsorTaskViewSet(viewsets.ModelViewSet):
     serializer_class = SponsorTaskSerializer
 
     def get_queryset(self):
+        # ЗАЩИТА ДЛЯ SWAGGER
+        if getattr(self, 'swagger_fake_view', False) or self.request.user.is_anonymous:
+            return SponsorTask.objects.none()
+
         user = self.request.user
         
         if user.role in ['admin', 'president']:
