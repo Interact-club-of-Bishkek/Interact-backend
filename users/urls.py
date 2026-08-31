@@ -25,7 +25,8 @@ from users.views import (
     RecruitmentApplicationUpdateStatusView, 
     AcceptedVolunteersPDFView,
     Stage3TablePDFView,
-    Stage3SimpleListPDFView
+    Stage3SimpleListPDFView,
+    RecruitmentApplicationListCreateView
     # --- ИМПОРТЫ ДЛЯ КАСТОМНОЙ АДМИН-ПАНЕЛИ ---
 )
 
@@ -45,7 +46,7 @@ router.register(r'activities', VolunteerActivityViewSet, basename='vol-activity'
 router.register(r'curator/submissions', CuratorSubmissionViewSet, basename='cur-submission')
 router.register(r'attendance', AttendanceViewSet, basename='attendance')
 router.register(r'equity', EquityViewSet, basename='equity')
-
+router.register(r'applications', RecruitmentApplicationListCreateView, basename='application')
 # --- НОВОЕ ДЛЯ МИНИ-КОМАНД И СПОНСОРОВ ---
 router.register(r'miniteams', MiniTeamViewSet, basename='miniteam')
 router.register(r'sponsors', SponsorTaskViewSet, basename='sponsor')
