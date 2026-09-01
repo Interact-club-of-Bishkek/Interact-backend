@@ -398,9 +398,16 @@ class RecruitmentApplicationListCreateView(generics.ListCreateAPIView):
 
     def post(self, request, *args, **kwargs):
         try:
+            # 🔥 Сначала проверяем глобальный рубильник "is_registration_open" из админки
+            app_settings = AppSettings.get_settings()
+            if not app_settings.is_registration_open:
+                return Response(
+                    {"error": "Регистрация новых заявок временно закрыта администратором."}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
             recruitment_slug = request.data.get('recruitment_slug')
             
-            # 🔥 Фолбэк, если slug не передан или пришел пустым: берем первый доступный набор
             if not recruitment_slug or recruitment_slug == 'undefined':
                 recruitment = Recruitment.objects.first()
             else:
@@ -447,8 +454,6 @@ class RecruitmentApplicationListCreateView(generics.ListCreateAPIView):
 
             return Response({"status": "success", "id": app.id}, status=status.HTTP_201_CREATED)
         except Exception as e:
-            import traceback
-            traceback.print_exc()
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 class RecruitmentApplicationUpdateStatusView(generics.UpdateAPIView):
