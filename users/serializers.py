@@ -28,6 +28,8 @@ class CommandSerializer(serializers.ModelSerializer):
     class Meta:
         model = Command
         fields = ['id', 'title', 'slug', 'leader', 'direction', 'questions']
+        # Добавляем уникальное имя для Swagger, чтобы избежать конфликта
+        ref_name = 'UsersCommandSerializer'
 
 class VolunteerSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField(read_only=True)
