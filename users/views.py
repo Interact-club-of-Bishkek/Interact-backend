@@ -398,14 +398,6 @@ class RecruitmentApplicationListCreateView(generics.ListCreateAPIView):
 
     def post(self, request, *args, **kwargs):
         try:
-            # 🔥 Сначала проверяем глобальный рубильник "is_registration_open" из админки
-            app_settings = AppSettings.get_settings()
-            if not app_settings.is_registration_open:
-                return Response(
-                    {"error": "Регистрация новых заявок временно закрыта администратором."}, 
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
             recruitment_slug = request.data.get('recruitment_slug')
             
             if not recruitment_slug or recruitment_slug == 'undefined':
@@ -421,7 +413,7 @@ class RecruitmentApplicationListCreateView(generics.ListCreateAPIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # 🕒 ПРОВЕРКА ДЕДЛАЙНОВ
+            # 🕒 СТРОГАЯ ПРОВЕРКА ДАТ КОНКРЕТНОГО НАБОРА
             now = timezone.now()
             if recruitment.start_date and now < recruitment.start_date:
                 return Response({"error": "Набор ещё не открыт."}, status=status.HTTP_400_BAD_REQUEST)
