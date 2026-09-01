@@ -412,13 +412,6 @@ class RecruitmentApplicationListCreateView(generics.ListCreateAPIView):
                     {"error": "В базе данных нет ни одного набора (Recruitment). Создайте его в админке."}, 
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
-            # 🕒 СТРОГАЯ ПРОВЕРКА ДАТ КОНКРЕТНОГО НАБОРА
-            now = timezone.now()
-            if recruitment.start_date and now < recruitment.start_date:
-                return Response({"error": "Набор ещё не открыт."}, status=status.HTTP_400_BAD_REQUEST)
-            if recruitment.end_date and now > recruitment.end_date:
-                return Response({"error": "Набор уже завершён. Дедлайн прошел."}, status=status.HTTP_400_BAD_REQUEST)
 
             answers_raw = request.data.get('answers', '{}')
             
