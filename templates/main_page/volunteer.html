@@ -666,7 +666,18 @@
                     const apiFormData = new FormData();
                     const answers = {};
 
-                    apiFormData.append('recruitment_slug', activeRecruitmentSlug);
+                    // 🔥 Гарантированно передаем slug активного набора
+                    if (!activeRecruitmentSlug) {
+                        try {
+                            const res = await fetch('/api/recruitments/active/');
+                            const json = await res.json();
+                            if (json.status === 'active' && json.data) {
+                                activeRecruitmentSlug = json.data.slug;
+                            }
+                        } catch (err) {}
+                    }
+                    
+                    apiFormData.append('recruitment_slug', activeRecruitmentSlug || '');
 
                     for (let [key, value] of formData.entries()) {
                         if (key.startsWith('file_')) {
