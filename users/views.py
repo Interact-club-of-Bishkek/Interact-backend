@@ -380,7 +380,6 @@ class RecruitmentApplicationListCreateView(generics.ListCreateAPIView):
         if not user.is_authenticated:
             return RecruitmentApplication.objects.none()
 
-        # 👈 ПО УМОЛЧАНИЮ ОТДАЕМ ТОЛЬКО НЕ АРХИВНЫЕ (is_archived=False)
         queryset = RecruitmentApplication.objects.filter(is_archived=False).order_by("-created_at")
 
         is_management = user.is_superuser or getattr(user, "role", "") in ["admin", "president"]
@@ -391,10 +390,8 @@ class RecruitmentApplicationListCreateView(generics.ListCreateAPIView):
         if slug:
             queryset = queryset.filter(recruitment__slug=slug)
             
-        # Если фронтенд явно попросит архивные (например ?archived=true в ссылке)
         show_archived = self.request.query_params.get("archived")
         if show_archived == 'true':
-            # Сбрасываем фильтр is_archived=False, чтобы показать всё
             queryset = RecruitmentApplication.objects.all().order_by("-created_at")
 
         return queryset
@@ -402,9 +399,22 @@ class RecruitmentApplicationListCreateView(generics.ListCreateAPIView):
     def post(self, request, *args, **kwargs):
         try:
             recruitment_slug = request.data.get('recruitment_slug')
-            recruitment = get_object_or_404(Recruitment, slug=recruitment_slug)
             
-            # 🕒 ПРОВЕРКА ДЕДЛАЙНОВ (АВТОМАТИЧЕСКОЕ ЗАКРЫТИЕ ЗАЯВОК)
+            # 🔥 Фолбэк, если slug не передан или пришел пустым: берем первый доступный набор
+            if not recruitment_slug or recruitment_slug == 'undefined':
+                recruitment = Recruitment.objects.first()
+            else:
+                recruitment = Recruitment.objects.filter(slug=recruitment_slug).first()
+                if not recruitment:
+                    recruitment = Recruitment.objects.first()
+            
+            if not recruitment:
+                return Response(
+                    {"error": "В базе данных нет ни одного набора (Recruitment). Создайте его в админке."}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # 🕒 ПРОВЕРКА ДЕДЛАЙНОВ
             now = timezone.now()
             if recruitment.start_date and now < recruitment.start_date:
                 return Response({"error": "Набор ещё не открыт."}, status=status.HTTP_400_BAD_REQUEST)
@@ -412,10 +422,13 @@ class RecruitmentApplicationListCreateView(generics.ListCreateAPIView):
                 return Response({"error": "Набор уже завершён. Дедлайн прошел."}, status=status.HTTP_400_BAD_REQUEST)
 
             answers_raw = request.data.get('answers', '{}')
-            answers = json.loads(answers_raw)
             
-            # Для множественного выбора answers должен получать список:
-            # {"q_1": ["Дизайн", "СММ"]} - JSON сохраняет это без проблем.
+            if isinstance(answers_raw, str):
+                answers = json.loads(answers_raw) if answers_raw else {}
+            elif isinstance(answers_raw, dict):
+                answers = answers_raw
+            else:
+                answers = {}
 
             app = RecruitmentApplication.objects.create(
                 recruitment=recruitment, 
@@ -423,9 +436,7 @@ class RecruitmentApplicationListCreateView(generics.ListCreateAPIView):
                 volunteer=request.user if request.user.is_authenticated else None
             )
 
-            # Сохранение файлов
             for key in request.FILES:
-                # Очищаем возможные префиксы фронтенда, чтобы осталось чистое "q_ID" или название поля
                 clean_label = key.replace('TEXT__', '').replace('FILE__', '').replace('file_', '')
                 for f in request.FILES.getlist(key):
                     RecruitmentAttachment.objects.create(
@@ -436,8 +447,9 @@ class RecruitmentApplicationListCreateView(generics.ListCreateAPIView):
 
             return Response({"status": "success", "id": app.id}, status=status.HTTP_201_CREATED)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
 
 class RecruitmentApplicationUpdateStatusView(generics.UpdateAPIView):
     queryset = RecruitmentApplication.objects.all()
