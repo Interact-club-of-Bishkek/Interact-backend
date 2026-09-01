@@ -11,7 +11,12 @@ class VolunteerRegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Volunteer
-        fields = ['login', 'password']
+        # 🔥 СЮДА НУЖНО ДОБАВИТЬ 'name' и 'phone_number', иначе они отсекаются при регистрации
+        fields = ['login', 'password', 'name', 'phone_number'] 
+        extra_kwargs = {
+            'name': {'required': False},
+            'phone_number': {'required': False}
+        }
 
     def create(self, validated_data):
         return Volunteer.objects.create_user(**validated_data)
