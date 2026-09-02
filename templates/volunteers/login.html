@@ -515,19 +515,20 @@
             
             setLoading('appBtn', true);
             try {
-                const formData = new FormData();
-                formData.append('recruitment_slug', activeRecruitmentSlug); // 👈 Передаем реальный slug набора
-                
-                const answersObj = {
-                    "full_name": document.getElementById('fullName').value,
-                    "phone": document.getElementById('phone').value,
-                    "direction": dirId
+                // Формируем данные для обновления профиля волонтера
+                const reqBody = {
+                    name: document.getElementById('fullName').value,
+                    phone_number: document.getElementById('phone').value, // Убедись, что поле в модели называется phone_number или phone
+                    direction: [dirId] // Отправляем как массив, т.к. в Django это ManyToMany поле
                 };
-                formData.append('answers', JSON.stringify(answersObj));
-        
-                const res = await apiFetch('/api/applications/', {
-                    method: 'POST',
-                    body: formData
+
+                // Делаем PATCH запрос для обновления данных ТЕКУЩЕГО пользователя
+                const res = await apiFetch('/api/profile/', {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(reqBody)
                 });
                 
                 if (res.ok) {
@@ -535,7 +536,7 @@
                     setTimeout(() => location.href = '/cabinet/', 1000);
                 } else {
                     const errData = await res.json();
-                    showToast(errData.error || translations[currentLang].errorNet, "error");
+                    showToast(errData.detail || errData.error || translations[currentLang].errorNet, "error");
                     setLoading('appBtn', false);
                 }
             } catch (err) {

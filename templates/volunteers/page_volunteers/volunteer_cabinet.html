@@ -187,6 +187,47 @@
     </style>
 </head>
 <body class="flex flex-col min-h-screen bg-base">
+
+    <!-- НЕЗАКРЫВАЕМОЕ ОКНО ОНБОРДИНГА (ФИО, Номер, Фото, Направление) -->
+    <div id="onboardingModal" class="modal-overlay px-4" style="background: rgba(0,0,0,0.95); backdrop-filter: blur(15px); z-index: 9999;">
+        <div class="modal-content p-8 relative overflow-hidden max-w-lg w-full max-h-[90vh] overflow-y-auto custom-scrollbar transform scale-95 transition-transform duration-500">
+            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary to-blue-500"></div>
+            
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 rounded-2xl bg-primary-soft text-primary flex items-center justify-center mx-auto mb-4 border border-primary/20 shadow-lg shadow-primary/20">
+                    <i class="fas fa-user-astronaut text-2xl"></i>
+                </div>
+                <h3 class="font-black text-main text-2xl uppercase tracking-wider mb-2">Добро пожаловать!</h3>
+                <p class="text-muted text-sm font-bold">Чтобы продолжить работу, заполните профиль и выберите направления.</p>
+            </div>
+            
+            <div class="space-y-5">
+                <div>
+                    <label class="text-xs font-bold text-muted uppercase tracking-widest block mb-2 ml-2">ФИО <span class="text-red-500">*</span></label>
+                    <input type="text" id="obName" class="input-smooth" oninput="validateOnboarding()">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-muted uppercase tracking-widest block mb-2 ml-2">Телефон <span class="text-red-500">*</span></label>
+                    <input type="text" id="obPhone" class="input-smooth" oninput="validateOnboarding()">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-muted uppercase tracking-widest block mb-2 ml-2">Фото профиля <span class="text-red-500">*</span></label>
+                    <input type="file" id="obPhoto" class="input-smooth p-3 text-sm" accept="image/*" onchange="validateOnboarding()">
+                </div>
+                
+                <div class="pt-2 border-t border-soft">
+                    <label class="text-xs font-bold text-muted uppercase tracking-widest block mb-3 ml-2">Выберите направления (<span id="obPrefCounter">0</span>) <span class="text-red-500">*</span></label>
+                    <div id="obPrefOptions" class="flex flex-wrap gap-3"></div>
+                </div>
+
+                <div class="pt-6">
+                    <button onclick="saveOnboarding()" id="saveOnboardingBtn" class="btn-smooth w-full flex justify-center items-center gap-2 opacity-50 cursor-not-allowed transition-all duration-300" disabled>
+                        <i class="fas fa-rocket"></i> <span>Начать работу</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
     
     <div id="toast-container"></div>
 
@@ -1291,8 +1332,8 @@
                 const list = document.getElementById('basistSponsorsList');
                 const basistTeamIds = basistTeams.map(t => String(t.id));
                 const mySponsors = (appData.sponsors || []).filter(sp => {
-                            return currentFilterId ? String(sp.miniteam) === String(currentFilterId) : true;
-                        });                
+                    return filterTeamId ? String(sp.miniteam) === String(filterTeamId) : true;
+                });             
                 if (mySponsors.length === 0) {
                     list.innerHTML = '<div class="smooth-panel p-8 text-center text-muted font-bold italic border-dashed border-2 border-soft bg-transparent">Спонсоров пока нет. Заполните форму выше, чтобы добавить первого и назначить волонтеру!</div>';
                 } else {
@@ -1417,6 +1458,121 @@
                 showToast("Ошибка сети", "error");
             }
         }
+        
+        let obPreferredDirs = [];
+
+        // Функция проверки полноты профиля
+        function checkOnboarding(user, prefData) {
+            // Если в админке галочка выключена (is_open = false), окно не показываем
+            if (!prefData.is_modal_menu_open) return; 
+
+            const hasName = Boolean(user.name && user.name.trim() !== "");
+            const hasPhone = Boolean(user.phone_number && user.phone_number.trim() !== "");
+            const hasPhoto = Boolean(user.image_url || user.image);
+            // Если требуется ровно 4, то поставьте === 4. Я поставил > 0, чтобы можно было выбрать хотя бы одно.
+            const hasPrefs = prefData.preferred && prefData.preferred.length > 0; 
+
+            // Если чего-то не хватает — блокируем экран
+            if (!hasName || !hasPhone || !hasPhoto || !hasPrefs) {
+                document.getElementById('onboardingModal').classList.add('open');
+                document.body.style.overflow = 'hidden'; // Блокируем скролл страницы
+
+                // Предзаполняем поля тем, что уже есть
+                document.getElementById('obName').value = user.name || "";
+                document.getElementById('obPhone').value = user.phone_number || "";
+                obPreferredDirs = prefData.preferred || [];
+                
+                renderObPreferences();
+                validateOnboarding();
+            }
+        }
+
+        // Рендер направлений внутри модалки
+        function renderObPreferences() {
+            const container = document.getElementById('obPrefOptions'); 
+            container.innerHTML = '';
+            document.getElementById('obPrefCounter').innerText = obPreferredDirs.length;
+            
+            allDirectionsList.forEach(dir => {
+                const isSel = obPreferredDirs.includes(dir.id);
+                const pill = document.createElement('div');
+                pill.className = `cursor-pointer transition-all border-2 text-sm px-4 py-2 rounded-xl font-bold flex items-center gap-2 ${isSel ? 'bg-primary text-white border-primary shadow-md shadow-primary/30 transform scale-105' : 'bg-input text-muted border-soft hover:border-muted hover:text-main'}`;
+                pill.innerHTML = `${isSel ? '<i class="fas fa-check"></i>' : ''} ${dir.name}`;
+                pill.onclick = () => {
+                    const index = obPreferredDirs.indexOf(dir.id);
+                    if (index > -1) {
+                        obPreferredDirs.splice(index, 1);
+                    } else {
+                        // Ограничение: максимум 4
+                        if (obPreferredDirs.length >= 4) return showToast(translations[currentLang].prefMax || "Лимит: 4 направления", "error"); 
+                        obPreferredDirs.push(dir.id);
+                    }
+                    renderObPreferences();
+                    validateOnboarding();
+                };
+                container.appendChild(pill);
+            });
+        }
+
+        // Валидация полей в реальном времени (открывает кнопку)
+        function validateOnboarding() {
+            const name = document.getElementById('obName').value.trim();
+            const phone = document.getElementById('obPhone').value.trim();
+            const hasExistingPhoto = Boolean(currentUser && (currentUser.image_url || currentUser.image));
+            const photoFile = document.getElementById('obPhoto').files.length > 0;
+            const photoOk = hasExistingPhoto || photoFile;
+            const dirsOk = obPreferredDirs.length > 0; // Минимум 1 направление
+
+            const btn = document.getElementById('saveOnboardingBtn');
+            if (name && phone && photoOk && dirsOk) {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            } else {
+                btn.disabled = true;
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        // Отправка данных на сервер
+        async function saveOnboarding() {
+            const btn = document.getElementById('saveOnboardingBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> <span>Сохраняем...</span>'; 
+            btn.disabled = true;
+
+            try {
+                // 1. Сохраняем ФИО, Номер, Фото
+                const formData = new FormData();
+                formData.append('name', document.getElementById('obName').value);
+                formData.append('phone_number', document.getElementById('obPhone').value);
+                
+                const fileInput = document.getElementById('obPhoto');
+                if (fileInput.files.length > 0) formData.append('image', fileInput.files[0]);
+
+                const profRes = await apiFetch('/api/profile/', { method: 'PATCH', body: formData });
+                if (!profRes.ok) throw new Error("Ошибка профиля");
+
+                // 2. Сохраняем направления
+                const prefRes = await apiFetch('/api/preferences/', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ directions: obPreferredDirs }) 
+                });
+                if (!prefRes.ok) throw new Error("Ошибка направлений");
+
+                showToast("Данные успешно сохранены!", "success");
+                
+                // Закрываем окно, возвращаем скролл и перезагружаем данные
+                document.getElementById('onboardingModal').classList.remove('open');
+                document.body.style.overflow = '';
+                init();
+
+            } catch (e) {
+                showToast("Ошибка при сохранении", "error");
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
 
         async function init() {
             if(!localStorage.getItem('access')) return location.href = '/login/';
@@ -1501,9 +1657,22 @@
                 appData.my_commands = Array.isArray(disc.my_commands) ? disc.my_commands : (disc.my_commands ? [disc.my_commands] : []);
                 appData.available_tasks = disc.available_tasks || []; appData.history = hist;
 
-                let prefData = { is_open: false, preferred: [] }; if(pRes && pRes.ok) { prefData = await pRes.json(); }
-                if (prefData.is_open) { document.getElementById('preferencesCard').classList.remove('hidden'); userPreferredDirs = prefData.preferred || []; renderPreferences(); } 
-                else document.getElementById('preferencesCard').classList.add('hidden');
+                let prefData = { is_open: false, preferred: [] }; 
+                if(pRes && pRes.ok) { prefData = await pRes.json(); }
+                
+                // ПОКАЗЫВАЕМ БЛОК ТЕКУЩИХ НАПРАВЛЕНИЙ
+                if (prefData.is_open) { 
+                    document.getElementById('preferencesCard').classList.remove('hidden'); 
+                    userPreferredDirs = prefData.preferred || []; 
+                    renderPreferences(); 
+                } else {
+                    document.getElementById('preferencesCard').classList.add('hidden');
+                }
+
+                // ==========================================
+                // ВЫЗЫВАЕМ ПРОВЕРКУ ОНБОРДИНГА
+                // ==========================================
+                checkOnboarding(user, prefData);
                 
                 switchTab(activeTab);
                 setLang(currentLang);

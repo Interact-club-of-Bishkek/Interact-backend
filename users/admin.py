@@ -20,19 +20,21 @@ admin.site.index_title = "Добро пожаловать в CRM"
 
 @admin.register(AppSettings)
 class AppSettingsAdmin(admin.ModelAdmin):
-    # Выводим все три рубильника в список
+    # Выводим все четыре рубильника в список
     list_display = (
         '__str__', 
         'is_registration_open', 
         'is_direction_selection_open', 
-        'is_points_submission_open' # <-- Добавлено
+        'is_points_submission_open',
+        'is_modal_menu_open' # <-- Добавлено новое поле
     )
     
     # Делаем их редактируемыми без захода внутрь записи
     list_editable = (
         'is_registration_open', 
         'is_direction_selection_open', 
-        'is_points_submission_open' # <-- Добавлено
+        'is_points_submission_open',
+        'is_modal_menu_open' # <-- Добавлено новое поле
     )
 
     def has_add_permission(self, request):

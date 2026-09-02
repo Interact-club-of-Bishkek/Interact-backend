@@ -41,6 +41,11 @@ class AppSettings(models.Model):
     is_registration_open = models.BooleanField("Открыта регистрация", default=True) 
     is_points_submission_open = models.BooleanField("Открыта отправка баллов (отчетов)", default=True)
 
+    is_modal_menu_open = models.BooleanField(
+        default=True, 
+        verbose_name="Показывать модальное окно"
+    )
+
     class Meta:
         verbose_name = "Настройки системы"
         verbose_name_plural = "Настройки системы"
