@@ -559,11 +559,28 @@
         }
 
         // INIT
-        setLang(currentLang);
+        async function checkExistingSession() {
+            const access = localStorage.getItem('access');
+            if (!access) return;
+
+            try {
+                const res = await apiFetch('/api/profile/');
+                if (res.ok) {
+                    const userData = await res.json();
+                    navigateUser(userData, false); // Сразу пускаем в кабинет без показа формы входа
+                } else {
+                    doLogout();
+                }
+            } catch (e) {
+                // Ошибка сети — не стираем токены сразу, но форму покажем
+            }
+        }
+
+        // Инициализация при загрузке страницы
         async function init() {
             setLang(currentLang);
-            await checkSession();
             await fetchRegistrationStatus();
+            await checkExistingSession(); // Проверяем, есть ли сохраненный токен
         }
 
         init(); // Вызов функции при загрузке страницы
