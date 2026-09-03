@@ -547,8 +547,13 @@
 
         // INIT
         setLang(currentLang);
-        checkSession();
-        fetchRegistrationStatus(); // Вызов функции при загрузке страницы
+        async function init() {
+            setLang(currentLang);
+            await checkSession();
+            await fetchRegistrationStatus();
+        }
+
+        init(); // Вызов функции при загрузке страницы
     </script>
 </body>
 </html>

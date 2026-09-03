@@ -98,6 +98,11 @@ class VolunteerLoginView(APIView):
             'refresh': str(refresh),
             'role': volunteer.role,
             'name': volunteer.name or volunteer.login,
+
+            'direction': list(
+                volunteer.direction.values_list('id', flat=True)
+            ),
+
             'is_assigned': is_assigned,
             'is_team_leader': is_leader,
             'is_direction_curator': is_responsible

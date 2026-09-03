@@ -38,42 +38,70 @@ class CommandSerializer(serializers.ModelSerializer):
 
 class VolunteerSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField(read_only=True)
-    direction = VolunteerDirectionSerializer(many=True, read_only=True)
-    commands = CommandSerializer(source='volunteer_commands', many=True, read_only=True)
-    role_display = serializers.CharField(source='get_role_display', read_only=True)
-    
+
+    direction = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=VolunteerDirection.objects.all(),
+        required=False
+    )
+
+    commands = CommandSerializer(
+        source='volunteer_commands',
+        many=True,
+        read_only=True
+    )
+
+    role_display = serializers.CharField(
+        source='get_role_display',
+        read_only=True
+    )
+
     is_team_leader = serializers.SerializerMethodField()
-    
-    # 🔥 1. Поле для количества карточек
     yellow_card_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Volunteer
+
         fields = [
-            'id', 'login', 'name', 'phone_number', 'email', 
-            'image', 'image_url', 
-            'role', 'role_display', 'direction', 'commands', 
-            'point', 
-            'yellow_card_count', # 🔥 2. Обязательно добавляем в список полей
+            'id',
+            'login',
+            'name',
+            'phone_number',
+            'email',
+            'image',
+            'image_url',
+            'role',
+            'role_display',
+            'direction',
+            'commands',
+            'point',
+            'yellow_card_count',
             'is_team_leader',
             'point_goal'
         ]
-        read_only_fields = ['point', 'role', 'login', 'yellow_card_count']
+
+        read_only_fields = [
+            'point',
+            'role',
+            'login',
+            'yellow_card_count',
+        ]
 
     def get_image_url(self, obj):
         if obj.image:
             request = self.context.get('request')
-            return request.build_absolute_uri(obj.image.url) if request else obj.image.url
+            return (
+                request.build_absolute_uri(obj.image.url)
+                if request
+                else obj.image.url
+            )
         return None
 
     def get_is_team_leader(self, obj):
         return Command.objects.filter(leader=obj).exists()
 
-    # 🔥 3. Считаем через related_name из models.py
     def get_yellow_card_count(self, obj):
-        # Благодаря related_name='yellow_cards' в модели YellowCard
         return obj.yellow_cards.count()
-    
     
 # --- Задачи (для баллов) ---
 class ActivityTaskSerializer(serializers.ModelSerializer):
