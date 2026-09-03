@@ -1463,31 +1463,34 @@
 
         // Функция проверки полноты профиля
         function checkOnboarding(user, prefData) {
-            if (!prefData.is_modal_menu_open) return; 
-
             const hasName = Boolean(user.name && user.name.trim() !== "");
             const hasPhone = Boolean(user.phone_number && user.phone_number.trim() !== "");
             const hasPhoto = Boolean(user.image_url || user.image);
             
-            // ПРОВЕРЯЕМ: Есть ли направления в preferences ИЛИ в самом профиле (user.direction)
+            // Проверяем направления в preferences или в самом профиле пользователя
             const hasPrefs = (prefData.preferred && prefData.preferred.length > 0) || 
                             (user.direction && user.direction.length > 0); 
-
-            // Если чего-то не хватает — блокируем экран
+        
+            const modal = document.getElementById('onboardingModal');
+        
+            // Если что-то из обязательного не заполнено — показываем окно
             if (!hasName || !hasPhone || !hasPhoto || !hasPrefs) {
-                document.getElementById('onboardingModal').classList.add('open');
+                modal.classList.add('open');
                 document.body.style.overflow = 'hidden';
-
+        
                 document.getElementById('obName').value = user.name || "";
                 document.getElementById('obPhone').value = user.phone_number || "";
                 
-                // Берем сохраненные направления откуда удалось найти
                 obPreferredDirs = (prefData.preferred && prefData.preferred.length > 0) 
                     ? prefData.preferred 
                     : (user.direction || []);
                 
                 renderObPreferences();
                 validateOnboarding();
+            } else {
+                // Если абсолютно всё заполнено — гарантированно скрываем окно
+                modal.classList.remove('open');
+                document.body.style.overflow = '';
             }
         }
 
