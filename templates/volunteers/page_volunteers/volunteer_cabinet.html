@@ -1463,24 +1463,28 @@
 
         // Функция проверки полноты профиля
         function checkOnboarding(user, prefData) {
-            // Если в админке галочка выключена (is_open = false), окно не показываем
             if (!prefData.is_modal_menu_open) return; 
 
             const hasName = Boolean(user.name && user.name.trim() !== "");
             const hasPhone = Boolean(user.phone_number && user.phone_number.trim() !== "");
             const hasPhoto = Boolean(user.image_url || user.image);
-            // Если требуется ровно 4, то поставьте === 4. Я поставил > 0, чтобы можно было выбрать хотя бы одно.
-            const hasPrefs = prefData.preferred && prefData.preferred.length > 0; 
+            
+            // ПРОВЕРЯЕМ: Есть ли направления в preferences ИЛИ в самом профиле (user.direction)
+            const hasPrefs = (prefData.preferred && prefData.preferred.length > 0) || 
+                            (user.direction && user.direction.length > 0); 
 
             // Если чего-то не хватает — блокируем экран
             if (!hasName || !hasPhone || !hasPhoto || !hasPrefs) {
                 document.getElementById('onboardingModal').classList.add('open');
-                document.body.style.overflow = 'hidden'; // Блокируем скролл страницы
+                document.body.style.overflow = 'hidden';
 
-                // Предзаполняем поля тем, что уже есть
                 document.getElementById('obName').value = user.name || "";
                 document.getElementById('obPhone').value = user.phone_number || "";
-                obPreferredDirs = prefData.preferred || [];
+                
+                // Берем сохраненные направления откуда удалось найти
+                obPreferredDirs = (prefData.preferred && prefData.preferred.length > 0) 
+                    ? prefData.preferred 
+                    : (user.direction || []);
                 
                 renderObPreferences();
                 validateOnboarding();
@@ -1534,6 +1538,7 @@
         }
 
         // Отправка данных на сервер
+        // Отправка данных на сервер
         async function saveOnboarding() {
             const btn = document.getElementById('saveOnboardingBtn');
             const originalText = btn.innerHTML;
@@ -1541,7 +1546,7 @@
             btn.disabled = true;
 
             try {
-                // 1. Сохраняем ФИО, Номер, Фото
+                // 1. Создаем объект FormData для отправки файлов и текста
                 const formData = new FormData();
                 formData.append('name', document.getElementById('obName').value);
                 formData.append('phone_number', document.getElementById('obPhone').value);
@@ -1549,16 +1554,25 @@
                 const fileInput = document.getElementById('obPhoto');
                 if (fileInput.files.length > 0) formData.append('image', fileInput.files[0]);
 
-                const profRes = await apiFetch('/api/profile/', { method: 'PATCH', body: formData });
-                if (!profRes.ok) throw new Error("Ошибка профиля");
-
-                // 2. Сохраняем направления
-                const prefRes = await apiFetch('/api/preferences/', { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ directions: obPreferredDirs }) 
+                // 2. ДОБАВЛЯЕМ НАПРАВЛЕНИЯ В ПРОФИЛЬ
+                // Чтобы Django понял массив в FormData, нужно сделать append для каждого ID
+                obPreferredDirs.forEach(dirId => {
+                    formData.append('direction', dirId);
                 });
-                if (!prefRes.ok) throw new Error("Ошибка направлений");
+
+                // 3. Отправляем всё вместе (ФИО, Номер, Фото, Направления) в профиль
+                const profRes = await apiFetch('/api/profile/', { method: 'PATCH', body: formData });
+                if (!profRes.ok) throw new Error("Ошибка обновления профиля");
+
+                // 4. (Опционально) Если у тебя работает отдельный эндпоинт preferences, 
+                // оставим и его отправку на всякий случай, чтобы ничего не сломать.
+                try {
+                    await apiFetch('/api/preferences/', { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify({ directions: obPreferredDirs }) 
+                    });
+                } catch(e) { console.log("Preferences endpoint skipped"); }
 
                 showToast("Данные успешно сохранены!", "success");
                 
