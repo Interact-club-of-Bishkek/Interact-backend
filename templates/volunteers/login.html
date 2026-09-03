@@ -399,31 +399,44 @@
             }
         });
 
-        function navigateUser(user) {
-            // --- ПРОВЕРКА НА ПРЕЗИДЕНТА ---
-            if (user.role === 'president') { 
-                location.href = '/president-panel/'; // Укажи здесь правильный URL кабинета президента
-                return; 
+        function navigateUser(user, isFromRegistration = false) {
+            // Если вход выполнен через обычную авторизацию — сразу пускаем по ролям / в кабинет, не требуя анкету
+            if (!isFromRegistration) {
+                if (user.role === 'president') { location.href = '/president-panel/'; return; }
+                if (user.role === 'bailiff_base') { location.href = '/bailiff-base-panel/'; return; }
+                if (user.role === 'equity_officer') { location.href = '/equity-panel/'; return; }
+                if (user.role === 'bailiff_activity') { location.href = '/bailiff-panel/'; return; }
+                if (user.role === 'admin') { location.href = '/admin-panel/'; return; }
+                if (['curator', 'teamlead'].includes(user.role)) { location.href = '/curator-panel/'; return; }
+                
+                // Обычный волонтер идет в свой кабинет
+                location.href = '/cabinet/';
+                return;
             }
-            
+
+            // Если это была именно регистрация — проверяем, админ ли это или обычный пользователь
+            if (user.role === 'president') { location.href = '/president-panel/'; return; }
             if (user.role === 'bailiff_base') { location.href = '/bailiff-base-panel/'; return; }
             if (user.role === 'equity_officer') { location.href = '/equity-panel/'; return; }
             if (user.role === 'bailiff_activity') { location.href = '/bailiff-panel/'; return; }
             if (user.role === 'admin') { location.href = '/admin-panel/'; return; }
-            if (['curator', 'teamlead'].includes(user.role)) { location.href = '/curator-panel/'; return; } 
-            if (user.is_assigned || (user.direction && user.direction.length > 0)) {
-                location.href = '/cabinet/';
-            } else {
-                showApp();
-            }
+            if (['curator', 'teamlead'].includes(user.role)) { location.href = '/curator-panel/'; return; }
+            
+            // Если зарегистрировался волонтер — показываем ему заполнение анкеты (направления)
+            showApp();
         }
-
+        
         async function checkSession() {
             if (!localStorage.getItem('access')) return;
             try {
                 const res = await apiFetch('/api/profile/');
-                if (res.ok) { 
-                    navigateUser(await res.json()); 
+                if (res.ok) {
+                    localStorage.setItem('access', data.access);
+                    if (data.refresh) localStorage.setItem('refresh', data.refresh);
+                    showToast(translations[currentLang].authSuccess, "success");
+                    
+                    // Передаем флаг: true, если это была регистрация (!isLogin), и false, если обычный вход
+                    setTimeout(() => navigateUser(data, !isLogin), 800);
                 } else {
                     doLogout();
                 }
