@@ -1459,21 +1459,31 @@
             }
         }
         
-        let obPreferredDirs = [];
-
-        // Функция проверки полноты профиля
+        let obPreferredDirs = null; // Храним одно выбранное направление (число или null)
+        
         function checkOnboarding(user, prefData) {
+            // Проверяем статус: окно должно работать ТОЛЬКО для волонтеров
+            // (если роль задана и это не волонтер — сразу выходим и скрываем окно)
+            const role = (user.role || "").toLowerCase();
+            const isVolunteer = !role || role === 'volunteer' || role === 'волонтер' || user.is_volunteer;
+            
+            const modal = document.getElementById('onboardingModal');
+        
+            if (!isVolunteer) {
+                modal.classList.remove('open');
+                document.body.style.overflow = '';
+                return;
+            }
+        
             const hasName = Boolean(user.name && user.name.trim() !== "");
             const hasPhone = Boolean(user.phone_number && user.phone_number.trim() !== "");
             const hasPhoto = Boolean(user.image_url || user.image);
             
-            // Проверяем направления в preferences или в самом профиле пользователя
+            // Проверяем наличие выбранного направления
             const hasPrefs = (prefData.preferred && prefData.preferred.length > 0) || 
                             (user.direction && user.direction.length > 0); 
         
-            const modal = document.getElementById('onboardingModal');
-        
-            // Если что-то из обязательного не заполнено — показываем окно
+            // Если что-то не заполнено — показываем окно
             if (!hasName || !hasPhone || !hasPhoto || !hasPrefs) {
                 modal.classList.add('open');
                 document.body.style.overflow = 'hidden';
@@ -1481,38 +1491,39 @@
                 document.getElementById('obName').value = user.name || "";
                 document.getElementById('obPhone').value = user.phone_number || "";
                 
-                obPreferredDirs = (prefData.preferred && prefData.preferred.length > 0) 
+                // Берем первое попавшееся направление как текущее выбранное
+                const existingPrefs = (prefData.preferred && prefData.preferred.length > 0) 
                     ? prefData.preferred 
                     : (user.direction || []);
+                obPreferredDirs = existingPrefs.length > 0 ? existingPrefs[0] : null;
                 
                 renderObPreferences();
                 validateOnboarding();
             } else {
-                // Если абсолютно всё заполнено — гарантированно скрываем окно
+                // Все заполнено — скрываем окно
                 modal.classList.remove('open');
                 document.body.style.overflow = '';
             }
         }
-
-        // Рендер направлений внутри модалки
+        
         function renderObPreferences() {
             const container = document.getElementById('obPrefOptions'); 
             container.innerHTML = '';
-            document.getElementById('obPrefCounter').innerText = obPreferredDirs.length;
+            
+            // Счетчик показывает 1, если направление выбрано, иначе 0
+            document.getElementById('obPrefCounter').innerText = obPreferredDirs !== null ? "1" : "0";
             
             allDirectionsList.forEach(dir => {
-                const isSel = obPreferredDirs.includes(dir.id);
+                const isSel = String(obPreferredDirs) === String(dir.id);
                 const pill = document.createElement('div');
                 pill.className = `cursor-pointer transition-all border-2 text-sm px-4 py-2 rounded-xl font-bold flex items-center gap-2 ${isSel ? 'bg-primary text-white border-primary shadow-md shadow-primary/30 transform scale-105' : 'bg-input text-muted border-soft hover:border-muted hover:text-main'}`;
                 pill.innerHTML = `${isSel ? '<i class="fas fa-check"></i>' : ''} ${dir.name}`;
                 pill.onclick = () => {
-                    const index = obPreferredDirs.indexOf(dir.id);
-                    if (index > -1) {
-                        obPreferredDirs.splice(index, 1);
+                    // При клике просто переключаем выбор (можно выбрать только 1)
+                    if (isSel) {
+                        obPreferredDirs = null;
                     } else {
-                        // Ограничение: максимум 4
-                        if (obPreferredDirs.length >= 4) return showToast(translations[currentLang].prefMax || "Лимит: 4 направления", "error"); 
-                        obPreferredDirs.push(dir.id);
+                        obPreferredDirs = dir.id;
                     }
                     renderObPreferences();
                     validateOnboarding();
@@ -1520,18 +1531,17 @@
                 container.appendChild(pill);
             });
         }
-
-        // Валидация полей в реальном времени (открывает кнопку)
+        
         function validateOnboarding() {
             const name = document.getElementById('obName').value.trim();
             const phone = document.getElementById('obPhone').value.trim();
             const hasExistingPhoto = Boolean(currentUser && (currentUser.image_url || currentUser.image));
             const photoFile = document.getElementById('obPhoto').files.length > 0;
             const photoOk = hasExistingPhoto || photoFile;
-            const dirsOk = obPreferredDirs.length > 0; // Минимум 1 направление
-
+            const dirOk = obPreferredDirs !== null; // Обязательно должно быть выбрано 1 направление
+        
             const btn = document.getElementById('saveOnboardingBtn');
-            if (name && phone && photoOk && dirsOk) {
+            if (name && phone && photoOk && dirOk) {
                 btn.disabled = false;
                 btn.classList.remove('opacity-50', 'cursor-not-allowed');
             } else {
@@ -1539,57 +1549,50 @@
                 btn.classList.add('opacity-50', 'cursor-not-allowed');
             }
         }
-
-        // Отправка данных на сервер
-        // Отправка данных на сервер
+        
         async function saveOnboarding() {
             const btn = document.getElementById('saveOnboardingBtn');
             const originalText = btn.innerHTML;
             btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> <span>Сохраняем...</span>'; 
             btn.disabled = true;
-
+        
             try {
-                // 1. Создаем объект FormData для отправки файлов и текста
                 const formData = new FormData();
                 formData.append('name', document.getElementById('obName').value);
                 formData.append('phone_number', document.getElementById('obPhone').value);
                 
                 const fileInput = document.getElementById('obPhoto');
                 if (fileInput.files.length > 0) formData.append('image', fileInput.files[0]);
-
-                // 2. ДОБАВЛЯЕМ НАПРАВЛЕНИЯ В ПРОФИЛЬ
-                // Чтобы Django понял массив в FormData, нужно сделать append для каждого ID
-                obPreferredDirs.forEach(dirId => {
-                    formData.append('direction', dirId);
-                });
-
-                // 3. Отправляем всё вместе (ФИО, Номер, Фото, Направления) в профиль
+        
+                // Передаем выбранное единственное направление
+                if (obPreferredDirs !== null) {
+                    formData.append('direction', obPreferredDirs);
+                }
+        
                 const profRes = await apiFetch('/api/profile/', { method: 'PATCH', body: formData });
                 if (!profRes.ok) throw new Error("Ошибка обновления профиля");
-
-                // 4. (Опционально) Если у тебя работает отдельный эндпоинт preferences, 
-                // оставим и его отправку на всякий случай, чтобы ничего не сломать.
+        
                 try {
                     await apiFetch('/api/preferences/', { 
                         method: 'POST', 
                         headers: { 'Content-Type': 'application/json' }, 
-                        body: JSON.stringify({ directions: obPreferredDirs }) 
+                        body: JSON.stringify({ directions: obPreferredDirs !== null ? [obPreferredDirs] : [] }) 
                     });
                 } catch(e) { console.log("Preferences endpoint skipped"); }
-
+        
                 showToast("Данные успешно сохранены!", "success");
                 
-                // Закрываем окно, возвращаем скролл и перезагружаем данные
                 document.getElementById('onboardingModal').classList.remove('open');
                 document.body.style.overflow = '';
                 init();
-
+        
             } catch (e) {
                 showToast("Ошибка при сохранении", "error");
                 btn.innerHTML = originalText;
                 btn.disabled = false;
             }
         }
+
 
         async function init() {
             if(!localStorage.getItem('access')) return location.href = '/login/';
