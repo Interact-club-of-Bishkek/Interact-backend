@@ -65,7 +65,7 @@ class CommandDetailView(generics.RetrieveAPIView):
 
 class ApplicationListCreateView(generics.ListCreateAPIView):
     serializer_class = ApplicationSerializer
-    
+
     def get_permissions(self):
         if self.request.method == 'POST':
             return [AllowAny()]
@@ -73,14 +73,12 @@ class ApplicationListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         user = self.request.user
-
         if not user.is_authenticated:
             return Application.objects.none()
 
         queryset = Application.objects.all().order_by("-created_at")
-
         is_management = user.is_superuser or getattr(user, "role", "") in ["admin", "president"]
-        
+
         if not is_management:
             queryset = queryset.filter(command__leader=user)
 
@@ -93,60 +91,69 @@ class ApplicationListCreateView(generics.ListCreateAPIView):
     def post(self, request, *args, **kwargs):
         try:
             command_slug = request.data.get('command_slug')
+            if not command_slug:
+                return Response({"error": "Не передан command_slug"}, status=status.HTTP_400_BAD_REQUEST)
+
             command = get_object_or_404(Command, slug=command_slug)
             now = timezone.now()
 
+            # Проверка сроков набора
             if command.start_date and now < command.start_date:
                 return Response({"error": "Набор ещё не открыт."}, status=status.HTTP_400_BAD_REQUEST)
             if command.end_date and now > command.end_date:
                 return Response({"error": "Набор завершён."}, status=status.HTTP_400_BAD_REQUEST)
 
+            # Безопасный парсинг JSON-ответов
             answers_raw = request.data.get('answers', '{}')
             if isinstance(answers_raw, str):
-                answers = json.loads(answers_raw)
+                try:
+                    answers = json.loads(answers_raw)
+                except json.JSONDecodeError:
+                    answers = {}
             else:
-                answers = answers_raw
+                answers = answers_raw or {}
 
-            # 1. Определение волонтера (если юзер авторизован)
+            # Привязка волонтера при наличии авторизации
             volunteer = None
-            if request.user.is_authenticated:
+            if request.user and request.user.is_authenticated:
                 volunteer = getattr(request.user, 'volunteer', None) or request.user
 
-            # 2. Создание заявки
+            # Создание заявки
             app = Application.objects.create(
-                command=command, 
+                command=command,
                 volunteer=volunteer,
                 answers=answers
             )
 
-            # 3. Обработка файлов и привязка к Question
+            # Обработка файлов
             for key in request.FILES:
                 files = request.FILES.getlist(key)
                 
-                # Попытка парсинга ID вопроса из названия ключа (например: "question_12" или "question_12[]")
+                # Поиск любых цифр в ключе (работает с "q_12", "q_12[]", "question_12")
+                match = re.search(r'(\d+)', key)
                 question_obj = None
-                clean_key = key.replace('TEXT__', '').replace('[]', '')
                 
-                # Поиск ID вопроса через регулярные выражения или по строгому совпадению
-                match = re.search(r'question_(\d+)', clean_key)
                 if match:
-                    question_id = match.group(1)
-                    question_obj = Question.objects.filter(id=question_id, command=command).first()
-                elif clean_key.isdigit():
-                    question_obj = Question.objects.filter(id=clean_key, command=command).first()
+                    q_id = match.group(1)
+                    question_obj = Question.objects.filter(id=q_id, command=command).first()
 
-                label_text = question_obj.label if question_obj else clean_key
+                label_text = question_obj.label if question_obj else key.replace('TEXT__', '').replace('[]', '')
 
                 for f in files:
                     Attachment.objects.create(
                         application=app,
-                        question=question_obj,  # Указываем ссылку на вопрос
+                        question=question_obj,
                         file=f,
                         label=label_text
                     )
 
             return Response({"status": "success", "id": app.id}, status=status.HTTP_201_CREATED)
+
         except Exception as e:
+            print("=" * 50)
+            print("ОШИБКА ПРИ СОХРАНЕНИИ ЗАЯВКИ:")
+            traceback.print_exc()
+            print("=" * 50)
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
