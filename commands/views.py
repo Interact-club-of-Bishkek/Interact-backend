@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from django.utils import timezone
 from django.shortcuts import render, get_object_or_404, redirect
 from rest_framework import generics, status
@@ -7,9 +8,9 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
-# 🔥 ИМПОРТИРУЕМ ВСЕ МОДЕЛИ (И КОМАНДЫ, И БОРД)
+# 🔥 ИМПОРТИРУЕМ ВСЕ МОДЕЛИ
 from .models import (
-    Command, Application, Attachment,
+    Command, Question, Application, Attachment,
 )
 
 # 🔥 ИМПОРТИРУЕМ ВСЕ СЕРИАЛИЗАТОРЫ
@@ -65,7 +66,6 @@ class CommandDetailView(generics.RetrieveAPIView):
 class ApplicationListCreateView(generics.ListCreateAPIView):
     serializer_class = ApplicationSerializer
     
-    # 🔥 РАЗДЕЛЯЕМ ПРАВА: POST для всех (чтобы волонтеры могли подать заявку), GET для своих
     def get_permissions(self):
         if self.request.method == 'POST':
             return [AllowAny()]
@@ -74,13 +74,11 @@ class ApplicationListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         user = self.request.user
 
-        # 🔥 ЗАЩИТА: Если токен не передан/истек, отдаем пустой список, а не падаем с ошибкой 500
         if not user.is_authenticated:
             return Application.objects.none()
 
         queryset = Application.objects.all().order_by("-created_at")
 
-        # Проверяем роль (безопасно)
         is_management = user.is_superuser or getattr(user, "role", "") in ["admin", "president"]
         
         if not is_management:
@@ -104,21 +102,53 @@ class ApplicationListCreateView(generics.ListCreateAPIView):
                 return Response({"error": "Набор завершён."}, status=status.HTTP_400_BAD_REQUEST)
 
             answers_raw = request.data.get('answers', '{}')
-            answers = json.loads(answers_raw)
+            if isinstance(answers_raw, str):
+                answers = json.loads(answers_raw)
+            else:
+                answers = answers_raw
 
-            app = Application.objects.create(command=command, answers=answers)
+            # 1. Определение волонтера (если юзер авторизован)
+            volunteer = None
+            if request.user.is_authenticated:
+                volunteer = getattr(request.user, 'volunteer', None) or request.user
 
+            # 2. Создание заявки
+            app = Application.objects.create(
+                command=command, 
+                volunteer=volunteer,
+                answers=answers
+            )
+
+            # 3. Обработка файлов и привязка к Question
             for key in request.FILES:
-                for f in request.FILES.getlist(key):
+                files = request.FILES.getlist(key)
+                
+                # Попытка парсинга ID вопроса из названия ключа (например: "question_12" или "question_12[]")
+                question_obj = None
+                clean_key = key.replace('TEXT__', '').replace('[]', '')
+                
+                # Поиск ID вопроса через регулярные выражения или по строгому совпадению
+                match = re.search(r'question_(\d+)', clean_key)
+                if match:
+                    question_id = match.group(1)
+                    question_obj = Question.objects.filter(id=question_id, command=command).first()
+                elif clean_key.isdigit():
+                    question_obj = Question.objects.filter(id=clean_key, command=command).first()
+
+                label_text = question_obj.label if question_obj else clean_key
+
+                for f in files:
                     Attachment.objects.create(
                         application=app,
+                        question=question_obj,  # Указываем ссылку на вопрос
                         file=f,
-                        label=key.replace('TEXT__','')
+                        label=label_text
                     )
 
             return Response({"status": "success", "id": app.id}, status=status.HTTP_201_CREATED)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 
 class ApplicationUpdateStatusView(generics.UpdateAPIView):
     queryset = Application.objects.all()
@@ -133,6 +163,7 @@ class ApplicationUpdateStatusView(generics.UpdateAPIView):
         instance.status = 'accepted'
         instance.save()
         return Response(self.get_serializer(instance).data)
+
 
 class AddVolunteerToCommandView(APIView):
     permission_classes = [IsAuthenticated]
@@ -152,6 +183,7 @@ class AddVolunteerToCommandView(APIView):
         command.volunteers.add(*volunteers)
         return Response({"status": "success", "message": f"Добавлено участников: {len(volunteers)}"})
 
+
 class RemoveVolunteerFromCommandView(APIView):
     permission_classes = [IsAuthenticated]
     def post(self, request, pk):
@@ -168,9 +200,6 @@ class RemoveVolunteerFromCommandView(APIView):
         return Response({"status": "success", "message": "Участник успешно исключен из команды"})
 
 
-
-
-
 # ==========================================
 # ЗАГЛУШКИ HTML СТРАНИЦ
 # ==========================================
@@ -179,5 +208,4 @@ def volunteer_page(request):
 
 
 def president_page(request):
-    # Просто отдаем HTML. Вся авторизация - через токены внутри JS (фронтенд)
     return render(request, 'volunteers/president_dashboard.html')
