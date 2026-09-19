@@ -85,7 +85,6 @@ const appForm = document.getElementById('appForm');
 // --- 1. ЗАПРЕТ ОТПРАВКИ ПО ENTER ---
 appForm.addEventListener('keydown', function(e) {
     if (e.key === 'Enter') {
-        // Если фокус НЕ на textarea, отменяем стандартное поведение
         if (e.target.tagName !== 'TEXTAREA') {
             e.preventDefault();
             return false;
@@ -183,12 +182,18 @@ function loadCommand(cmd, card){
         const labelHtml = `<label class="text-xs text-gray-400 mb-2 block">${q.label} ${isReq ? '<span class="text-red-500">*</span>' : ''}</label>`;
 
         if(q.field_type === 'photo' || q.field_type === 'video'){
+            const isVideo = q.field_type === 'video';
+            const acceptType = isVideo ? 'video/*' : 'image/*';
+            // Если видео, добавляем multiple и [] к имени массива
+            const multipleAttr = isVideo ? 'multiple' : '';
+            const inputName = isVideo ? `${fieldName}[]` : fieldName;
+            
             html = `
             <div class="field-wrapper">
                 ${labelHtml}
                 <label class="file-upload-button">
-                    <span>Выбрать файл</span>
-                    <input type="file" name="${fieldName}" accept="${q.field_type==='photo'?'image/*':'video/*'}" ${requiredAttr}>
+                    <span>${isVideo ? 'Выбрать видеофайлы' : 'Выбрать фото'}</span>
+                    <input type="file" name="${inputName}" accept="${acceptType}" ${multipleAttr} ${requiredAttr}>
                 </label>
                 <div class="file-name">Файл не выбран</div>
                 <img class="file-preview">
@@ -236,14 +241,24 @@ function setupFileInputs(){
                 preview.style.display='none';
                 return;
             }
-            const file = input.files[0];
-            fileName.textContent = file.name;
 
-            if(file.type.startsWith('image/')){
-                const reader = new FileReader();
-                reader.onload = e => { preview.src = e.target.result; preview.style.display='block'; };
-                reader.readAsDataURL(file);
-            } else { preview.style.display='none'; }
+            // Если выбрано несколько файлов
+            if (input.files.length > 1) {
+                fileName.textContent = `Выбрано файлов: ${input.files.length}`;
+                preview.style.display='none'; // Отключаем превью для множества файлов
+            } else {
+                // Если выбран один файл
+                const file = input.files[0];
+                fileName.textContent = file.name;
+
+                if(file.type.startsWith('image/')){
+                    const reader = new FileReader();
+                    reader.onload = e => { preview.src = e.target.result; preview.style.display='block'; };
+                    reader.readAsDataURL(file);
+                } else { 
+                    preview.style.display='none'; 
+                }
+            }
         };
     });
 }
@@ -264,7 +279,7 @@ function setupCustomSelects(){
                 selectedText.textContent = d.name;
                 selectedText.style.color = '#00c6ff';
                 ul.style.display = 'none';
-                selectBox.style.borderColor = ''; // Сброс ошибки
+                selectBox.style.borderColor = ''; 
             };
             ul.appendChild(li);
         });
@@ -286,7 +301,6 @@ function setupCustomSelects(){
 appForm.onsubmit = async e => {
     e.preventDefault();
     
-    // Проверка встроенной валидации браузера (required для обычных input)
     if (!appForm.checkValidity()) {
         appForm.reportValidity();
         return;
@@ -300,7 +314,6 @@ appForm.onsubmit = async e => {
     let isSelectValid = true;
     const answers = {};
 
-    // Валидация кастомных селектов и сбор данных
     document.querySelectorAll('#questionsContainer > .field-wrapper').forEach(div => {
         const input = div.querySelector('input, textarea');
         
@@ -310,13 +323,18 @@ appForm.onsubmit = async e => {
             
             if (isReq && !val) {
                 isSelectValid = false;
-                div.querySelector('.neon-select').style.borderColor = '#ef4444'; // Подсветка красным
+                div.querySelector('.neon-select').style.borderColor = '#ef4444'; 
             } else {
                 answers[div.dataset.fieldname] = directionMap[val] || '';
             }
         } else if (input) {
             if (input.type === 'file') {
-                if (input.files.length) fd.append(input.name, input.files[0]);
+                // Если в поле выбраны файлы (один или несколько)
+                if (input.files.length) {
+                    Array.from(input.files).forEach(file => {
+                        fd.append(input.name, file);
+                    });
+                }
             } else {
                 answers[input.name] = input.value.trim();
             }
@@ -338,6 +356,13 @@ appForm.onsubmit = async e => {
         if (res.ok) {
             showMessage('Успешно!', 'Ваша заявка принята. Ожидайте обратной связи 🤍');
             appForm.reset();
+            // Сброс визуальной части файлов
+            document.querySelectorAll('.file-name').forEach(el => el.textContent = 'Файл не выбран');
+            document.querySelectorAll('.file-preview').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.selected-text').forEach(el => {
+                el.textContent = 'Выберите вариант...';
+                el.style.color = '#ccc';
+            });
         } else {
             alert('Ошибка сервера при сохранении');
         }
