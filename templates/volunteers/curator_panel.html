@@ -1490,11 +1490,57 @@
 
         let mediaHtml = '';
         if (app.files && Array.isArray(app.files) && app.files.length > 0) {
-             mediaHtml += `<div class="mt-8 pt-8 border-t border-white/10 space-y-8"><h4 class="text-xs font-black uppercase text-gray-500 tracking-widest mb-4">Вложения (${app.files.length})</h4>`;
-             app.files.forEach(f => {
-                 const isImg = f.file.match(/\.(jpg|jpeg|png|webp|gif|svg)$/i), isVid = f.file.match(/\.(mp4|mov|webm|avi)$/i);
-                 mediaHtml += `<div class="bg-black/40 p-4 rounded-2xl border border-white/10"><div class="flex items-center gap-3 mb-4"><div class="w-8 h-8 rounded bg-primary/20 flex items-center justify-center text-primary text-xs"><i class="fas fa-paperclip"></i></div><p class="text-xs font-bold text-gray-300 uppercase">${f.label || "Файл"}</p></div>${isImg ? `<div class="rounded-xl overflow-hidden border border-white/10 bg-black/50"><img src="${f.file}" class="w-full h-auto object-contain max-h-[600px]"></div>` : isVid ? `<div class="rounded-xl overflow-hidden border border-white/10 bg-black/50"><video controls class="w-full max-h-[500px]"><source src="${f.file}"></video></div>` : `<div class="p-8 text-center bg-white/5 rounded-xl border border-white/5 flex flex-col items-center gap-3"><i class="fas fa-file-alt text-4xl text-gray-500"></i><span class="text-xs text-gray-400">${f.file.split('/').pop()}</span></div>`}<div class="flex gap-2 mt-4"><a href="${f.file}" target="_blank" class="flex-1 py-3 bg-white/10 hover:bg-white/20 text-center text-[10px] font-bold uppercase rounded-xl text-white transition"><i class="fas fa-external-link-alt mr-2"></i> Открыть</a><a href="${f.file}" download class="flex-1 py-3 bg-primary/10 hover:bg-primary/20 text-center text-[10px] font-bold uppercase rounded-xl text-primary transition"><i class="fas fa-download mr-2"></i> Скачать</a></div></div>`;
-             }); mediaHtml += `</div>`;
+            mediaHtml += `<div class="mt-8 pt-8 border-t border-white/10 space-y-8">
+                            <h4 class="text-xs font-black uppercase text-gray-500 tracking-widest mb-4">Вложения (${app.files.length})</h4>`;
+            
+            // 1. Группируем файлы по вопросу (label)
+            const groupedFiles = {};
+            app.files.forEach(f => {
+                const label = f.label || "Файлы";
+                if (!groupedFiles[label]) groupedFiles[label] = [];
+                groupedFiles[label].push(f);
+            });
+        
+            // 2. Отрисовываем группы
+            for (const [label, files] of Object.entries(groupedFiles)) {
+                mediaHtml += `<div class="bg-black/40 p-4 rounded-2xl border border-white/10">`;
+                mediaHtml += `  <div class="flex items-center gap-3 mb-4">
+                                    <div class="w-8 h-8 rounded bg-primary/20 flex items-center justify-center text-primary text-xs">
+                                        <i class="fas fa-paperclip"></i>
+                                    </div>
+                                    <p class="text-xs font-bold text-gray-300 uppercase">${label} <span class="text-primary ml-2">(${files.length})</span></p>
+                                </div>`;
+                
+                // Сетка: если файл 1 — на всю ширину, если больше — делим на колонки
+                mediaHtml += `  <div class="grid grid-cols-1 ${files.length > 1 ? 'md:grid-cols-2' : ''} gap-4">`;
+                
+                files.forEach(f => {
+                    const isImg = f.file.match(/\.(jpg|jpeg|png|webp|gif|svg)$/i);
+                    const isVid = f.file.match(/\.(mp4|mov|webm|avi)$/i);
+                    
+                    mediaHtml += `<div class="flex flex-col h-full">`;
+                    
+                    // Превью файла
+                    if (isImg) {
+                        mediaHtml += `<div class="rounded-xl overflow-hidden border border-white/10 bg-black/50 flex-1 flex items-center justify-center"><img src="${f.file}" class="w-full h-auto object-contain max-h-[300px]"></div>`;
+                    } else if (isVid) {
+                        mediaHtml += `<div class="rounded-xl overflow-hidden border border-white/10 bg-black/50 flex-1"><video controls class="w-full h-full max-h-[300px] object-cover"><source src="${f.file}"></video></div>`;
+                    } else {
+                        mediaHtml += `<div class="p-6 flex-1 text-center bg-white/5 rounded-xl border border-white/5 flex flex-col items-center justify-center gap-3"><i class="fas fa-file-alt text-3xl text-gray-500"></i><span class="text-[10px] text-gray-400 break-all">${f.file.split('/').pop()}</span></div>`;
+                    }
+                    
+                    // Кнопки управления файлом
+                    mediaHtml += `  <div class="flex gap-2 mt-3 shrink-0">
+                                        <a href="${f.file}" target="_blank" class="flex-1 py-2 bg-white/10 hover:bg-white/20 text-center text-[10px] font-bold uppercase rounded-xl text-white transition"><i class="fas fa-external-link-alt mr-1"></i> Открыть</a>
+                                        <a href="${f.file}" download class="flex-1 py-2 bg-primary/10 hover:bg-primary/20 text-center text-[10px] font-bold uppercase rounded-xl text-primary transition"><i class="fas fa-download mr-1"></i> Скачать</a>
+                                    </div>
+                                </div>`;
+                });
+                
+                mediaHtml += `  </div>
+                              </div>`;
+            }
+            mediaHtml += `</div>`;
         }
 
         document.getElementById('modalContent').innerHTML = `<div class="flex items-center gap-5 mb-8 pb-8 border-b border-white/10"><div class="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-black font-black text-3xl italic shadow-[0_0_20px_rgba(0,198,255,0.3)]">${firstLetter}</div><div><h3 class="text-2xl md:text-3xl font-black text-white uppercase italic leading-none mb-1">${derivedName}</h3><p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Команда: <span class="text-white">${app.command_title}</span></p></div></div><div class="custom-scrollbar pr-2 max-h-[60vh] overflow-y-auto">${answersHtml}${mediaHtml}</div>`;
