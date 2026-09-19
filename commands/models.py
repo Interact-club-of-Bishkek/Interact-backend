@@ -1,9 +1,10 @@
+import os
+import uuid
 from django.db import models
 from django.utils.text import slugify
-import uuid
-import os
 from directions.models import VolunteerDirection
 from users.models import Volunteer
+
 
 class Command(models.Model):
     title = models.CharField("Название команды", max_length=255)
@@ -38,12 +39,12 @@ class Command(models.Model):
     )
 
     volunteers = models.ManyToManyField(
-            'users.Volunteer',
-            related_name='volunteer_commands',
-            blank=True,
-            verbose_name="Участники команды",
-            db_table="users_volunteer_commands"
-        )
+        'users.Volunteer',
+        related_name='volunteer_commands',
+        blank=True,
+        verbose_name="Участники команды",
+        db_table="users_volunteer_commands"
+    )
 
     class Meta:
         verbose_name = "Команда"
@@ -74,7 +75,7 @@ class Question(models.Model):
         ('long_text', 'Длинный текст'),
         ('number', 'Число'),
         ('photo', 'Фото'),
-        ('video', 'Видео'),
+        ('video', 'Видео (один или несколько файлов)'),
         ('select', 'Выбор направления'),
     ]
 
@@ -168,13 +169,20 @@ class Attachment(models.Model):
         on_delete=models.CASCADE,
         verbose_name="Заявка"
     )
+    question = models.ForeignKey(
+        Question,
+        related_name='attachments',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Вопрос"
+    )
     file = models.FileField("Файл", upload_to=attachment_upload_to)
-    label = models.CharField("Вопрос", max_length=255)
+    label = models.CharField("Название/Текст вопроса", max_length=255, blank=True)
 
     class Meta:
         verbose_name = "Файл"
         verbose_name_plural = "Файлы"
 
     def __str__(self):
-        return self.label
-
+        return f"Файл для заявки #{self.application_id} (Вопрос: {self.label})"
