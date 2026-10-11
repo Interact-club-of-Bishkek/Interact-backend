@@ -317,7 +317,7 @@ class DiscoveryListView(APIView):
         
         all_directions = VolunteerDirection.objects.all()
         # Важно: prefetch_related позволит нам получить участников (members) каждой команды
-        user_commands = user.volunteer_commands.all().prefetch_related('members')
+        user_commands = user.volunteer_commands.all().prefetch_related('volunteers')
         user_directions = user.direction.all()
 
         return Response({
